@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 0}
+  m_Name: VolcanicTheme
+  m_EditorClassIdentifier: Assembly-CSharp:TowerMaze:ThemeDefinition
+  themeId: volcanic
+  skyColor: {r: 0.38, g: 0.2, b: 0.12, a: 1}
+  fogColor: {r: 0.35, g: 0.19, b: 0.15, a: 1}
+  towerPathColor: {r: 1, g: 1, b: 1, a: 1}
+  towerMainPathColor: {r: 1, g: 1, b: 1, a: 1}
+  towerWallColor: {r: 0.19, g: 0.16, b: 0.15, a: 1}
+  lavaColor: {r: 1, g: 0.39, b: 0.08, a: 1}
+  lavaEmissionColor: {r: 1, g: 0.42, b: 0.08, a: 1}
+  accentColor: {r: 1, g: 0.69, b: 0.19, a: 1}
+  nearLavaOverlay: {r: 1, g: 0.32, b: 0.18, a: 0.4}
+  towerWallBaseMap: {fileID: 2800000, guid: 6af0a9415c387f147a5083d018f8e4d0, type: 3}
+  towerWallNormalMap: {fileID: 2800000, guid: e525343aac7c4a741b0344e8759711b3, type: 3}
+  towerWallTextureScale: {x: 2.35, y: 0.8}
+  towerPathBaseMap: {fileID: 2800000, guid: 16c056ad712429749a9e51117231c5fb, type: 3}
+  towerPathNormalMap: {fileID: 2800000, guid: 4b782019419bbac42a5622badc2da9e7, type: 3}
+  towerPathTextureScale: {x: 1.95, y: 0.95}
+  towerMainPathBaseMap: {fileID: 2800000, guid: 7d5c13257928eb043a9811b3c686aa92, type: 3}
+  towerMainPathNormalMap: {fileID: 2800000, guid: b0c87a3c211f39444ada6d1e751b47a9, type: 3}
+  towerMainPathTextureScale: {x: 2.05, y: 1}
+  heroPrimary: {r: 0.12, g: 0.12, b: 0.14, a: 1}
+  heroSecondary: {r: 0.93, g: 0.41, b: 0.19, a: 1}
+  heroAccent: {r: 0.96, g: 0.83, b: 0.58, a: 1}

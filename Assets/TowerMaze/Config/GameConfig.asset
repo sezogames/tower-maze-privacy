@@ -1,0 +1,73 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0941a79da37f7f9419a181440449b421, type: 3}
+  m_Name: GameConfig
+  m_EditorClassIdentifier: Assembly-CSharp::TowerMaze.GameConfig
+  towerRadius: 4
+  segmentHeight: 8
+  mazeWidthCells: 28
+  mazeHeightCells: 16
+  pathRecessDepth: 0.58
+  pathInsetThickness: 0.74
+  wallThickness: 1.16
+  pathCellPadding: 1
+  wallCellPadding: 1
+  cellWidthOverlap: 0.035
+  cellHeightOverlap: 0.028
+  cellDepthOverlap: 0.02
+  wallCornerRoundness: 0.16
+  wallCornerSegments: 5
+  climbSpeed: 2.88
+  horizontalSpeedDegrees: 91.8
+  dragSensitivity: 2.1
+  verticalDragDeadZone: 0.08
+  heroSurfaceOffset: 0.05
+  heroCollisionWidthCells: 0.72
+  heroCollisionHeightCells: 0.96
+  baseRotationSpeed: 8
+  baseSinkSpeed: 0.35
+  sinkAccelerationPerMinute: 0.08
+  lavaFailGrace: 0.12
+  continueLiftCells: 3
+  continueCount: 1
+  rushStartDelay: 7.5
+  rushIntervalMin: 8.5
+  rushIntervalMax: 11
+  rushIntervalReductionAtMaxHeight: 3.5
+  rushIntervalReductionHeight: 75
+  rushWarningDuration: 0.75
+  rushDuration: 4.2
+  rushWarningSpeedMultiplier: 1.3
+  rushSpeedMultiplier: 2.1
+  rushContinueGrace: 4
+  startCountdownSeconds: 3
+  countdownGoSeconds: 0.6
+  useSimulatedRewardedAds: 1
+  simulatedRewardedDuration: 0.8
+  androidRewardedAdUnitId: ca-app-pub-3940256099942544/5224354917
+  iosRewardedAdUnitId: ca-app-pub-3940256099942544/1712485313
+  controlFlipStartZone: 3
+  controlFlipRepeatEveryZones: 2
+  controlFlipWarningDuration: 0.7
+  controlFlipDuration: 5.5
+  controlFlipDurationIncreasePerTrigger: 0.75
+  initialSegments: 4
+  spawnAheadSegments: 3
+  keepBehindSegments: 2
+  maxRegenerationAttempts: 16
+  seed: 1347
+  segmentsPerZone: 3
+  zoneComplexityStep: 0.06
+  zoneDecisionPointStep: 1
+  zoneDeadEndStep: 1
+  nearLavaDistance: 6.5
+  failVfxDuration: 0.9

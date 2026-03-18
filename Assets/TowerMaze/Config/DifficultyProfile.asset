@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 0}
+  m_Name: DifficultyProfile
+  m_EditorClassIdentifier: Assembly-CSharp:TowerMaze:DifficultyProfile
+  bands:
+  - minHeight: 0
+    maxHeight: 20
+    settings:
+      pathTwistiness: 0.24
+      branchDensity: 0.42
+      deadEndDensity: 0.28
+      decisionDensity: 0.32
+      rotationSpeed: 9.5
+      sinkSpeed: 0.42
+      minimumDecisionPoints: 3
+      minimumDeadEnds: 2
+  - minHeight: 20
+    maxHeight: 60
+    settings:
+      pathTwistiness: 0.38
+      branchDensity: 0.56
+      deadEndDensity: 0.44
+      decisionDensity: 0.44
+      rotationSpeed: 12
+      sinkSpeed: 0.48
+      minimumDecisionPoints: 4
+      minimumDeadEnds: 4
+  - minHeight: 60
+    maxHeight: 10000
+    settings:
+      pathTwistiness: 0.5
+      branchDensity: 0.68
+      deadEndDensity: 0.58
+      decisionDensity: 0.56
+      rotationSpeed: 15
+      sinkSpeed: 0.56
+      minimumDecisionPoints: 5
+      minimumDeadEnds: 5
