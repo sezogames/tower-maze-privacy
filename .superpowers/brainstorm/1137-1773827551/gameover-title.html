@@ -1,0 +1,212 @@
+<style>
+  .screen-row {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 16px 0;
+  }
+  .screen {
+    background: #1A0F2E;
+    border-radius: 20px;
+    width: 180px;
+    padding: 28px 16px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    border: 1.5px solid rgba(255,255,255,0.07);
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s;
+    position: relative;
+  }
+  .screen:hover { transform: translateY(-2px); border-color: rgba(124,77,255,0.4); }
+  .screen.selected { border-color: #7C4DFF; box-shadow: 0 0 0 2px rgba(124,77,255,0.35); }
+  .screen .option-badge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #7C4DFF;
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 999px;
+    letter-spacing: 0.5px;
+  }
+  .screen.current .option-badge { background: rgba(255,255,255,0.15); }
+  .go-label {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.30);
+    text-transform: uppercase;
+    margin-bottom: -4px;
+  }
+  .go-title {
+    font-size: 20px;
+    font-weight: 900;
+    color: #FFFFFF;
+    letter-spacing: 1.5px;
+    text-align: center;
+    text-transform: uppercase;
+    line-height: 1.1;
+    text-shadow: 0 0 24px rgba(239,68,68,0.25);
+  }
+  .go-score {
+    font-size: 42px;
+    font-weight: 900;
+    color: #7C4DFF;
+    line-height: 1;
+    text-shadow: 0 0 30px rgba(124,77,255,0.40);
+  }
+  .go-stats {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    width: 100%;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .go-stats-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+  }
+  .go-stats-row .key { color: rgba(255,255,255,0.40); }
+  .go-stats-row .val { color: #FFFFFF; font-weight: 700; }
+  .go-stats-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 1px 0; }
+  .go-continue {
+    background: linear-gradient(90deg, #FF9F0A, #FFB340);
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+    border-radius: 14px;
+    width: 100%;
+    text-align: center;
+    padding: 12px 0;
+    box-shadow: 0 4px 18px rgba(255,159,10,0.50);
+  }
+  .go-retry {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.30);
+    text-align: center;
+    padding: 4px 0;
+  }
+  .rationale {
+    margin-top: 10px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.55);
+    text-align: center;
+    line-height: 1.5;
+    max-width: 160px;
+  }
+  .tag {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-top: 2px;
+  }
+  .tag-neutral { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.45); }
+  .tag-good { background: rgba(16,185,129,0.15); color: #10B981; }
+  .tag-strong { background: rgba(124,77,255,0.20); color: #A78BFA; }
+</style>
+
+<h2>Game Over Title — Which fits best?</h2>
+<p class="subtitle">All shown in the actual Game Over screen layout. Click to select.</p>
+
+<div class="screen-row">
+
+  <!-- Current default -->
+  <div style="display:flex;flex-direction:column;align-items:center">
+    <div class="screen current" data-choice="a" onclick="toggleSelect(this)">
+      <div class="option-badge">A — Current</div>
+      <div class="go-label">you</div>
+      <div class="go-title">Melted</div>
+      <div class="go-score">87m</div>
+      <div class="go-stats">
+        <div class="go-stats-row"><span class="key">Best</span><span class="val">103m</span></div>
+        <div class="go-stats-divider"></div>
+        <div class="go-stats-row"><span class="key">Coins</span><span class="val">+12 🪙</span></div>
+      </div>
+      <div class="go-continue">CONTINUE</div>
+      <div class="go-retry">Retry</div>
+    </div>
+    <div class="rationale">
+      Thematic, playful.<br>Indirect cause of death.
+      <div class="tag tag-neutral">Familiar</div>
+    </div>
+  </div>
+
+  <!-- Option B: LAVA WINS -->
+  <div style="display:flex;flex-direction:column;align-items:center">
+    <div class="screen" data-choice="b" onclick="toggleSelect(this)">
+      <div class="option-badge">B — Proposed</div>
+      <div class="go-label">the</div>
+      <div class="go-title">Lava<br>Wins</div>
+      <div class="go-score">87m</div>
+      <div class="go-stats">
+        <div class="go-stats-row"><span class="key">Best</span><span class="val">103m</span></div>
+        <div class="go-stats-divider"></div>
+        <div class="go-stats-row"><span class="key">Coins</span><span class="val">+12 🪙</span></div>
+      </div>
+      <div class="go-continue">CONTINUE</div>
+      <div class="go-retry">Retry</div>
+    </div>
+    <div class="rationale">
+      Names the villain directly.<br>Competitive, drives retry.
+      <div class="tag tag-good">Clear + motivating</div>
+    </div>
+  </div>
+
+  <!-- Option C: TOO SLOW -->
+  <div style="display:flex;flex-direction:column;align-items:center">
+    <div class="screen" data-choice="c" onclick="toggleSelect(this)">
+      <div class="option-badge">C — Proposed</div>
+      <div class="go-label">you were</div>
+      <div class="go-title">Too<br>Slow</div>
+      <div class="go-score">87m</div>
+      <div class="go-stats">
+        <div class="go-stats-row"><span class="key">Best</span><span class="val">103m</span></div>
+        <div class="go-stats-divider"></div>
+        <div class="go-stats-row"><span class="key">Coins</span><span class="val">+12 🪙</span></div>
+      </div>
+      <div class="go-continue">CONTINUE</div>
+      <div class="go-retry">Retry</div>
+    </div>
+    <div class="rationale">
+      Accusatory, action-driving.<br>Clear, punchy feedback.
+      <div class="tag tag-strong">Highest retry pull</div>
+    </div>
+  </div>
+
+  <!-- Option D: CONSUMED -->
+  <div style="display:flex;flex-direction:column;align-items:center">
+    <div class="screen" data-choice="d" onclick="toggleSelect(this)">
+      <div class="option-badge">D — Proposed</div>
+      <div class="go-label">&nbsp;</div>
+      <div class="go-title">Consumed</div>
+      <div class="go-score">87m</div>
+      <div class="go-stats">
+        <div class="go-stats-row"><span class="key">Best</span><span class="val">103m</span></div>
+        <div class="go-stats-divider"></div>
+        <div class="go-stats-row"><span class="key">Coins</span><span class="val">+12 🪙</span></div>
+      </div>
+      <div class="go-continue">CONTINUE</div>
+      <div class="go-retry">Retry</div>
+    </div>
+    <div class="rationale">
+      Single word — premium, dark.<br>Most atmospheric.
+      <div class="tag tag-strong">Strongest tone</div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:8px;font-size:11px;">My recommendation: <strong>C — TOO SLOW</strong> — it's the only one that names the exact failure mechanic (speed vs lava) and creates an emotional itch to retry. B is a close second if you prefer less accusatory tone.</p>

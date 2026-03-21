@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TowerMaze Design System</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Outfit', sans-serif; background: #EDEAF5; min-height: 100vh; padding: 32px 24px; }
+
+  h1 { font-size: 28px; font-weight: 900; color: #111; letter-spacing: -1px; margin-bottom: 4px; }
+  h1 span { color: #7C3AED; }
+  .subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+
+  .section-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #7C3AED; margin-bottom: 12px; }
+
+  .section { margin-bottom: 36px; }
+
+  /* TOKEN GRID */
+  .token-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+  .token { border-radius: 12px; overflow: hidden; width: 80px; box-shadow: 0 2px 8px #0001; }
+  .token-swatch { height: 48px; }
+  .token-label { background: #fff; padding: 6px 8px; font-size: 10px; font-weight: 700; color: #444; }
+  .token-val { font-size: 9px; color: #999; font-weight: 400; }
+
+  /* TYPOGRAPHY SCALE */
+  .type-row { display: flex; align-items: baseline; gap: 16px; padding: 8px 0; border-bottom: 1px solid #ede9fe; }
+  .type-tag { font-size: 9px; color: #999; letter-spacing: 1px; width: 80px; flex-shrink: 0; }
+
+  /* COMPONENTS */
+  .comp-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; font-family: 'Outfit', sans-serif; font-weight: 700; cursor: pointer; border: none; }
+  .btn-primary { background: #7C3AED; color: #fff; border-radius: 999px; padding: 12px 28px; font-size: 15px; box-shadow: 0 4px 16px #7C3AED44; }
+  .btn-secondary { background: #fff; color: #7C3AED; border: 2px solid #7C3AED; border-radius: 999px; padding: 10px 24px; font-size: 14px; }
+  .btn-ghost { background: transparent; color: #7C3AED; border-radius: 999px; padding: 10px 24px; font-size: 14px; }
+  .btn-danger { background: #EF4444; color: #fff; border-radius: 999px; padding: 12px 28px; font-size: 15px; box-shadow: 0 4px 16px #EF444444; }
+  .btn-success { background: #10B981; color: #fff; border-radius: 999px; padding: 12px 28px; font-size: 15px; box-shadow: 0 4px 16px #10B98144; }
+  .btn-sm { padding: 7px 16px; font-size: 12px; border-radius: 999px; background: #7C3AED; color: #fff; font-family: 'Outfit', sans-serif; font-weight: 700; }
+
+  .card { background: #fff; border-radius: 20px; padding: 16px; box-shadow: 0 2px 16px #0001; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; background: #fff; border-radius: 999px; padding: 8px 14px; box-shadow: 0 2px 8px #0001; font-size: 13px; font-weight: 700; color: #111; }
+  .pill-accent { background: #7C3AED; color: #fff; }
+  .pill-icon { width: 18px; height: 18px; border-radius: 50%; background: #ede9fe; display: inline-block; }
+
+  .progress-bg { height: 8px; background: #ede9fe; border-radius: 999px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #7C3AED, #A78BFA); border-radius: 999px; }
+
+  .badge { display: inline-flex; align-items: center; background: #ede9fe; color: #7C3AED; border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700; }
+  .badge-orange { background: #FEF3C7; color: #D97706; }
+  .badge-green { background: #D1FAE5; color: #059669; }
+
+  /* SCREEN MOCKUP */
+  .mockup-wrap { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+  .phone { width: 200px; flex-shrink: 0; }
+  .phone-frame { background: #F8F7FF; border-radius: 32px; overflow: hidden; box-shadow: 0 12px 48px #0003; height: 400px; display: flex; flex-direction: column; }
+  .phone-label { text-align: center; font-size: 11px; color: #888; margin-top: 10px; font-weight: 700; letter-spacing: 1px; }
+  .phone-inner { padding: 20px 16px; flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+  /* dark variant */
+  .phone-dark { background: #0F0A1E; }
+  .phone-dark .card { background: #1C1433; box-shadow: none; border: 1px solid #2D2050; }
+</style>
+</head>
+<body>
+
+<h1>TOWER<span>MAZE</span> Design System</h1>
+<p class="subtitle">Minimalist Modern · Deep Purple · Outfit · Soft Corners</p>
+
+<!-- COLOR TOKENS -->
+<div class="section">
+  <div class="section-title">Renk Tokenları</div>
+  <div class="token-grid">
+    <div class="token">
+      <div class="token-swatch" style="background:#7C3AED"></div>
+      <div class="token-label">Primary<br><span class="token-val">#7C3AED</span></div>
+    </div>
+    <div class="token">
+      <div class="token-swatch" style="background:#A78BFA"></div>
+      <div class="token-label">Primary Lt<br><span class="token-val">#A78BFA</span></div>
+    </div>
+    <div class="token">
+      <div class="token-swatch" style="background:#EDE9FE"></div>
+      <div class="token-label">Primary Bg<br><span class="token-val">#EDE9FE</span></div>
+    </div>
+    <div class="token">
+      <div class="token-swatch" style="background:#F8F7FF"></div>
+      <div class="token-label">Surface<br><span class="token-val">#F8F7FF</span></div>
+    </div>
+    <div class="token">
+      <div class="token-swatch" style="background:#FFFFFF;border:1px solid #eee"></div>
+      <div class="token-label">Card<br><span class="token-val">#FFFFFF</span></div>
+    </div>
+    <div class="token">
+      <div class="token-swatch" style="background:#111111"></div>
+      <div class="token-label">Text Dark<br><span class="token-val">#111111</span></div>
+    </div>
+    <div class="token">
+      <div class="token-swatch" style="background:#666666"></div>
+      <div class="token-label">Text Mid<br><span class="token-val">#666666</span></div>
+    </div>
+    <div class="token">
+      <div class="token-swatch" style="background:#AAAAAA"></div>
+      <div class="token-label">Text Dim<br><span class="token-val">#AAAAAA</span></div>
+    </div>
+    <div class="token">
+      <div class="token-swatch" style="background:#10B981"></div>
+      <div class="token-label">Success<br><span class="token-val">#10B981</span></div>
+    </div>
+    <div class="token">
+      <div class="token-swatch" style="background:#EF4444"></div>
+      <div class="token-label">Danger<br><span class="token-val">#EF4444</span></div>
+    </div>
+    <div class="token">
+      <div class="token-swatch" style="background:#F59E0B"></div>
+      <div class="token-label">Warning<br><span class="token-val">#F59E0B</span></div>
+    </div>
+    <div class="token">
+      <div class="token-swatch" style="background:#0F0A1E"></div>
+      <div class="token-label">HUD Dark<br><span class="token-val">#0F0A1E</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- TYPOGRAPHY -->
+<div class="section">
+  <div class="section-title">Tipografi Skalası — Outfit</div>
+  <div style="background:#fff;border-radius:20px;padding:20px;box-shadow:0 2px 16px #0001">
+    <div class="type-row">
+      <span class="type-tag">Display/900</span>
+      <span style="font-size:36px;font-weight:900;color:#111;letter-spacing:-1px">1,248<span style="color:#7C3AED">m</span></span>
+    </div>
+    <div class="type-row">
+      <span class="type-tag">Heading/900</span>
+      <span style="font-size:24px;font-weight:900;color:#111">TOWERMAZE</span>
+    </div>
+    <div class="type-row">
+      <span class="type-tag">Title/700</span>
+      <span style="font-size:18px;font-weight:700;color:#111">Try Again</span>
+    </div>
+    <div class="type-row">
+      <span class="type-tag">Body/500</span>
+      <span style="font-size:14px;font-weight:500;color:#444">Reach 28m in one run</span>
+    </div>
+    <div class="type-row">
+      <span class="type-tag">Caption/400</span>
+      <span style="font-size:11px;font-weight:400;color:#888">BEST SCORE · ZONE 3</span>
+    </div>
+    <div class="type-row" style="border:none">
+      <span class="type-tag">Label/700</span>
+      <span style="font-size:10px;font-weight:700;color:#7C3AED;letter-spacing:2px;text-transform:uppercase">DAILY MISSION</span>
+    </div>
+  </div>
+</div>
+
+<!-- COMPONENTS -->
+<div class="section">
+  <div class="section-title">Butonlar</div>
+  <div class="comp-row">
+    <button class="btn btn-primary">OYNA</button>
+    <button class="btn btn-secondary">SHOP</button>
+    <button class="btn btn-success">DEVAM ET</button>
+    <button class="btn btn-danger">TRY AGAIN</button>
+    <button class="btn btn-sm">+100 coin</button>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Pill'ler &amp; Badge'ler</div>
+  <div class="comp-row">
+    <div class="pill"><div class="pill-icon"></div>3 lives</div>
+    <div class="pill pill-accent">🏆 1,248m</div>
+    <div class="badge">Week 3</div>
+    <div class="badge badge-orange">⚡ Rush</div>
+    <div class="badge badge-green">✓ Tamamlandı</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Progress Bar</div>
+  <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 8px #0001;max-width:320px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:700;color:#7C3AED;letter-spacing:1px;text-transform:uppercase">Daily Mission</span>
+      <span style="font-size:11px;color:#888">2/5</span>
+    </div>
+    <div style="font-size:13px;font-weight:500;color:#333;margin-bottom:8px">Complete 5 runs</div>
+    <div class="progress-bg"><div class="progress-fill" style="width:40%"></div></div>
+  </div>
+</div>
+
+<!-- SCREEN MOCKUPS -->
+<div class="section">
+  <div class="section-title">Ekran Önizlemeleri</div>
+  <div class="mockup-wrap">
+
+    <!-- MAIN MENU -->
+    <div class="phone">
+      <div class="phone-frame">
+        <div class="phone-inner">
+          <div style="font-size:22px;font-weight:900;color:#111;letter-spacing:-0.5px;margin-bottom:2px">TOWER<span style="color:#7C3AED">MAZE</span></div>
+          <div style="font-size:10px;color:#aaa;letter-spacing:1px;margin-bottom:16px">REACH THE TOP</div>
+
+          <div class="card" style="margin-bottom:10px">
+            <div style="font-size:9px;font-weight:700;color:#7C3AED;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px">Best Score</div>
+            <div style="font-size:28px;font-weight:900;color:#111;line-height:1">1,248<span style="color:#7C3AED;font-size:18px">m</span></div>
+          </div>
+
+          <div class="card" style="margin-bottom:10px;border-left:3px solid #7C3AED">
+            <div style="font-size:9px;font-weight:700;color:#7C3AED;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">Daily Mission</div>
+            <div style="font-size:11px;color:#333;margin-bottom:6px">Reach 28m in one run</div>
+            <div class="progress-bg"><div class="progress-fill" style="width:30%"></div></div>
+          </div>
+
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
+            <button class="btn btn-primary" style="width:100%">OYNA</button>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-secondary" style="flex:1;font-size:12px;padding:8px">SHOP</button>
+              <button class="btn btn-secondary" style="flex:1;font-size:12px;padding:8px">🏆 TOP</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">ANA MENÜ</div>
+    </div>
+
+    <!-- FAIL SCREEN -->
+    <div class="phone">
+      <div class="phone-frame">
+        <div class="phone-inner">
+          <div style="font-size:14px;font-weight:900;color:#111;margin-bottom:14px">TRY AGAIN</div>
+
+          <div class="card" style="margin-bottom:10px;text-align:center">
+            <div style="font-size:9px;font-weight:700;color:#aaa;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">This Run</div>
+            <div style="font-size:32px;font-weight:900;color:#111;line-height:1">842<span style="color:#7C3AED;font-size:20px">m</span></div>
+            <div style="font-size:10px;color:#10B981;font-weight:700;margin-top:4px">▲ New Best!</div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <div class="card" style="flex:1;text-align:center;padding:10px">
+              <div style="font-size:9px;color:#aaa;letter-spacing:1px">TIME</div>
+              <div style="font-size:15px;font-weight:900;color:#111">2:14</div>
+            </div>
+            <div class="card" style="flex:1;text-align:center;padding:10px">
+              <div style="font-size:9px;color:#aaa;letter-spacing:1px">ZONE</div>
+              <div style="font-size:15px;font-weight:900;color:#7C3AED">4</div>
+            </div>
+          </div>
+
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
+            <button class="btn btn-primary" style="width:100%">YENİDEN DENE</button>
+            <button class="btn btn-success" style="width:100%;font-size:13px">DEVAM ET</button>
+            <button class="btn btn-ghost" style="width:100%;font-size:12px;color:#888">Ana Menü</button>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">FAIL EKRANI</div>
+    </div>
+
+    <!-- HUD (dark) -->
+    <div class="phone">
+      <div class="phone-frame phone-dark">
+        <div class="phone-inner" style="color:#fff">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:auto">
+            <div class="card" style="padding:8px 12px">
+              <div style="font-size:8px;color:#7C6FA0;letter-spacing:1px">SKOR</div>
+              <div style="font-size:16px;font-weight:900;color:#fff">842<span style="color:#A78BFA;font-size:11px">m</span></div>
+            </div>
+            <div class="badge" style="background:#2D2050;color:#A78BFA">ZONE 4</div>
+            <div class="card" style="padding:8px 12px;text-align:right">
+              <div style="font-size:8px;color:#7C6FA0;letter-spacing:1px">EN İYİ</div>
+              <div style="font-size:16px;font-weight:900;color:#A78BFA">1,248<span style="font-size:11px">m</span></div>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="background:#1C1433;border-radius:12px;padding:10px;border:1px solid #2D2050;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:10px;color:#7C6FA0">Lav mesafesi</span>
+              <div class="badge badge-orange" style="font-size:9px;padding:3px 8px">⚠ YAKIN</div>
+            </div>
+            <div class="progress-bg" style="margin-top:6px;background:#0F0A1E"><div class="progress-fill" style="width:75%"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-label">OYUN HUD</div>
+    </div>
+
+  </div>
+</div>
+
+<div style="text-align:center;margin-top:16px;font-size:13px;color:#888">Bu design system onaylıysa Figma dosyasına dönüştürmeye başlayabiliriz.</div>
+
+</body>
+</html>

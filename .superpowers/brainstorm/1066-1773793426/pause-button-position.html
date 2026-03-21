@@ -1,0 +1,98 @@
+<h2>Pause butonu nerede olsun?</h2>
+<p class="subtitle">HUD'daki mevcut kartlara göre konumlandırma</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#111827;border-radius:8px 8px 0 0;padding:12px;min-height:220px;position:relative">
+      <!-- Phone mockup -->
+      <div style="max-width:180px;margin:0 auto;position:relative;height:200px;background:#0d1117;border-radius:12px;border:2px solid #2d3748;overflow:hidden">
+        <!-- HUD top row -->
+        <div style="position:absolute;top:6px;left:4px;right:4px;display:flex;gap:3px">
+          <div style="flex:1;background:#1e2a3a;border-radius:4px;padding:3px 0;text-align:center;font-size:8px;color:#ccc">HEIGHT</div>
+          <div style="flex:0.8;background:#1e2a3a;border-radius:4px;padding:3px 0;text-align:center;font-size:8px;color:#7ec8e3">ZONE 2</div>
+          <div style="flex:1;background:#1e2a3a;border-radius:4px;padding:3px 0;text-align:center;font-size:8px;color:#7ec8e3">BEST</div>
+        </div>
+        <!-- HUD second row -->
+        <div style="position:absolute;top:28px;left:4px;right:4px;display:flex;gap:3px">
+          <div style="flex:1;background:#1e2a3a;border-radius:4px;padding:2px 0;text-align:center;font-size:7px;color:#aaa">LAVA</div>
+          <div style="flex:1.2;background:#1e2a3a;border-radius:4px;padding:2px 0;text-align:center;font-size:7px;color:#aaa">00:42</div>
+          <div style="flex:1;background:#1e2a3a;border-radius:4px;padding:2px 0;text-align:center;font-size:7px;color:#aaa"></div>
+        </div>
+        <!-- Game area -->
+        <div style="position:absolute;top:48px;bottom:30px;left:0;right:0;background:#0a0f1a;display:flex;align-items:center;justify-content:center">
+          <div style="color:#2a3a5a;font-size:10px">[ oyun ]</div>
+        </div>
+        <!-- PAUSE BUTTON - Bottom Left -->
+        <div style="position:absolute;bottom:8px;left:8px;width:30px;height:22px;background:#e8c84a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#000">II</div>
+        <!-- Controls hint -->
+        <div style="position:absolute;bottom:8px;left:46px;right:8px;background:#1e2a3a;border-radius:4px;padding:4px 0;text-align:center;font-size:7px;color:#aaa">HOLD UP | SWIPE | DROP</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Sol Alt</h3>
+      <p>Başparmakla kolay erişim. Mevcut kontrol ipucu yanına sığıyor.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#111827;border-radius:8px 8px 0 0;padding:12px;min-height:220px;position:relative">
+      <div style="max-width:180px;margin:0 auto;position:relative;height:200px;background:#0d1117;border-radius:12px;border:2px solid #2d3748;overflow:hidden">
+        <!-- HUD top row -->
+        <div style="position:absolute;top:6px;left:4px;right:4px;display:flex;gap:3px">
+          <div style="flex:1;background:#1e2a3a;border-radius:4px;padding:3px 0;text-align:center;font-size:8px;color:#ccc">HEIGHT</div>
+          <div style="flex:0.8;background:#1e2a3a;border-radius:4px;padding:3px 0;text-align:center;font-size:8px;color:#7ec8e3">ZONE 2</div>
+          <div style="flex:1;background:#1e2a3a;border-radius:4px;padding:3px 0;text-align:center;font-size:8px;color:#7ec8e3">BEST</div>
+        </div>
+        <!-- Pause button TOP CENTER gap -->
+        <div style="position:absolute;top:6px;left:50%;transform:translateX(-50%);width:26px;height:16px;background:#e8c84a;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;color:#000;z-index:10">II</div>
+        <!-- HUD second row -->
+        <div style="position:absolute;top:28px;left:4px;right:4px;display:flex;gap:3px">
+          <div style="flex:1;background:#1e2a3a;border-radius:4px;padding:2px 0;text-align:center;font-size:7px;color:#aaa">LAVA</div>
+          <div style="flex:1.2;background:#1e2a3a;border-radius:4px;padding:2px 0;text-align:center;font-size:7px;color:#aaa">00:42</div>
+          <div style="flex:1;background:#1e2a3a;border-radius:4px;padding:2px 0;text-align:center;font-size:7px;color:#aaa"></div>
+        </div>
+        <!-- Game area -->
+        <div style="position:absolute;top:48px;bottom:14px;left:0;right:0;background:#0a0f1a;display:flex;align-items:center;justify-content:center">
+          <div style="color:#2a3a5a;font-size:10px">[ oyun ]</div>
+        </div>
+        <!-- Controls hint -->
+        <div style="position:absolute;bottom:6px;left:4px;right:4px;background:#1e2a3a;border-radius:4px;padding:3px 0;text-align:center;font-size:7px;color:#aaa">HOLD UP | SWIPE | DROP</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Üst Orta</h3>
+      <p>Zone kartının üzerinde, merkezi konumda. Kaza ile basma riski daha az.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#111827;border-radius:8px 8px 0 0;padding:12px;min-height:220px;position:relative">
+      <div style="max-width:180px;margin:0 auto;position:relative;height:200px;background:#0d1117;border-radius:12px;border:2px solid #2d3748;overflow:hidden">
+        <!-- HUD top row -->
+        <div style="position:absolute;top:6px;left:4px;right:4px;display:flex;gap:3px">
+          <div style="flex:1;background:#1e2a3a;border-radius:4px;padding:3px 0;text-align:center;font-size:8px;color:#ccc">HEIGHT</div>
+          <div style="flex:0.8;background:#1e2a3a;border-radius:4px;padding:3px 0;text-align:center;font-size:8px;color:#7ec8e3">ZONE 2</div>
+          <div style="flex:1;background:#1e2a3a;border-radius:4px;padding:3px 0;text-align:center;font-size:8px;color:#7ec8e3">BEST</div>
+        </div>
+        <!-- HUD second row -->
+        <div style="position:absolute;top:28px;left:4px;right:4px;display:flex;gap:3px">
+          <div style="flex:1;background:#1e2a3a;border-radius:4px;padding:2px 0;text-align:center;font-size:7px;color:#aaa">LAVA</div>
+          <div style="flex:1.2;background:#1e2a3a;border-radius:4px;padding:2px 0;text-align:center;font-size:7px;color:#aaa">00:42</div>
+          <div style="flex:1;background:#1e2a3a;border-radius:4px;padding:2px 0;text-align:center;font-size:7px;color:#aaa"></div>
+        </div>
+        <!-- Game area -->
+        <div style="position:absolute;top:48px;bottom:30px;left:0;right:0;background:#0a0f1a;display:flex;align-items:center;justify-content:center">
+          <div style="color:#2a3a5a;font-size:10px">[ oyun ]</div>
+        </div>
+        <!-- Controls hint -->
+        <div style="position:absolute;bottom:8px;left:4px;right:42px;background:#1e2a3a;border-radius:4px;padding:4px 0;text-align:center;font-size:7px;color:#aaa">HOLD UP | SWIPE | DROP</div>
+        <!-- PAUSE BUTTON - Bottom Right -->
+        <div style="position:absolute;bottom:8px;right:8px;width:30px;height:22px;background:#e8c84a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#000">II</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Sağ Alt</h3>
+      <p>Sağ başparmak için kolay. Kontrol ipucunun sağında.</p>
+    </div>
+  </div>
+</div>

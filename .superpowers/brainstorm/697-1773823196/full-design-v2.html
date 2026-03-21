@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TowerMaze — Full UI Redesign v2</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1a2e; font-family: 'Segoe UI', sans-serif; color: #fff; padding: 40px 20px; }
+  h1 { text-align: center; font-size: 28px; font-weight: 800; margin-bottom: 6px; }
+  .subtitle { text-align: center; color: #8E8E93; margin-bottom: 40px; font-size: 14px; }
+
+  .screens-row { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; margin-bottom: 48px; }
+  .screen-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .screen-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #8E8E93; text-transform: uppercase; }
+
+  .phone {
+    width: 200px; height: 360px;
+    border-radius: 32px; overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+    border: 3px solid #333;
+  }
+  .phone-screen {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    padding: 20px 16px 16px;
+  }
+
+  .btn-primary { background:#7C4DFF;color:#fff;font-weight:700;font-size:13px;padding:14px 0;border-radius:16px;text-align:center;width:100%;box-shadow:0 4px 16px rgba(124,77,255,0.4); }
+  .btn-secondary { background:#E5E5EA;color:#1C1C1E;font-weight:600;font-size:12px;padding:12px 0;border-radius:16px;text-align:center;width:100%; }
+  .btn-reward { background:#FF9F0A;color:#fff;font-weight:700;font-size:12px;padding:14px 0;border-radius:16px;text-align:center;width:100%;box-shadow:0 4px 16px rgba(255,159,10,0.4); }
+  .card { background:#fff;border-radius:14px;padding:12px 14px; }
+
+  .section { margin-bottom: 40px; }
+  .section-title { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 6px; padding-left: 8px; border-left: 3px solid #7C4DFF; margin-bottom: 16px; }
+
+  .tokens { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+  .token { display: flex; align-items: center; gap: 8px; background: #16213e; padding: 7px 12px; border-radius: 8px; font-size: 11px; }
+  .swatch { width: 18px; height: 18px; border-radius: 5px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<h1>TowerMaze — UI Redesign v2</h1>
+<p class="subtitle">Onaylanan tasarım · Ana Menü: Deep Purple · Outfit-Bold · 8pt grid</p>
+
+<!-- COLOR TOKENS -->
+<div class="section">
+  <div class="section-title">Renk Sistemi</div>
+  <div class="tokens">
+    <div class="token"><div class="swatch" style="background:#7C4DFF;"></div> Primary #7C4DFF</div>
+    <div class="token"><div class="swatch" style="background:#2D1B69;"></div> Menu BG #2D1B69</div>
+    <div class="token"><div class="swatch" style="background:#F5F5F7;border:1px solid #444;"></div> Screen BG #F5F5F7</div>
+    <div class="token"><div class="swatch" style="background:#FFFFFF;border:1px solid #444;"></div> Surface #FFFFFF</div>
+    <div class="token"><div class="swatch" style="background:#1C1C1E;"></div> Text #1C1C1E</div>
+    <div class="token"><div class="swatch" style="background:#8E8E93;"></div> Text2 #8E8E93</div>
+    <div class="token"><div class="swatch" style="background:#FF9F0A;"></div> Accent #FF9F0A</div>
+    <div class="token"><div class="swatch" style="background:#E5E5EA;"></div> Gray #E5E5EA</div>
+    <div class="token"><div class="swatch" style="background:#10B981;"></div> Success #10B981</div>
+    <div class="token"><div class="swatch" style="background:#0F0A1E;"></div> HUD BG #0F0A1E</div>
+  </div>
+</div>
+
+<!-- ALL SCREENS -->
+<div class="section">
+  <div class="section-title">Ekranlar</div>
+  <div class="screens-row">
+
+    <!-- 1. MAIN MENU — Deep Purple -->
+    <div class="screen-wrap">
+      <div class="screen-label">1 · Ana Menü</div>
+      <div class="phone">
+        <div class="phone-screen" style="background:#2D1B69;align-items:center;justify-content:center;gap:12px;">
+          <div style="font-size:28px;font-weight:900;color:#fff;text-align:center;line-height:1.15;letter-spacing:-0.5px;">TOWER<br>MAZE</div>
+          <div style="height:20px;"></div>
+          <div class="btn-reward" style="font-size:15px;padding:16px 0;letter-spacing:1px;">START</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.45);font-weight:500;">Best: 103m</div>
+          <div style="display:flex;gap:8px;width:100%;margin-top:4px;">
+            <div style="flex:1;background:rgba(255,255,255,0.1);color:#fff;font-size:10px;font-weight:600;padding:11px 0;border-radius:12px;text-align:center;">SHOP</div>
+            <div style="flex:1;background:rgba(255,255,255,0.1);color:#fff;font-size:10px;font-weight:600;padding:11px 0;border-radius:12px;text-align:center;">MISSIONS</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. HUD -->
+    <div class="screen-wrap">
+      <div class="screen-label">2 · HUD</div>
+      <div class="phone">
+        <div class="phone-screen" style="background:#0F0A1E;justify-content:space-between;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="display:flex;align-items:center;gap:5px;">
+              <div style="font-size:9px;color:#7C6FA0;">🪙</div>
+              <div style="font-size:9px;color:#fff;font-weight:700;">240</div>
+            </div>
+            <div style="background:#1C1433;border-radius:999px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:11px;">⚙</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div style="font-size:9px;color:#7C6FA0;font-weight:600;letter-spacing:1px;">SCORE</div>
+            <div style="font-size:48px;font-weight:900;color:#fff;line-height:1;">87<span style="font-size:18px;color:#7C6FA0;">m</span></div>
+            <div style="background:#1C1433;border-radius:10px;padding:5px 14px;margin-top:4px;">
+              <div style="font-size:9px;color:#EF4444;font-weight:700;">🌋 +12m</div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:center;">
+            <div style="background:#1C1433;border-radius:12px;padding:8px 20px;font-size:10px;color:#7C6FA0;font-weight:600;">⏸ PAUSE</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. YOU MELTED -->
+    <div class="screen-wrap">
+      <div class="screen-label">3 · You Melted</div>
+      <div class="phone">
+        <div class="phone-screen" style="background:#F5F5F7;align-items:center;justify-content:center;gap:10px;">
+          <div style="font-size:11px;font-weight:800;color:#8E8E93;letter-spacing:2px;">YOU MELTED</div>
+          <div style="font-size:48px;font-weight:900;color:#7C4DFF;line-height:1;">103<span style="font-size:16px;font-weight:600;color:#8E8E93;">m</span></div>
+          <div class="card" style="width:100%;margin:4px 0;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <span style="font-size:10px;color:#8E8E93;">Best</span>
+              <span style="font-size:11px;font-weight:700;color:#1C1C1E;">120m</span>
+            </div>
+            <div style="height:1px;background:#F0F0F5;margin-bottom:6px;"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:10px;color:#8E8E93;">Coins</span>
+              <span style="font-size:11px;font-weight:700;color:#FF9F0A;">+12 🪙</span>
+            </div>
+          </div>
+          <div class="btn-reward">▶ CONTINUE (Watch Ad)</div>
+          <div class="btn-secondary">Retry</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. SHOP -->
+    <div class="screen-wrap">
+      <div class="screen-label">4 · Shop</div>
+      <div class="phone">
+        <div class="phone-screen" style="background:#F5F5F7;gap:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:16px;font-weight:800;color:#1C1C1E;">SHOP</div>
+            <div style="background:#7C4DFF;color:#fff;font-size:9px;font-weight:700;padding:4px 10px;border-radius:999px;">🪙 240</div>
+          </div>
+          <div style="display:flex;gap:4px;">
+            <div style="flex:1;background:#E5E5EA;color:#8E8E93;font-size:9px;font-weight:600;padding:5px 0;border-radius:8px;text-align:center;">COINS</div>
+            <div style="flex:1;background:#E5E5EA;color:#8E8E93;font-size:9px;font-weight:600;padding:5px 0;border-radius:8px;text-align:center;">BALLS</div>
+            <div style="flex:1;background:#7C4DFF;color:#fff;font-size:9px;font-weight:700;padding:5px 0;border-radius:8px;text-align:center;">TOWERS</div>
+          </div>
+          <!-- Featured BEST VALUE -->
+          <div style="background:#7C4DFF;border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;right:0;background:#FF9F0A;color:#fff;font-size:8px;font-weight:800;padding:3px 10px;border-radius:0 0 0 10px;letter-spacing:0.5px;">BEST VALUE</div>
+            <div style="width:40px;height:40px;background:rgba(255,255,255,0.2);border-radius:10px;flex-shrink:0;"></div>
+            <div style="flex:1;">
+              <div style="font-size:11px;font-weight:800;color:#fff;">Crystal Tower</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.6);">Limited edition</div>
+            </div>
+            <div style="background:#FF9F0A;color:#fff;font-size:10px;font-weight:700;padding:6px 10px;border-radius:10px;flex-shrink:0;">$2.99</div>
+          </div>
+          <div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 12px;">
+            <div style="width:28px;height:28px;background:#EDE9FE;border-radius:7px;flex-shrink:0;"></div>
+            <div style="flex:1;font-size:10px;font-weight:600;color:#1C1C1E;">Stone Tower</div>
+            <div style="font-size:9px;color:#10B981;font-weight:700;">Owned</div>
+          </div>
+          <div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 12px;opacity:0.55;">
+            <div style="width:28px;height:28px;background:#DDD;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">🔒</div>
+            <div style="flex:1;font-size:10px;font-weight:600;color:#1C1C1E;">Dark Tower</div>
+            <div style="font-size:9px;color:#7C4DFF;font-weight:700;">🪙 200</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. SKINS GRID -->
+    <div class="screen-wrap">
+      <div class="screen-label">5 · Skins Grid</div>
+      <div class="phone">
+        <div class="phone-screen" style="background:#F5F5F7;gap:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:16px;font-weight:800;color:#1C1C1E;">BALLS</div>
+            <div style="background:#7C4DFF;color:#fff;font-size:9px;font-weight:700;padding:4px 10px;border-radius:999px;">🪙 240</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;flex:1;">
+            <div class="card" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border:1.5px solid #7C4DFF;">
+              <div style="width:44px;height:44px;background:#EDE9FE;border-radius:10px;"></div>
+              <div style="font-size:9px;font-weight:700;color:#1C1C1E;">Default</div>
+              <div style="font-size:9px;color:#10B981;font-weight:700;">Owned</div>
+            </div>
+            <div class="card" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;">
+              <div style="width:44px;height:44px;background:#7C4DFF;border-radius:10px;opacity:0.8;"></div>
+              <div style="font-size:9px;font-weight:700;color:#1C1C1E;">Neon</div>
+              <div style="font-size:9px;color:#7C4DFF;font-weight:700;">🪙 120</div>
+            </div>
+            <div class="card" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;opacity:0.5;">
+              <div style="width:44px;height:44px;background:#555;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;">🔒</div>
+              <div style="font-size:9px;font-weight:700;color:#1C1C1E;">Shadow</div>
+              <div style="font-size:9px;color:#8E8E93;">$1.99</div>
+            </div>
+            <div class="card" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;opacity:0.5;">
+              <div style="width:44px;height:44px;background:#FF9F0A;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;">🔒</div>
+              <div style="font-size:9px;font-weight:700;color:#1C1C1E;">Flame</div>
+              <div style="font-size:9px;color:#8E8E93;">$2.99</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- BUTTON SYSTEM -->
+<div class="section">
+  <div class="section-title">Buton Sistemi</div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+      <div style="background:#7C4DFF;color:#fff;font-weight:700;font-size:13px;padding:14px 32px;border-radius:16px;box-shadow:0 4px 16px rgba(124,77,255,0.4);">Primary</div>
+      <div style="font-size:10px;color:#8E8E93;">#7C4DFF · menü dışı</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+      <div style="background:#E5E5EA;color:#1C1C1E;font-weight:600;font-size:13px;padding:14px 32px;border-radius:16px;">Secondary</div>
+      <div style="font-size:10px;color:#8E8E93;">#E5E5EA · ikincil aksiyon</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+      <div style="background:#FF9F0A;color:#fff;font-weight:700;font-size:13px;padding:14px 32px;border-radius:16px;box-shadow:0 4px 16px rgba(255,159,10,0.4);">▶ Reward / START</div>
+      <div style="font-size:10px;color:#8E8E93;">#FF9F0A · ad + ana menü START</div>
+    </div>
+  </div>
+</div>
+
+<!-- FILE STRUCTURE -->
+<div class="section">
+  <div class="section-title">Dosya Yapısı</div>
+  <div style="font-size:12px;color:#8E8E93;line-height:2.2;font-family:monospace;background:#16213e;padding:16px 20px;border-radius:12px;">
+    Assets/Scripts/TowerMaze/Runtime/UISystems/<br>
+    &nbsp;&nbsp;<span style="color:#7C4DFF;">UIStyle.cs</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← Renkler, boyutlar, static helpers<br>
+    &nbsp;&nbsp;<span style="color:#7C4DFF;">UIManager.cs</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← Canvas, screen routing, Init<br>
+    &nbsp;&nbsp;<span style="color:#fff;">StartScreen.cs</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← Ana Menü (Deep Purple)<br>
+    &nbsp;&nbsp;<span style="color:#fff;">FailScreen.cs</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← You Melted + stats + Continue<br>
+    &nbsp;&nbsp;<span style="color:#fff;">ShopScreen.cs</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← Shop + Skins grid<br>
+    &nbsp;&nbsp;<span style="color:#fff;">HudController.cs</span> &nbsp;&nbsp;&nbsp;← Oyun içi HUD (dark)<br>
+    &nbsp;&nbsp;<span style="color:#fff;">PopupControllers.cs</span> ← Pause, Countdown, Toast, IAP<br>
+  </div>
+</div>
+
+</body>
+</html>

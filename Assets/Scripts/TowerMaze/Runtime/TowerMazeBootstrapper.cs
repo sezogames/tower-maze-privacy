@@ -39,91 +39,123 @@ namespace TowerMaze
 
         private void Awake()
         {
+            Debug.Log("[Bootstrapper] Awake started");
             if (initialized)
             {
+                Debug.Log("[Bootstrapper] Already initialized, skipping");
                 return;
             }
 
-            initialized = true;
-            EnsureRoots();
-            ConfigureEnvironment();
+            try {
+                if (gameConfig == null) {
+                    Debug.Log("[Bootstrapper] Loading GameConfig from Resources...");
+                    gameConfig = Resources.Load<GameConfig>("TowerMaze/GameConfig");
+                }
+                if (difficultyProfile == null) difficultyProfile = Resources.Load<DifficultyProfile>("TowerMaze/StandardDifficultyProfile");
+                if (themeDefinition == null) themeDefinition = Resources.Load<ThemeDefinition>("TowerMaze/StandardTheme");
 
-            ScoreManager scoreManager = EnsureComponent<ScoreManager>(EnsureChild(managersRoot, "ScoreManager"));
-            EconomyManager economyManager = EnsureComponent<EconomyManager>(EnsureChild(managersRoot, "EconomyManager"));
-            RewardedAdManager rewardedAdManager = EnsureComponent<RewardedAdManager>(EnsureChild(managersRoot, "RewardedAdManager"));
-            InAppReviewManager inAppReviewManager = EnsureComponent<InAppReviewManager>(EnsureChild(managersRoot, "InAppReviewManager"));
-            CoinStoreManager coinStoreManager = EnsureComponent<CoinStoreManager>(EnsureChild(managersRoot, "CoinStoreManager"));
-            AudioManager audioManager = EnsureComponent<AudioManager>(EnsureChild(managersRoot, "AudioManager"));
-            PlayFabCloudManager playFabCloudManager = EnsureComponent<PlayFabCloudManager>(EnsureChild(managersRoot, "PlayFabCloudManager"));
-            RunManager runManager = EnsureComponent<RunManager>(EnsureChild(managersRoot, "RunManager"));
+                if (gameConfig == null) Debug.LogError("[Bootstrapper] CRITICAL: GameConfig asset not found in Resources/TowerMaze/GameConfig!");
+                else Debug.Log($"[Bootstrapper] GameConfig loaded: {gameConfig.name}");
 
-            Transform towerMotionRoot = EnsureChild(towerSystemRoot, "TowerMotionRoot");
-            TowerSinkController sinkController = EnsureComponent<TowerSinkController>(towerMotionRoot);
-            Transform towerRoot = EnsureChild(towerMotionRoot, "TowerRoot");
-            TowerRotationController rotationController = EnsureComponent<TowerRotationController>(towerRoot);
-            TowerGenerator towerGenerator = EnsureComponent<TowerGenerator>(towerRoot);
-            LavaController lavaController = EnsureComponent<LavaController>(EnsureChild(towerSystemRoot, "Lava"));
-            _ = sinkController;
-            _ = rotationController;
+                Debug.Log("[Bootstrapper] Ensuring roots...");
+                EnsureRoots();
+                ConfigureEnvironment();
 
-            Transform playerVisualRoot = EnsureChild(playerRoot, "Visual");
-            Transform cameraTarget = EnsureChild(playerRoot, "CameraTarget");
-            cameraTarget.localPosition = new Vector3(0f, 0.34f, 0f);
-            EnsureComponent<PlayerInputHandler>(playerRoot);
-            PlayerController playerController = EnsureComponent<PlayerController>(playerRoot);
-            EnsureComponent<HeroVisualController>(playerVisualRoot);
+                Debug.Log("[Bootstrapper] Creating Managers...");
+                ScoreManager scoreManager = EnsureComponent<ScoreManager>(EnsureChild(managersRoot, "ScoreManager"));
+                Debug.Log("[Bootstrapper] Created ScoreManager");
+                EconomyManager economyManager = EnsureComponent<EconomyManager>(EnsureChild(managersRoot, "EconomyManager"));
+                Debug.Log("[Bootstrapper] Created EconomyManager");
+                RewardedAdManager rewardedAdManager = EnsureComponent<RewardedAdManager>(EnsureChild(managersRoot, "RewardedAdManager"));
+                InAppReviewManager inAppReviewManager = EnsureComponent<InAppReviewManager>(EnsureChild(managersRoot, "InAppReviewManager"));
+                CoinStoreManager coinStoreManager = EnsureComponent<CoinStoreManager>(EnsureChild(managersRoot, "CoinStoreManager"));
+                AudioManager audioManager = EnsureComponent<AudioManager>(EnsureChild(managersRoot, "AudioManager"));
+                PlayFabCloudManager playFabCloudManager = EnsureComponent<PlayFabCloudManager>(EnsureChild(managersRoot, "PlayFabCloudManager"));
+                RunManager runManager = EnsureComponent<RunManager>(EnsureChild(managersRoot, "RunManager"));
+                Debug.Log("[Bootstrapper] All Managers created");
+                
+                Debug.Log("[Bootstrapper] Creating Tower System...");
+                Transform towerMotionRoot = EnsureChild(towerSystemRoot, "TowerMotionRoot");
+                TowerSinkController sinkController = EnsureComponent<TowerSinkController>(towerMotionRoot);
+                Transform towerRoot = EnsureChild(towerMotionRoot, "TowerRoot");
+                TowerRotationController rotationController = EnsureComponent<TowerRotationController>(towerRoot);
+                TowerGenerator towerGenerator = EnsureComponent<TowerGenerator>(towerRoot);
+                
+                LavaController lavaController = EnsureComponent<LavaController>(EnsureChild(towerSystemRoot, "Lava"));
+                Debug.Log("[Bootstrapper] Tower System created");
 
-            Camera mainCamera = EnsureCamera();
-            mainCamera.transform.SetParent(cameraRigRoot, false);
-            CameraFollowController cameraFollow = EnsureComponent<CameraFollowController>(mainCamera.transform);
-            EnvironmentBackdropController backdropController = EnsureComponent<EnvironmentBackdropController>(EnsureChild(vfxRoot, "Backdrop"));
+                Debug.Log("[Bootstrapper] Creating Player...");
+                Transform playerVisualRoot = EnsureChild(playerRoot, "Visual");
+                Transform cameraTarget = EnsureChild(playerRoot, "CameraTarget");
+                cameraTarget.localPosition = new Vector3(0f, 0.34f, 0f);
+                EnsureComponent<PlayerInputHandler>(playerRoot);
+                PlayerController playerController = EnsureComponent<PlayerController>(playerRoot);
+                EnsureComponent<HeroVisualController>(playerVisualRoot);
 
-            UIManager uiManager = EnsureComponent<UIManager>(uiRoot);
+                Camera mainCamera = EnsureCamera();
+                mainCamera.transform.SetParent(cameraRigRoot, false);
+                CameraFollowController cameraFollow = EnsureComponent<CameraFollowController>(mainCamera.transform);
+                EnvironmentBackdropController backdropController = EnsureComponent<EnvironmentBackdropController>(EnsureChild(vfxRoot, "Backdrop"));
 
-            Texture2D splashTex = Resources.Load<Texture2D>("TowerMaze/UITheme/SplashBackground");
-            Font splashFont = Resources.Load<Font>("TowerMaze/UITheme/Outfit-Bold");
+                UIManager uiManager = EnsureComponent<UIManager>(uiRoot);
 
-            Texture2D staticBgTex = Resources.Load<Texture2D>("TowerMaze/UITheme/MainMenuStaticBackground");
-            Sprite staticBgSprite = null;
-            if (staticBgTex != null)
-            {
-                staticBgSprite = Sprite.Create(staticBgTex, new Rect(0, 0, staticBgTex.width, staticBgTex.height), new Vector2(0.5f, 0.5f));
+                Texture2D splashTex = Resources.Load<Texture2D>("TowerMaze/UITheme/SplashBackground");
+                Font splashFont = Resources.Load<Font>("TowerMaze/UITheme/Outfit-Bold");
+
+                Texture2D staticBgTex = Resources.Load<Texture2D>("TowerMaze/UITheme/MainMenuStaticBackground");
+                Sprite staticBgSprite = null;
+                if (staticBgTex != null)
+                {
+                    staticBgSprite = Sprite.Create(staticBgTex, new Rect(0, 0, staticBgTex.width, staticBgTex.height), new Vector2(0.5f, 0.5f));
+                }
+
+                SplashScreenController splashController = new GameObject("SplashScreen")
+                    .AddComponent<SplashScreenController>();
+                splashController.Initialize(splashFont, splashTex, onComplete: () => uiManager.OnSplashComplete());
+
+                Debug.Log("[Bootstrapper] Initializing systems...");
+                towerGenerator.Initialize(gameConfig, difficultyProfile, themeDefinition);
+                lavaController.Initialize(gameConfig, themeDefinition);
+                playerController.Initialize(gameConfig, towerGenerator, towerRoot, themeDefinition, audioManager, cameraFollow);
+                scoreManager.Initialize(gameConfig);
+                economyManager.Initialize();
+                coinStoreManager.Initialize(economyManager);
+                
+                System.Action applyTowerVisuals = () => {
+                    if (economyManager != null && towerGenerator != null)
+                        towerGenerator.ApplyTowerSkin(economyManager.GetEquippedTowerSkin(), economyManager.EmberBalance);
+                };
+                applyTowerVisuals();
+                economyManager.EmberBalanceChanged += _ => applyTowerVisuals();
+                economyManager.EquippedTowerSkinChanged += _ => applyTowerVisuals();
+                rewardedAdManager.Initialize(gameConfig);
+                inAppReviewManager.Initialize();
+                playerController.ApplySkin(economyManager.GetEquippedSkin());
+                
+                cameraFollow.Initialize(cameraTarget);
+                backdropController.Initialize(themeDefinition, mainCamera, cameraTarget);
+
+                uiManager.Initialize(splashActive: true, gameConfig, themeDefinition, economyManager, rewardedAdManager, coinStoreManager, playerController, runManager.StartRun, runManager.StartDailyChallenge, runManager.RetryRun, runManager.ContinueRun, runManager.ReturnToMainMenu, runManager.ClaimDoubleReward, runManager.WatchAdForLifeRefill, runManager.BuyLifeRefillWithCoins, runManager.ToggleSound, runManager.ToggleVibration, runManager.PauseRun, runManager.ResumeRun, audioManager.PlayButtonClick, null, scoreManager);
+                runManager.Initialize(gameConfig, difficultyProfile, themeDefinition, towerGenerator, playerController, lavaController, scoreManager, economyManager, rewardedAdManager, audioManager, uiManager, backdropController, cameraFollow, inAppReviewManager);
+
+                playFabCloudManager.Initialize(gameConfig, economyManager, scoreManager, coinStoreManager, uiManager);
+                
+                initialized = true;
+                Debug.Log($"[Bootstrapper] Awake completed successfully. Camera CullingMask: {mainCamera.cullingMask}, Layer: {mainCamera.gameObject.layer}");
+                Debug.Log($"[Bootstrapper] PlayerRoot Active: {playerRoot.gameObject.activeInHierarchy}, TowerRoot Active: {towerRoot.gameObject.activeInHierarchy}");
+            } catch (System.Exception e) {
+                Debug.LogError($"[Bootstrapper] CRITICAL FAILURE in Awake: {e.Message}\n{e.StackTrace}");
             }
-
-            SplashScreenController splashController = new GameObject("SplashScreen")
-                .AddComponent<SplashScreenController>();
-            splashController.Initialize(splashFont, splashTex, onComplete: () => uiManager.OnSplashComplete());
-
-            towerGenerator.Initialize(gameConfig, difficultyProfile, themeDefinition);
-            lavaController.Initialize(gameConfig, themeDefinition);
-            playerController.Initialize(gameConfig, towerGenerator, towerRoot, themeDefinition, audioManager, cameraFollow);
-            scoreManager.Initialize();
-            economyManager.Initialize();
-            coinStoreManager.Initialize(economyManager);
-            System.Action applyTowerVisuals = () => towerGenerator.ApplyTowerSkin(economyManager.GetEquippedTowerSkin(), economyManager.EmberBalance);
-            applyTowerVisuals();
-            economyManager.EmberBalanceChanged += _ => applyTowerVisuals();
-            economyManager.EquippedTowerSkinChanged += _ => applyTowerVisuals();
-            rewardedAdManager.Initialize(gameConfig);
-            inAppReviewManager.Initialize();
-            playerController.ApplySkin(economyManager.GetEquippedSkin());
-            uiManager.Initialize(splashActive: true, themeDefinition, economyManager, rewardedAdManager, coinStoreManager, playerController, runManager.StartRun, runManager.StartDailyChallenge, runManager.RetryRun, runManager.ContinueRun, runManager.ReturnToMainMenu, runManager.ClaimDoubleReward, runManager.WatchAdForLifeRefill, runManager.BuyLifeRefillWithCoins, runManager.ToggleSound, runManager.ToggleVibration, runManager.PauseRun, runManager.ResumeRun, audioManager.PlayButtonClick, staticBgSprite);
-            cameraFollow.Initialize(cameraTarget);
-            backdropController.Initialize(themeDefinition, mainCamera, cameraTarget);
-
-            runManager.Initialize(gameConfig, difficultyProfile, themeDefinition, towerGenerator, playerController, lavaController, scoreManager, economyManager, rewardedAdManager, audioManager, uiManager, backdropController, cameraFollow, inAppReviewManager);
-            playFabCloudManager.Initialize(gameConfig, economyManager, scoreManager, coinStoreManager, uiManager);
         }
-
 
         private void EnsureRoots()
         {
-            managersRoot ??= EnsureChild(transform, "Managers");
-            towerSystemRoot ??= EnsureChild(transform, "TowerSystem");
-            playerRoot ??= EnsureChild(transform, "Player");
-            cameraRigRoot ??= EnsureChild(transform, "CameraRig");
-            vfxRoot ??= EnsureChild(transform, "VFX");
-            uiRoot ??= EnsureChild(transform, "UI");
+            if (managersRoot == null) managersRoot = EnsureChild(transform, "Managers");
+            if (towerSystemRoot == null) towerSystemRoot = EnsureChild(transform, "TowerSystem");
+            if (playerRoot == null) playerRoot = EnsureChild(transform, "Player");
+            if (cameraRigRoot == null) cameraRigRoot = EnsureChild(transform, "CameraRig");
+            if (vfxRoot == null) vfxRoot = EnsureChild(transform, "VFX");
+            if (uiRoot == null) uiRoot = EnsureChild(transform, "UI");
         }
 
         private void ConfigureEnvironment()

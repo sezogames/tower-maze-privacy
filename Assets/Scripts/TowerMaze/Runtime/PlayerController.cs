@@ -44,6 +44,15 @@ namespace TowerMaze
             }
 
             initialized = true;
+            Debug.Log($"[PlayerController] Initialized. Layer: {gameObject.layer}, Tag: {tag}");
+            if (heroVisual != null) {
+                Renderer[] renderers = heroVisual.GetComponentsInChildren<Renderer>();
+                foreach (var r in renderers) {
+                    Debug.Log($"[PlayerController] Visual Renderer found: {r.name}, Enabled: {r.enabled}, Layer: {r.gameObject.layer}");
+                }
+            } else {
+                Debug.LogWarning("[PlayerController] heroVisual is NULL!");
+            }
         }
 
         public void SetPosition(float angleDegrees, float towerHeight)

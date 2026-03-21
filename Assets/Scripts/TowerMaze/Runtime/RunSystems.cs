@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -306,7 +307,7 @@ namespace TowerMaze
         public const int MaxLifeCount = 3;
         public const int LifeRefillCoinCost = 250;
         public const int LifeRefillAmount = 1;
-        private static readonly TimeSpan LifeRechargeInterval = TimeSpan.FromHours(12);
+        private static readonly TimeSpan LifeRechargeInterval = TimeSpan.FromHours(4);
 
         private readonly List<BallSkinDefinition> skins = new();
         private readonly HashSet<string> ownedSkinIds = new();
@@ -1837,9 +1838,15 @@ namespace TowerMaze
         public bool IsNewBestThisRun => CurrentScore > persistedBestScore + 0.001f;
         public IReadOnlyList<LeaderboardEntry> LeaderboardEntries => cloudLeaderboardEntries.Count > 0 ? cloudLeaderboardEntries : leaderboardEntries;
         public event Action StateChanged;
+        private GameConfig config;
+        private bool[] milestoneFired; // allocated in Initialize when config != null
+        public event Action<int> OnMilestonePassed;
 
-        public void Initialize()
+        public void Initialize(GameConfig gameConfig = null)
         {
+            config = gameConfig;
+            if (config != null && config.heightMilestones != null)
+                milestoneFired = new bool[config.heightMilestones.Length];
             persistedBestScore = PlayerPrefs.GetFloat(BestScoreKey, 0f);
             BestScore = persistedBestScore;
             LoadLeaderboard();
@@ -1854,6 +1861,8 @@ namespace TowerMaze
             CurrentScore = 0f;
             CurrentRunTime = 0f;
             BestScore = persistedBestScore;
+            if (milestoneFired != null)
+                System.Array.Clear(milestoneFired, 0, milestoneFired.Length);
         }
 
         public void Tick(float towerHeight, float elapsedTime)
@@ -1861,6 +1870,18 @@ namespace TowerMaze
             CurrentScore = Mathf.Max(CurrentScore, towerHeight);
             CurrentRunTime = Mathf.Max(0f, elapsedTime);
             BestScore = Mathf.Max(BestScore, CurrentScore);
+
+            if (config != null && milestoneFired != null)
+            {
+                for (int i = 0; i < config.heightMilestones.Length; i++)
+                {
+                    if (!milestoneFired[i] && towerHeight >= config.heightMilestones[i])
+                    {
+                        milestoneFired[i] = true;
+                        OnMilestonePassed?.Invoke(config.heightMilestones[i]);
+                    }
+                }
+            }
         }
 
         public void CommitBest()
@@ -2223,7 +2244,7 @@ namespace TowerMaze
                 return;
             }
 
-#if UNITY_ANDROID || UNITY_IOS
+#if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
             Handheld.Vibrate();
 #endif
         }
@@ -2560,6 +2581,7 @@ namespace TowerMaze
         private RunModifierType primaryRunModifier;
         private RunModifierType secondaryRunModifier;
         private int remainingContinues;
+        private bool continueAdFlowInProgress;
         private float countdownRemaining;
         private float countdownEndRealtime;
         private int lastCountdownDisplay;
@@ -2609,7 +2631,7 @@ namespace TowerMaze
             CameraFollowController cameraFollow = null,
             InAppReviewManager inAppReviewManager = null)
         {
-            config = gameConfig;
+            config = gameConfig != null ? gameConfig : Resources.Load<GameConfig>("TowerMaze/GameConfig");
             towerGenerator = generator;
             playerController = player;
             lavaController = lava;
@@ -2634,6 +2656,8 @@ namespace TowerMaze
             audioManager.SetMusicMode(AudioManager.MusicMode.Menu);
             uiManager.ShowStart(scoreManager.BestScore, economyManager.EmberBalance, scoreManager.LeaderboardEntries, economyManager.DailyMissions, economyManager.GetDailyChestStatus(), economyManager.DailyChallengeStatus, economyManager.GetMissionRerollCost(), audioManager.SoundEnabled, audioManager.VibrationEnabled);
             SetStaticModeActive(true);
+            PrepareFreshRun();
+
         }
 
         public void PauseRun()
@@ -2665,13 +2689,13 @@ namespace TowerMaze
         {
             if (state == RunState.StartScreen)
             {
-                if (uiManager != null && !uiManager.IsShopOpen && playerController != null && playerController.HasStartIntent)
+                if (uiManager != null && uiManager.IsSplashComplete && !uiManager.IsShopOpen && playerController != null && playerController.HasStartIntent)
                 {
                     StartRun();
                     return;
                 }
 
-                playerController?.Tick(false);
+                if (playerController != null) playerController.Tick(false);
                 return;
             }
 
@@ -2703,36 +2727,42 @@ namespace TowerMaze
             playerController.Tick(true);
             scoreManager.Tick(playerController.HeightOnTower, runElapsedTime);
 
-            bool failed = lavaController.Tick(playerController, out float heatIntensity);
-            if (heatIntensity >= 0.72f)
+            if (lavaController != null)
             {
-                nearLavaSeconds += Time.deltaTime;
-            }
-            playerController.SetHeat(heatIntensity);
-            audioManager.SetNearLavaIntensity(heatIntensity);
-            uiManager.SetHeat(heatIntensity);
+                bool failed = lavaController.Tick(playerController, out float heatIntensity);
+                if (heatIntensity >= 0.72f)
+                {
+                    nearLavaSeconds += Time.deltaTime;
+                }
+                playerController.SetHeat(heatIntensity);
+                if (audioManager != null) audioManager.SetNearLavaIntensity(heatIntensity);
+                if (uiManager != null) uiManager.SetHeat(heatIntensity);
 
-            int currentZone = GetCurrentZoneIndex();
-            if (currentZone > lastZoneIndex && lastZoneIndex >= 0)
-            {
-                uiManager.QueueRewardToast($"ZONE {currentZone + 1}", "NEW ZONE", new Color(0.2f, 0.85f, 0.9f));
-                audioManager.PlayZoneReached();
-            }
-            lastZoneIndex = currentZone;
+                int currentZone = GetCurrentZoneIndex();
+                if (currentZone > lastZoneIndex && lastZoneIndex >= 0)
+                {
+                    if (uiManager != null) uiManager.QueueRewardToast($"ZONE {currentZone + 1}", "NEW ZONE", new Color(0.2f, 0.85f, 0.9f));
+                    if (audioManager != null) audioManager.PlayZoneReached();
+                }
+                lastZoneIndex = currentZone;
 
-            uiManager.UpdateHud(
-                scoreManager.CurrentScore,
-                scoreManager.BestScore,
-                scoreManager.CurrentRunTime,
-                currentZone,
-                GetLavaGap(),
-                GetGapDangerNormalized(),
-                activeRunMode == RunMode.Normal && scoreManager.IsNewBestThisRun,
-                ShouldShowControlsHint());
+                if (uiManager != null)
+                {
+                    uiManager.UpdateHud(
+                        scoreManager.CurrentScore,
+                        scoreManager.BestScore,
+                        scoreManager.CurrentRunTime,
+                        currentZone,
+                        GetLavaGap(),
+                        GetGapDangerNormalized(),
+                        activeRunMode == RunMode.Normal && scoreManager.IsNewBestThisRun,
+                        ShouldShowControlsHint());
+                }
 
-            if (failed)
-            {
-                FailRun();
+                if (failed)
+                {
+                    FailRun();
+                }
             }
         }
 
@@ -2748,6 +2778,7 @@ namespace TowerMaze
             SetStaticModeActive(false);
             ResolvePendingFailedRun(false);
             PrepareFreshRun();
+
             BeginCountdown();
         }
 
@@ -2786,39 +2817,89 @@ namespace TowerMaze
 
         public void ContinueRun()
         {
-            if (state != RunState.Failed || remainingContinues <= 0)
+            if (state != RunState.Failed || continueAdFlowInProgress)
             {
                 return;
             }
 
-            if (economyManager == null || !economyManager.TryBuyContinue(out int spentCoins))
+            if (rewardedAdManager == null || !rewardedAdManager.CanShowRewarded)
             {
-                uiManager.QueueRewardToast("NEED COIN", $"{EconomyManager.ContinueCoinCost} COIN REQUIRED", new Color(1f, 0.42f, 0.36f, 1f));
+                uiManager.QueueRewardToast("AD NOT READY", "TRY AGAIN IN A MOMENT", new Color(1f, 0.42f, 0.36f, 1f));
                 PresentFailScreen();
                 return;
             }
 
-            remainingContinues--;
+            StartCoroutine(ContinueWithRewardedAdsRoutine());
+        }
+
+        private IEnumerator ContinueWithRewardedAdsRoutine()
+        {
+            continueAdFlowInProgress = true;
+
+            bool firstDone = false;
+            bool firstSuccess = false;
+            rewardedAdManager.ShowRewarded(RewardedPlacement.LifeRefill, success =>
+            {
+                firstSuccess = success;
+                firstDone = true;
+            });
+
+            while (!firstDone)
+            {
+                yield return null;
+            }
+
+            if (!firstSuccess)
+            {
+                continueAdFlowInProgress = false;
+                PresentFailScreen();
+                yield break;
+            }
+
+            bool secondDone = false;
+            bool secondSuccess = false;
+            rewardedAdManager.ShowRewarded(RewardedPlacement.LifeRefill, success =>
+            {
+                secondSuccess = success;
+                secondDone = true;
+            });
+
+            while (!secondDone)
+            {
+                yield return null;
+            }
+
+            continueAdFlowInProgress = false;
+            if (!secondSuccess)
+            {
+                PresentFailScreen();
+                yield break;
+            }
+
+            remainingContinues = Mathf.Max(0, remainingContinues - 1);
             usedContinueThisRun = true;
-            pendingLeaderboardCommit = false;
-            pendingRunReward = 0;
-            claimedRewardAmountThisFail = 0;
-            rewardClaimedThisFail = false;
             playerController.LiftToSafety(config.continueLiftCells * config.CellHeight);
-            lavaController.BeginGrace(config.lavaFailGrace + 0.75f);
+            lavaController.BeginGrace(Mathf.Max(2.5f, config.startingGrace) + 0.75f);
             DelayRushAfterContinue();
             state = RunState.Running;
             SetSimulationActive(true);
             audioManager.PlayContinueCue();
             audioManager.SetMusicMode(AudioManager.MusicMode.Gameplay);
-            uiManager.QueueRewardToast("CONTINUE", $"-{spentCoins} COIN", new Color(1f, 0.82f, 0.34f, 1f));
+            uiManager.QueueRewardToast("CONTINUE", "2 ADS COMPLETED", new Color(0.36f, 0.9f, 0.48f, 1f));
             uiManager.ShowHud();
         }
 
         public void WatchAdForLifeRefill()
         {
-            if (economyManager == null || economyManager.RemainingLives >= EconomyManager.MaxLifeCount || rewardedAdManager == null || !rewardedAdManager.CanShowRewarded)
+            if (economyManager == null || economyManager.RemainingLives >= EconomyManager.MaxLifeCount)
             {
+                RefreshLifeRefillPrompt();
+                return;
+            }
+
+            if (rewardedAdManager == null || !rewardedAdManager.CanShowRewarded)
+            {
+                uiManager.QueueRewardToast("AD NOT READY", "TRY AGAIN IN A MOMENT", new Color(1f, 0.42f, 0.36f, 1f));
                 RefreshLifeRefillPrompt();
                 return;
             }
@@ -2827,6 +2908,7 @@ namespace TowerMaze
             {
                 if (!success)
                 {
+                    uiManager.QueueRewardToast("AD FAILED", "RETRY AVAILABLE", new Color(1f, 0.42f, 0.36f, 1f));
                     RefreshLifeRefillPrompt();
                     return;
                 }
@@ -2896,6 +2978,11 @@ namespace TowerMaze
 
         private void PrepareFreshRun()
         {
+            if (config == null)
+            {
+                Debug.LogError("[RunManager] PrepareFreshRun skipped: config is null. Check Bootstrapper initialization.");
+                return;
+            }
             activeRunMode = pendingRunMode;
             remainingContinues = activeRunMode == RunMode.DailyChallenge ? 0 : config.continueCount;
             scoreManager.ResetRun();
@@ -2903,6 +2990,7 @@ namespace TowerMaze
             towerGenerator.ResetRun(runSeed);
             towerGenerator.UpdateDifficulty(0f);
             lavaController.ResetState();
+            if (config != null) lavaController.BeginGrace(Mathf.Max(2.5f, config.startingGrace));
             ResetRushState();
             ResetControlFlipState();
             ConfigureRunModifiers(runSeed);
@@ -2978,6 +3066,7 @@ namespace TowerMaze
             if (isPaused) ResumeRun();
             state = RunState.Failed;
             SetSimulationActive(false);
+
             StopRushEffects();
             StopControlFlipEffects();
             cachedFailBestDeltaText = BuildBestDeltaText();
@@ -2991,7 +3080,7 @@ namespace TowerMaze
             pendingRunReward = economyManager.CalculateRunReward(scoreManager.CurrentScore, GetCurrentZoneIndex() + 1, scoreManager.CurrentRunTime);
             claimedRewardAmountThisFail = 0;
             rewardClaimedThisFail = false;
-            pendingLeaderboardCommit = remainingContinues > 0;
+            pendingLeaderboardCommit = rewardedAdManager != null && rewardedAdManager.CanShowRewarded;
             if (!pendingLeaderboardCommit && activeRunMode == RunMode.Normal)
             {
                 scoreManager.CommitLeaderboardEntry();
@@ -3162,7 +3251,7 @@ namespace TowerMaze
                 return true;
             }
 
-            RefreshLifeRefillPrompt();
+            RefreshLifeRefillPrompt(returnToStartWhenNotFailed: false);
             return false;
         }
 
@@ -3190,7 +3279,7 @@ namespace TowerMaze
             }
 
             cachedFailBestDeltaText = $"LIVES  {economyManager.RemainingLives}/{EconomyManager.MaxLifeCount}";
-            cachedFailNextTargetText = $"WATCH AD OR SPEND {EconomyManager.LifeRefillCoinCost} COIN FOR +{EconomyManager.LifeRefillAmount} LIFE";
+            cachedFailNextTargetText = "WATCH 1 AD TO RETRY";
             cachedFailModeSummaryText = pendingRunMode == RunMode.DailyChallenge ? "DAILY CHALLENGE LOCKED" : "NO LIVES LEFT";
 
             uiManager.ShowFail(
@@ -3208,16 +3297,16 @@ namespace TowerMaze
                 cachedFailModeSummaryText,
                 economyManager.RemainingLives,
                 rewardedAdManager != null && rewardedAdManager.CanShowRewarded,
-                economyManager.EmberBalance >= EconomyManager.LifeRefillCoinCost,
-                EconomyManager.LifeRefillCoinCost,
+                false,
+                0,
                 false,
                 EconomyManager.ContinueCoinCost);
         }
 
         private void PresentFailScreen()
         {
-            bool hasContinueOption = remainingContinues > 0;
-            bool canAffordContinue = hasContinueOption && economyManager.EmberBalance >= EconomyManager.ContinueCoinCost;
+            bool hasContinueOption = true;
+            bool canContinue = !continueAdFlowInProgress;
             uiManager.ShowFail(
                 scoreManager.CurrentScore,
                 scoreManager.BestScore,
@@ -3226,17 +3315,17 @@ namespace TowerMaze
                 economyManager.EmberBalance,
                 pendingRunReward,
                 claimedRewardAmountThisFail,
-                canAffordContinue,
+                canContinue,
                 rewardedAdManager != null && rewardedAdManager.CanShowRewarded && pendingRunReward > 0 && !rewardClaimedThisFail,
                 cachedFailBestDeltaText,
                 cachedFailNextTargetText,
                 cachedFailModeSummaryText,
                 economyManager.RemainingLives,
                 rewardedAdManager != null && rewardedAdManager.CanShowRewarded,
-                economyManager.EmberBalance >= EconomyManager.LifeRefillCoinCost,
-                EconomyManager.LifeRefillCoinCost,
+                false,
+                0,
                 hasContinueOption,
-                EconomyManager.ContinueCoinCost,
+                0,
                 showUpsell: true);
         }
 

@@ -44,6 +44,7 @@ namespace TowerMaze
         [Min(0f)] public float baseSinkSpeed = 0.35f;
         [Min(0f)] public float sinkAccelerationPerMinute = 0f;
         [Min(0f)] public float lavaFailGrace = 0.2f;
+        [Min(0f)] public float startingGrace = 2.5f;
         [Min(0f)] public float continueLiftCells = 3f;
         [Min(0)] public int continueCount = 1;
 
@@ -100,6 +101,16 @@ namespace TowerMaze
         [Header("Feedback")]
         [Min(0f)] public float nearLavaDistance = 5f;
         [Min(0f)] public float failVfxDuration = 0.9f;
+
+        [Header("HUD")]
+        [Tooltip("Max height value for the HUD progress bar (m). Default 200.")]
+        public float heightProgressMax = 200f;
+        [Tooltip("Max height used for milestone progress bar (m). Defaults to heightProgressMax.")]
+        public float milestoneMax = 200f;
+        [Tooltip("Heights (m) at which milestone toasts are shown.")]
+        public int[] heightMilestones = new int[] { 25, 50, 100 };
+        [Tooltip("Minimum seconds after fail before retry button becomes active.")]
+        public float failToRetryDelay = 1.5f;
 
         public float CellHeight => segmentHeight / mazeHeightCells;
         public float AnglePerCell => 360f / mazeWidthCells;

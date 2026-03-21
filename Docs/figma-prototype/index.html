@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TowerMaze Design System</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: #E8E8E8;
+    padding: 48px;
+  }
+
+  h1 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 40px;
+  }
+
+  .screens-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px;
+    align-items: flex-start;
+  }
+
+  .screen-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .screen-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+  }
+
+  /* PHONE FRAME */
+  .screen {
+    width: 390px;
+    height: 844px;
+    position: relative;
+    overflow: hidden;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  /* ─── DESIGN TOKENS ──────────────────────────────── */
+  :root {
+    --primary:        #7C3AED;
+    --primary-light:  #A78BFA;
+    --primary-bg:     #EDE9FE;
+    --surface:        #F8F7FF;
+    --card:           #FFFFFF;
+    --divider:        #F0EEFF;
+    --text-dark:      #111111;
+    --text-mid:       #555555;
+    --text-dim:       #AAAAAA;
+    --success:        #10B981;
+    --success-bg:     #D1FAE5;
+    --success-text:   #059669;
+    --danger:         #EF4444;
+    --danger-bg:      #FEE2E2;
+    --danger-text:    #DC2626;
+    --warning:        #F59E0B;
+    --warning-bg:     #FEF3C7;
+    --warning-text:   #D97706;
+    --hud-bg:         #0F0A1E;
+    --hud-card:       #1C1433;
+    --hud-border:     #2D2050;
+    --hud-text-dim:   #7C6FA0;
+  }
+
+  /* ─── SHARED COMPONENTS ─────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    border-radius: 999px;
+    padding: 12px 28px;
+    letter-spacing: 0.5px;
+  }
+  .btn-primary   { background: var(--primary); color: #fff; box-shadow: 0 4px 16px rgba(124,58,237,0.30); }
+  .btn-secondary { background: var(--card); color: var(--primary); border: 2px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .btn-success   { background: var(--success); color: #fff; box-shadow: 0 4px 16px rgba(16,185,129,0.30); }
+  .btn-danger    { background: var(--danger); color: #fff; box-shadow: 0 4px 16px rgba(239,68,68,0.30); }
+  .btn-ghost     { background: transparent; color: var(--text-dim); }
+  .btn-small     { font-size: 12px; padding: 7px 16px; }
+  .btn-full      { width: 100%; }
+
+  .card {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .card-accented {
+    border-left: 3px solid var(--primary);
+  }
+  .card-accented.warning-border { border-left-color: var(--warning); }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge-default  { background: var(--primary-bg); color: var(--primary); }
+  .badge-success  { background: var(--success-bg); color: var(--success-text); }
+  .badge-warning  { background: var(--warning-bg); color: var(--warning-text); }
+  .badge-danger   { background: var(--danger-bg);  color: var(--danger-text); }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .pill-default { background: var(--card); color: var(--text-dark); }
+  .pill-accent  { background: var(--primary); color: #fff; }
+  .pill-icon    { width: 18px; height: 18px; border-radius: 50%; background: var(--primary-bg); display: inline-block; }
+  .pill-accent .pill-icon { background: rgba(255,255,255,0.2); }
+
+  .progress-bar { height: 8px; border-radius: 999px; background: var(--primary-bg); overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 999px; background: linear-gradient(to right, var(--primary), var(--primary-light)); }
+
+  .label-text  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; }
+  .caption     { font-size: 11px; font-weight: 400; }
+  .body-text   { font-size: 14px; font-weight: 500; }
+  .title-text  { font-size: 18px; font-weight: 700; }
+  .heading     { font-size: 28px; font-weight: 900; line-height: 1.1; }
+  .display-text{ font-size: 48px; font-weight: 900; line-height: 1; }
+
+  /* ─── 1. ANA MENÜ ────────────────────────────────── */
+  #ana-menu {
+    background: var(--surface);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  #ana-menu .logo { display: flex; flex-direction: column; margin-bottom: 4px; }
+  #ana-menu .logo .tower { font-size: 28px; font-weight: 900; color: var(--text-dark); line-height: 1.1; }
+  #ana-menu .logo .maze  { font-size: 28px; font-weight: 900; color: var(--primary); line-height: 1.1; }
+  #ana-menu .logo .tag   { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--text-dim); margin-top: 4px; }
+
+  #ana-menu .best-score { display: flex; flex-direction: column; gap: 2px; }
+  #ana-menu .best-score .score-val { font-size: 48px; font-weight: 900; color: var(--text-dark); line-height: 1; }
+  #ana-menu .best-score .score-val span { color: var(--primary); }
+
+  #ana-menu .mission-progress { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+
+  #ana-menu .buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  #ana-menu .btn-row { display: flex; gap: 14px; }
+  #ana-menu .btn-row .btn { flex: 1; }
+
+  #ana-menu .bottom-pills {
+    position: absolute;
+    bottom: 24px;
+    left: 24px;
+    right: 24px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ─── 2. FAIL EKRANI ─────────────────────────────── */
+  #fail-screen {
+    background: var(--surface);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  #fail-screen .overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.40); z-index: 0; pointer-events: none;
+  }
+  #fail-screen > * { position: relative; z-index: 1; }
+  #fail-screen h2 { font-size: 28px; font-weight: 900; color: var(--text-dark); text-align: center; margin-top: 8px; }
+  #fail-screen .score-center { text-align: center; }
+  #fail-screen .stats-row { display: flex; gap: 14px; }
+  #fail-screen .stats-row .card { flex: 1; text-align: center; }
+  #fail-screen .buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+
+  /* ─── 3. OYUN HUD ────────────────────────────────── */
+  #oyun-hud { background: var(--hud-bg); }
+  #oyun-hud .hud-top { padding: 16px; display: flex; gap: 12px; align-items: flex-start; }
+  #oyun-hud .hud-card {
+    flex: 1; background: var(--hud-card); border-radius: 14px;
+    border: 1px solid var(--hud-border); padding: 10px 14px;
+  }
+  #oyun-hud .hud-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--hud-text-dim); }
+  #oyun-hud .hud-val { font-size: 18px; font-weight: 700; color: #fff; }
+  #oyun-hud .hud-val span { color: var(--primary-light); }
+  #oyun-hud .hud-zone { display: flex; justify-content: center; padding: 0 16px; }
+  #oyun-hud .hud-zone-badge {
+    background: var(--hud-card); border: 1px solid var(--hud-border);
+    padding: 4px 16px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; color: var(--primary-light); text-transform: uppercase; letter-spacing: 2px;
+  }
+  #oyun-hud .new-best {
+    display: flex; justify-content: center; padding: 10px 16px;
+  }
+  #oyun-hud .new-best-badge {
+    background: var(--success-bg); border-radius: 999px; padding: 8px 20px;
+    font-size: 12px; font-weight: 700; color: var(--success-text);
+  }
+  #oyun-hud .game-area {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,0.08); font-size: 14px; font-weight: 500;
+  }
+  #oyun-hud .lava-bar {
+    position: absolute; bottom: 24px; left: 24px; right: 24px;
+    background: var(--hud-card); border-radius: 12px; border: 1px solid var(--hud-border);
+    padding: 12px;
+  }
+  #oyun-hud .lava-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  #oyun-hud .lava-label { font-size: 11px; font-weight: 400; color: var(--hud-text-dim); }
+
+  /* ─── 4-6. SHOP ──────────────────────────────────── */
+  .shop-screen { background: var(--surface); }
+  .shop-overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.70); z-index: 0;
+  }
+  .shop-modal {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: var(--card); border-radius: 24px 24px 0 0;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+    padding: 20px; z-index: 1;
+    height: 600px; overflow: hidden;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .shop-header { display: flex; justify-content: space-between; align-items: center; }
+  .shop-tabs { display: flex; gap: 8px; }
+  .tab-active { background: var(--primary); color: #fff; font-size: 12px; font-weight: 700; padding: 7px 16px; border-radius: 999px; border: none; font-family: 'Outfit', sans-serif; }
+  .tab-inactive { background: transparent; color: var(--text-dim); font-size: 12px; font-weight: 700; padding: 7px 16px; border-radius: 999px; border: none; font-family: 'Outfit', sans-serif; }
+  .shop-items { display: flex; flex-direction: column; gap: 10px; overflow: hidden; flex: 1; }
+  .shop-item-card { display: flex; align-items: center; gap: 14px; padding: 12px 16px; background: var(--card); border-radius: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .shop-item-img { width: 56px; height: 56px; border-radius: 12px; background: var(--primary-bg); flex-shrink: 0; }
+  .shop-item-info { flex: 1; }
+  .shop-item-name { font-size: 14px; font-weight: 700; color: var(--text-dark); }
+  .shop-item-desc { font-size: 11px; color: var(--text-dim); }
+  .shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .shop-grid-card {
+    background: var(--card); border-radius: 18px; padding: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .shop-grid-card.owned { background: var(--surface); }
+  .shop-grid-img { width: 60px; height: 60px; border-radius: 12px; background: var(--primary-bg); }
+  .shop-grid-img.owned-img { background: var(--success-bg); }
+  .shop-grid-name { font-size: 12px; font-weight: 700; color: var(--text-dark); text-align: center; }
+
+  /* ─── 7. COUNTDOWN ───────────────────────────────── */
+  #countdown {
+    background: var(--hud-bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 16px;
+  }
+  #countdown .count-num { font-size: 80px; font-weight: 900; color: #fff; }
+  #countdown .go-text   { font-size: 80px; font-weight: 900; color: var(--primary-light); opacity: 0.4; }
+  #countdown .note { font-size: 11px; color: var(--hud-text-dim); text-align: center; margin-top: 16px; }
+
+  /* ─── 8. SPLASH ──────────────────────────────────── */
+  #splash {
+    background: var(--hud-bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px;
+  }
+  #splash .logo-tower { font-size: 28px; font-weight: 900; color: #fff; }
+  #splash .logo-maze  { font-size: 28px; font-weight: 900; color: var(--primary-light); }
+  #splash .spinner {
+    width: 48px; height: 48px; border-radius: 50%;
+    border: 2px solid transparent; border-top-color: var(--primary-light);
+    margin-top: 24px;
+  }
+  #splash .spinner-note { font-size: 11px; color: var(--hud-text-dim); margin-top: 8px; }
+
+  /* ─── 9. IAP UPSELL ──────────────────────────────── */
+  #iap-upsell {
+    background: transparent;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #iap-upsell .backdrop {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.70);
+  }
+  #iap-upsell .iap-modal {
+    position: relative; z-index: 1;
+    width: 320px; background: var(--card); border-radius: 24px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.20); padding: 24px 20px;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  #iap-upsell .close-btn { position: absolute; top: 16px; right: 16px; font-size: 18px; color: var(--text-dim); cursor: pointer; font-weight: 700; }
+  #iap-upsell .product-img { width: 160px; height: 160px; border-radius: 18px; background: var(--primary-bg); }
+  #iap-upsell .product-title { font-size: 18px; font-weight: 700; color: var(--text-dark); text-align: center; }
+  #iap-upsell .product-desc  { font-size: 14px; font-weight: 500; color: var(--text-mid); text-align: center; line-height: 1.4; }
+
+  /* ─── 10. REWARD TOAST ───────────────────────────── */
+  #reward-toast {
+    background: var(--surface);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding-top: 32px;
+  }
+  #reward-toast .toast {
+    width: 280px; height: 56px;
+    background: var(--card); border-radius: 18px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+    display: flex; align-items: center; gap: 10px; padding: 0 16px;
+  }
+  #reward-toast .toast-icon { width: 24px; height: 24px; border-radius: 50%; background: var(--warning-bg); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  #reward-toast .toast-title { font-size: 14px; font-weight: 700; color: var(--text-dark); }
+  #reward-toast .toast-sub   { font-size: 11px; color: var(--text-dim); }
+  #reward-toast .toast-note  { font-size: 11px; color: var(--text-dim); margin-top: 16px; text-align: center; }
+  #reward-toast .screen-bg { padding: 0 24px; display: flex; flex-direction: column; align-items: center; width: 100%; }
+
+  /* ─── 11. LEADERBOARD ────────────────────────────── */
+  #leaderboard {
+    background: var(--surface);
+    display: flex; align-items: flex-end;
+  }
+  #leaderboard .panel {
+    width: 100%; height: 600px;
+    background: var(--card); border-radius: 24px 24px 0 0;
+    padding: 20px; display: flex; flex-direction: column; gap: 14px;
+  }
+  #leaderboard .panel-header { display: flex; justify-content: space-between; align-items: center; }
+  #leaderboard .entry {
+    display: flex; align-items: center; gap: 12px;
+    height: 48px; padding: 0 12px; border-radius: 10px;
+  }
+  #leaderboard .entry.gold   { border-left: 3px solid #FFD700; }
+  #leaderboard .entry.silver { border-left: 3px solid #C0C0C0; }
+  #leaderboard .entry.bronze { border-left: 3px solid #CD7F32; }
+  #leaderboard .entry.me     { background: var(--primary-bg); }
+  #leaderboard .rank  { width: 24px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--text-dim); }
+  #leaderboard .pname { flex: 1; font-size: 14px; font-weight: 700; color: var(--text-dark); }
+  #leaderboard .pscore{ font-size: 14px; font-weight: 700; color: var(--primary); }
+
+  /* ─── 12. RUSH WARNING ───────────────────────────── */
+  #rush-warning {
+    background: var(--hud-bg);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #rush-warning .overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(245,158,11,0.20); }
+  #rush-warning .card {
+    position: relative; z-index: 1;
+    width: 300px; padding: 32px 24px;
+    background: var(--card); border-radius: 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  #rush-warning .warn-icon { width: 48px; height: 48px; border-radius: 50%; background: var(--warning); display: flex; align-items: center; justify-content: center; font-size: 24px; }
+  #rush-warning .warn-title { font-size: 28px; font-weight: 900; color: var(--warning); }
+  #rush-warning .warn-body  { font-size: 14px; font-weight: 500; color: var(--text-mid); }
+  #rush-warning .warn-note  { font-size: 11px; color: var(--text-dim); margin-top: 8px; }
+
+  /* ─── 13. CONTROL FLIP ───────────────────────────── */
+  #control-flip {
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #control-flip .overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(124,58,237,0.12); }
+  #control-flip .card {
+    position: relative; z-index: 1;
+    width: 300px;
+    background: var(--card); border-radius: 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    padding: 32px 24px;
+    display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
+  }
+  #control-flip .flip-icon { width: 48px; height: 48px; border-radius: 50%; background: var(--primary-bg); display: flex; align-items: center; justify-content: center; font-size: 24px; }
+  #control-flip .flip-title { font-size: 18px; font-weight: 700; color: var(--primary); }
+  #control-flip .flip-body  { font-size: 11px; color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<h1>TowerMaze Design System — All Screens</h1>
+
+<div class="screens-grid">
+
+  <!-- ① ANA MENÜ -->
+  <div class="screen-wrap">
+    <div class="screen-label">1 · Ana Menü</div>
+    <div class="screen" id="ana-menu">
+      <div class="logo">
+        <span class="tower">TOWER</span>
+        <span class="maze">MAZE</span>
+        <span class="tag">Reach the Top</span>
+      </div>
+
+      <div class="card best-score">
+        <div class="label-text" style="color:var(--primary)">BEST SCORE</div>
+        <div class="score-val">1,248<span>m</span></div>
+      </div>
+
+      <div class="card card-accented">
+        <div class="label-text" style="color:var(--primary)">DAILY MISSION</div>
+        <div class="body-text" style="color:var(--text-mid);margin:4px 0">Reach 28m in one run</div>
+        <div class="mission-progress">
+          <div style="display:flex;justify-content:space-between">
+            <span class="caption" style="color:var(--text-dim)">Progress</span>
+            <span class="caption" style="color:var(--primary)">40%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" style="width:40%"></div></div>
+        </div>
+      </div>
+
+      <div class="card card-accented warning-border">
+        <div class="label-text" style="color:var(--warning)">DAILY CHALLENGE</div>
+        <div class="body-text" style="color:var(--text-mid);margin:4px 0">Target: 36m</div>
+        <button class="btn btn-primary btn-small" style="margin-top:8px">DAILY RUN</button>
+      </div>
+
+      <div class="buttons">
+        <button class="btn btn-primary btn-full">OYNA</button>
+        <div class="btn-row">
+          <button class="btn btn-secondary">SHOP</button>
+          <button class="btn btn-secondary">🏆 TOP RUNS</button>
+        </div>
+      </div>
+
+      <div class="bottom-pills">
+        <div class="pill pill-default"><span class="pill-icon"></span>3 lives</div>
+        <div class="pill pill-accent"><span class="pill-icon"></span>1,248</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② FAIL EKRANI -->
+  <div class="screen-wrap">
+    <div class="screen-label">2 · Fail Ekranı</div>
+    <div class="screen" id="fail-screen">
+      <div class="overlay"></div>
+      <h2>TRY AGAIN</h2>
+
+      <div class="card" style="text-align:center">
+        <div class="label-text" style="color:var(--text-dim)">THIS RUN</div>
+        <div class="display-text" style="margin:4px 0">842<span style="color:var(--primary)">m</span></div>
+        <span class="badge badge-success" style="margin-top:4px">▲ New Best!</span>
+      </div>
+
+      <div class="stats-row">
+        <div class="card">
+          <div class="label-text" style="color:var(--text-dim)">TIME</div>
+          <div class="title-text" style="color:var(--text-dark)">2:14</div>
+        </div>
+        <div class="card">
+          <div class="label-text" style="color:var(--text-dim)">ZONE</div>
+          <div class="title-text" style="color:var(--primary)">4</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label-text" style="color:var(--text-dim)">REWARD</div>
+        <div class="title-text" style="color:var(--text-dark);margin-top:4px">🪙 +150 coins</div>
+      </div>
+
+      <div class="card card-accented">
+        <div class="label-text" style="color:var(--primary)">DAILY MISSION</div>
+        <div class="body-text" style="color:var(--text-mid);margin:4px 0">Reach 28m in one run</div>
+        <div class="progress-bar" style="margin-top:6px"><div class="progress-fill" style="width:65%"></div></div>
+      </div>
+
+      <div class="buttons">
+        <button class="btn btn-danger btn-full">YENİDEN DENE</button>
+        <button class="btn btn-success btn-full">DEVAM ET</button>
+        <button class="btn btn-ghost btn-full">Ana Menü</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ OYUN HUD -->
+  <div class="screen-wrap">
+    <div class="screen-label">3 · Oyun HUD</div>
+    <div class="screen" id="oyun-hud" style="display:flex;flex-direction:column">
+      <div class="hud-top">
+        <div class="hud-card">
+          <div class="hud-label">SKOR</div>
+          <div class="hud-val">842<span>m</span></div>
+        </div>
+        <div class="hud-card">
+          <div class="hud-label">EN İYİ</div>
+          <div class="hud-val" style="color:var(--primary-light)">1,248<span>m</span></div>
+        </div>
+      </div>
+      <div class="hud-zone">
+        <div class="hud-zone-badge">ZONE 4</div>
+      </div>
+      <div class="new-best">
+        <div class="new-best-badge">▲ NEW BEST!</div>
+      </div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center">
+        <div style="width:80px;height:200px;background:rgba(124,58,237,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center">
+          <span style="color:rgba(255,255,255,0.2);font-size:11px">tower</span>
+        </div>
+      </div>
+      <div class="lava-bar">
+        <div class="lava-header">
+          <span class="lava-label">Lav mesafesi</span>
+          <span class="badge badge-warning">⚠ YAKIN</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:75%;background:linear-gradient(to right, #EF4444, #F59E0B)"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ SHOP — COINS -->
+  <div class="screen-wrap">
+    <div class="screen-label">4 · Shop — Coins</div>
+    <div class="screen shop-screen" style="position:relative">
+      <div class="shop-overlay"></div>
+      <div class="shop-modal">
+        <div class="shop-header">
+          <span class="title-text" style="color:var(--text-dark)">SHOP</span>
+          <button class="btn btn-ghost btn-small">✕</button>
+        </div>
+        <div class="shop-tabs">
+          <button class="tab-active">COINS</button>
+          <button class="tab-inactive">BALLS</button>
+          <button class="tab-inactive">TOWERS</button>
+        </div>
+        <div class="shop-items">
+          <div class="shop-item-card">
+            <div class="shop-item-img"></div>
+            <div class="shop-item-info">
+              <div class="shop-item-name">Starter Pack</div>
+              <div class="shop-item-desc">500 coins</div>
+            </div>
+            <button class="btn btn-primary btn-small">$0.99</button>
+          </div>
+          <div class="shop-item-card">
+            <div class="shop-item-img" style="background:var(--warning-bg)"></div>
+            <div class="shop-item-info">
+              <div class="shop-item-name">Value Pack</div>
+              <div class="shop-item-desc">1,500 coins · Best value</div>
+            </div>
+            <button class="btn btn-primary btn-small">$1.99</button>
+          </div>
+          <div class="shop-item-card">
+            <div class="shop-item-img" style="background:#EDE9FE"></div>
+            <div class="shop-item-info">
+              <div class="shop-item-name">Mega Pack</div>
+              <div class="shop-item-desc">5,000 coins</div>
+            </div>
+            <button class="btn btn-primary btn-small">$4.99</button>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-full" style="font-size:12px;color:var(--text-dim)">Restore Purchases</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑤ SHOP — BALLS -->
+  <div class="screen-wrap">
+    <div class="screen-label">5 · Shop — Balls</div>
+    <div class="screen shop-screen" style="position:relative">
+      <div class="shop-overlay"></div>
+      <div class="shop-modal">
+        <div class="shop-header">
+          <span class="title-text" style="color:var(--text-dark)">SHOP</span>
+          <button class="btn btn-ghost btn-small">✕</button>
+        </div>
+        <div class="shop-tabs">
+          <button class="tab-inactive">COINS</button>
+          <button class="tab-active">BALLS</button>
+          <button class="tab-inactive">TOWERS</button>
+        </div>
+        <div class="shop-grid">
+          <div class="shop-grid-card owned">
+            <div class="shop-grid-img owned-img"></div>
+            <div class="shop-grid-name">Classic</div>
+            <span class="badge badge-success">Sahip</span>
+          </div>
+          <div class="shop-grid-card">
+            <div class="shop-grid-img"></div>
+            <div class="shop-grid-name">Neon Ball</div>
+            <button class="btn btn-primary btn-small">200</button>
+          </div>
+          <div class="shop-grid-card">
+            <div class="shop-grid-img" style="background:var(--warning-bg)"></div>
+            <div class="shop-grid-name">Gold Ball</div>
+            <button class="btn btn-primary btn-small">500</button>
+          </div>
+          <div class="shop-grid-card">
+            <div class="shop-grid-img" style="background:var(--danger-bg)"></div>
+            <div class="shop-grid-name">Fire Ball</div>
+            <button class="btn btn-primary btn-small">800</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ SHOP — TOWERS -->
+  <div class="screen-wrap">
+    <div class="screen-label">6 · Shop — Towers</div>
+    <div class="screen shop-screen" style="position:relative">
+      <div class="shop-overlay"></div>
+      <div class="shop-modal">
+        <div class="shop-header">
+          <span class="title-text" style="color:var(--text-dark)">SHOP</span>
+          <button class="btn btn-ghost btn-small">✕</button>
+        </div>
+        <div class="shop-tabs">
+          <button class="tab-inactive">COINS</button>
+          <button class="tab-inactive">BALLS</button>
+          <button class="tab-active">TOWERS</button>
+        </div>
+        <div class="shop-grid">
+          <div class="shop-grid-card owned">
+            <div class="shop-grid-img owned-img"></div>
+            <div class="shop-grid-name">Default</div>
+            <span class="badge badge-success">Sahip</span>
+          </div>
+          <div class="shop-grid-card">
+            <div class="shop-grid-img"></div>
+            <div class="shop-grid-name">Crystal</div>
+            <button class="btn btn-primary btn-small">300</button>
+          </div>
+          <div class="shop-grid-card">
+            <div class="shop-grid-img" style="background:var(--hud-card)"></div>
+            <div class="shop-grid-name">Obsidian</div>
+            <button class="btn btn-primary btn-small">600</button>
+          </div>
+          <div class="shop-grid-card">
+            <div class="shop-grid-img" style="background:var(--warning-bg)"></div>
+            <div class="shop-grid-name">Gold Tower</div>
+            <button class="btn btn-primary btn-small">1,200</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑦ COUNTDOWN -->
+  <div class="screen-wrap">
+    <div class="screen-label">7 · Countdown</div>
+    <div class="screen" id="countdown">
+      <div class="count-num">3</div>
+      <div class="go-text">GO!</div>
+      <div class="note">Animates: 3 → 2 → 1 → GO!<br>Each 1 second</div>
+    </div>
+  </div>
+
+  <!-- ⑧ SPLASH -->
+  <div class="screen-wrap">
+    <div class="screen-label">8 · Splash Screen</div>
+    <div class="screen" id="splash">
+      <div class="logo-tower">TOWER</div>
+      <div class="logo-maze">MAZE</div>
+      <div class="spinner"></div>
+      <div class="spinner-note">Animates: rotating ring</div>
+    </div>
+  </div>
+
+  <!-- ⑨ IAP UPSELL -->
+  <div class="screen-wrap">
+    <div class="screen-label">9 · IAP Upsell</div>
+    <div class="screen" id="iap-upsell" style="background:var(--surface)">
+      <div class="backdrop"></div>
+      <div class="iap-modal">
+        <span class="close-btn">✕</span>
+        <div class="product-img"></div>
+        <div class="product-title">No Ads Pack</div>
+        <div class="product-desc">Remove all ads and enjoy TowerMaze uninterrupted forever.</div>
+        <button class="btn btn-primary btn-full">$2.99</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑩ REWARD TOAST -->
+  <div class="screen-wrap">
+    <div class="screen-label">10 · Reward Toast</div>
+    <div class="screen" id="reward-toast">
+      <div class="screen-bg">
+        <div class="toast">
+          <div class="toast-icon">🪙</div>
+          <div>
+            <div class="toast-title">REWARD</div>
+            <div class="toast-sub">+150 coins</div>
+          </div>
+        </div>
+        <div class="toast-note">Appears top-center · Auto-dismiss 2.5s</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑪ LEADERBOARD -->
+  <div class="screen-wrap">
+    <div class="screen-label">11 · Leaderboard</div>
+    <div class="screen" id="leaderboard">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="title-text" style="color:var(--text-dark)">TOP RUNS</span>
+          <button class="btn btn-ghost btn-small">✕</button>
+        </div>
+        <div class="entry gold">
+          <span class="rank">1</span><span class="pname">MazeKing</span><span class="pscore">3,842m</span>
+        </div>
+        <div class="entry silver">
+          <span class="rank">2</span><span class="pname">TowerClimber</span><span class="pscore">2,991m</span>
+        </div>
+        <div class="entry bronze">
+          <span class="rank">3</span><span class="pname">HighFlyer</span><span class="pscore">2,450m</span>
+        </div>
+        <div class="entry">
+          <span class="rank">4</span><span class="pname">NeonRunner</span><span class="pscore">1,899m</span>
+        </div>
+        <div class="entry me">
+          <span class="rank">5</span><span class="pname">You</span><span class="pscore">1,248m</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑫ RUSH WARNING -->
+  <div class="screen-wrap">
+    <div class="screen-label">12 · Rush Warning</div>
+    <div class="screen" id="rush-warning">
+      <div class="overlay"></div>
+      <div class="card">
+        <div class="warn-icon">⚡</div>
+        <div class="warn-title">⚡ RUSH MODE</div>
+        <div class="warn-body">Speed increases!</div>
+        <div class="warn-note">Auto-dismiss 1.5s · No button</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑬ CONTROL FLIP -->
+  <div class="screen-wrap">
+    <div class="screen-label">13 · Control Flip Warning</div>
+    <div class="screen" id="control-flip">
+      <div class="overlay"></div>
+      <div class="card">
+        <div class="flip-icon">↔</div>
+        <div class="flip-title">CONTROLS FLIPPED</div>
+        <div class="flip-body">Left and right are now reversed</div>
+        <button class="btn btn-primary btn-small" style="margin-top:8px">GOT IT</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /screens-grid -->
+</body>
+</html>

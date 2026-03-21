@@ -1,0 +1,76 @@
+<h2>Game Over Ekranı</h2>
+<p class="subtitle">Oyuncu düştükten sonra gördüğü ekran. Hangisi daha doğru?</p>
+
+<div class="cards" style="display:flex;gap:24px;flex-wrap:wrap;justify-content:center;">
+
+  <!-- Option A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)" style="width:200px;cursor:pointer;">
+    <div class="card-image" style="background:#F5F5F7;padding:16px;border-radius:12px;">
+      <div style="font-family:sans-serif;display:flex;flex-direction:column;align-items:center;gap:10px;min-height:340px;justify-content:center;">
+        <!-- Title -->
+        <div style="font-size:13px;font-weight:800;color:#1C1C1E;letter-spacing:1px;">YOU FELL</div>
+        <!-- Score -->
+        <div style="font-size:36px;font-weight:900;color:#7C4DFF;line-height:1;">103<span style="font-size:16px;font-weight:600;color:#8E8E93;">m</span></div>
+        <!-- Continue ad button -->
+        <div style="background:#FF9F0A;color:#fff;font-weight:700;font-size:12px;padding:14px 0;border-radius:16px;width:100%;text-align:center;margin-top:8px;">▶ CONTINUE (Watch Ad)</div>
+        <!-- Retry -->
+        <div style="background:#E5E5EA;color:#1C1C1E;font-size:12px;font-weight:600;padding:12px 0;border-radius:16px;width:100%;text-align:center;">Retry</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Minimal 2-Button</h3>
+      <p>Sadece skor + Continue (ad) + Retry. Ultra sade.</p>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)" style="width:200px;cursor:pointer;">
+    <div class="card-image" style="background:#F5F5F7;padding:16px;border-radius:12px;">
+      <div style="font-family:sans-serif;display:flex;flex-direction:column;align-items:center;gap:8px;min-height:340px;justify-content:center;">
+        <!-- Title -->
+        <div style="font-size:13px;font-weight:800;color:#1C1C1E;letter-spacing:1px;">YOU FELL</div>
+        <!-- Score -->
+        <div style="font-size:36px;font-weight:900;color:#7C4DFF;line-height:1;">103<span style="font-size:16px;font-weight:600;color:#8E8E93;">m</span></div>
+        <!-- Stats card -->
+        <div style="background:#fff;border-radius:14px;padding:10px 14px;width:100%;box-sizing:border-box;">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#8E8E93;margin-bottom:4px;"><span>Best</span><span style="color:#1C1C1E;font-weight:700;">120m</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#8E8E93;"><span>Coins</span><span style="color:#FF9F0A;font-weight:700;">+12</span></div>
+        </div>
+        <!-- Continue ad button -->
+        <div style="background:#FF9F0A;color:#fff;font-weight:700;font-size:12px;padding:14px 0;border-radius:16px;width:100%;text-align:center;">▶ CONTINUE (Watch Ad)</div>
+        <!-- Retry -->
+        <div style="background:#E5E5EA;color:#1C1C1E;font-size:12px;font-weight:600;padding:12px 0;border-radius:16px;width:100%;text-align:center;">Retry</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Score + Mini Stats</h3>
+      <p>Skor altında küçük bir kart: best score ve kazanılan coins.</p>
+    </div>
+  </div>
+
+  <!-- Option C -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)" style="width:200px;cursor:pointer;">
+    <div class="card-image" style="background:#F5F5F7;padding:16px;border-radius:12px;">
+      <div style="font-family:sans-serif;display:flex;flex-direction:column;align-items:center;gap:8px;min-height:340px;justify-content:center;">
+        <!-- Title -->
+        <div style="font-size:13px;font-weight:800;color:#EF4444;letter-spacing:1px;">YOU FELL</div>
+        <!-- Score büyük -->
+        <div style="font-size:42px;font-weight:900;color:#1C1C1E;line-height:1;">103<span style="font-size:18px;font-weight:600;color:#8E8E93;">m</span></div>
+        <!-- New best badge (conditional) -->
+        <div style="background:#D1FAE5;color:#10B981;font-size:9px;font-weight:700;padding:3px 10px;border-radius:999px;letter-spacing:0.5px;">NEW BEST!</div>
+        <!-- Continue ad button -->
+        <div style="background:#FF9F0A;color:#fff;font-weight:700;font-size:12px;padding:14px 0;border-radius:16px;width:100%;text-align:center;margin-top:8px;">▶ CONTINUE (Watch Ad)</div>
+        <!-- Row: Retry + Menu -->
+        <div style="display:flex;gap:8px;width:100%;">
+          <div style="flex:1;background:#E5E5EA;color:#1C1C1E;font-size:10px;font-weight:600;padding:12px 0;border-radius:12px;text-align:center;">Retry</div>
+          <div style="flex:1;background:#E5E5EA;color:#1C1C1E;font-size:10px;font-weight:600;padding:12px 0;border-radius:12px;text-align:center;">Menu</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Score Hero + 3 Button</h3>
+      <p>Skor çok büyük, "New Best" badge'i, 3 aksiyon: Continue / Retry / Menu.</p>
+    </div>
+  </div>
+
+</div>

@@ -112,7 +112,8 @@ namespace TowerMaze
         public void Initialize(GameConfig gameConfig)
         {
             config = gameConfig;
-            usingSimulatedProvider = config == null || config.useSimulatedRewardedAds;
+            bool forceSimulationForEditor = Application.isEditor;
+            usingSimulatedProvider = forceSimulationForEditor || config == null || config.useSimulatedRewardedAds;
 
 #if GOOGLE_MOBILE_ADS
             if (!usingSimulatedProvider)

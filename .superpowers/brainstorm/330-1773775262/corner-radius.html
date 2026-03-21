@@ -1,0 +1,91 @@
+<h2>Component Karakteri</h2>
+<p class="subtitle">Butonlar, kartlar ve paneller nasıl hissettirsin?</p>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap');
+  * { font-family: 'Outfit', sans-serif; }
+  .ui-demo { background:#F8F7FF; padding:18px; border-radius:12px; }
+  .score-card { padding:12px; margin-bottom:10px; background:#fff; }
+  .score-label { font-size:9px; color:#999; letter-spacing:1.5px; text-transform:uppercase; }
+  .score-val { font-size:26px; font-weight:900; color:#111; line-height:1.1; }
+  .btn-primary { background:#7C3AED; color:#fff; padding:11px; text-align:center; font-weight:700; font-size:13px; margin-bottom:7px; cursor:pointer; }
+  .btn-secondary { background:#fff; border:2px solid #7C3AED; color:#7C3AED; padding:9px; text-align:center; font-weight:700; font-size:12px; cursor:pointer; }
+  .mission { background:#fff; padding:10px; margin-top:8px; }
+  .mission-label { font-size:8px; color:#999; letter-spacing:1.5px; }
+  .mission-text { font-size:10px; color:#333; margin-top:2px; }
+  .mission-bar-bg { height:4px; background:#ede9fe; margin-top:5px; }
+  .mission-bar-fill { height:100%; background:#7C3AED; width:40%; }
+</style>
+
+<div class="cards">
+
+  <div class="card" data-choice="sharp" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="ui-demo">
+        <div style="font-size:18px;font-weight:900;color:#111;margin-bottom:10px">TOWER<span style="color:#7C3AED">MAZE</span></div>
+        <div class="score-card" style="border-radius:4px;box-shadow:0 1px 4px #0001">
+          <div class="score-label">Best Score</div>
+          <div class="score-val">1,248<span style="color:#7C3AED;font-size:18px">m</span></div>
+        </div>
+        <div class="btn-primary" style="border-radius:4px">OYNA</div>
+        <div class="btn-secondary" style="border-radius:4px">SHOP</div>
+        <div class="mission" style="border-radius:4px;box-shadow:0 1px 4px #0001">
+          <div class="mission-label">Daily Mission</div>
+          <div class="mission-text">Reach 28m in one run</div>
+          <div class="mission-bar-bg" style="border-radius:2px"><div class="mission-bar-fill" style="border-radius:2px"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Keskin (4px)</h3>
+      <p>Güçlü, kararlı, askeri his. Ciddi ve yapısal. Daha maskülen.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="balanced" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="ui-demo">
+        <div style="font-size:18px;font-weight:900;color:#111;margin-bottom:10px">TOWER<span style="color:#7C3AED">MAZE</span></div>
+        <div class="score-card" style="border-radius:10px;box-shadow:0 2px 8px #0002">
+          <div class="score-label">Best Score</div>
+          <div class="score-val">1,248<span style="color:#7C3AED;font-size:18px">m</span></div>
+        </div>
+        <div class="btn-primary" style="border-radius:10px">OYNA</div>
+        <div class="btn-secondary" style="border-radius:10px">SHOP</div>
+        <div class="mission" style="border-radius:10px;box-shadow:0 2px 8px #0002">
+          <div class="mission-label">Daily Mission</div>
+          <div class="mission-text">Reach 28m in one run</div>
+          <div class="mission-bar-bg" style="border-radius:4px"><div class="mission-bar-fill" style="border-radius:4px"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Dengeli (10px)</h3>
+      <p>Modern standart. Hem sert hem yumuşak. Çoğu top mobile oyunun kullandığı orta yol.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="soft" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="ui-demo">
+        <div style="font-size:18px;font-weight:900;color:#111;margin-bottom:10px">TOWER<span style="color:#7C3AED">MAZE</span></div>
+        <div class="score-card" style="border-radius:18px;box-shadow:0 4px 16px #0002">
+          <div class="score-label">Best Score</div>
+          <div class="score-val">1,248<span style="color:#7C3AED;font-size:18px">m</span></div>
+        </div>
+        <div class="btn-primary" style="border-radius:999px">OYNA</div>
+        <div class="btn-secondary" style="border-radius:999px">SHOP</div>
+        <div class="mission" style="border-radius:18px;box-shadow:0 4px 16px #0002">
+          <div class="mission-label">Daily Mission</div>
+          <div class="mission-text">Reach 28m in one run</div>
+          <div class="mission-bar-bg" style="border-radius:99px"><div class="mission-bar-fill" style="border-radius:99px"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Yumuşak (18px / pill buton)</h3>
+      <p>Arkadaşça, sıcak, erişilebilir. Casual oyunlara çok yakışır. Daha çekici ve soft.</p>
+    </div>
+  </div>
+
+</div>

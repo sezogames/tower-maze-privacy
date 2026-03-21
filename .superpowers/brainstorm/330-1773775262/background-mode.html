@@ -1,0 +1,100 @@
+<h2>Zemin Tonu</h2>
+<p class="subtitle">Tüm menülerin genel zemin karakteri nasıl olsun?</p>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap');
+  * { font-family: 'Outfit', sans-serif; }
+  .phone {
+    width: 160px; height: 300px; border-radius: 24px;
+    overflow: hidden; position: relative;
+    box-shadow: 0 8px 32px #0004;
+    margin: 0 auto;
+    flex-shrink: 0;
+  }
+  .phone-inner { padding: 16px; height: 100%; box-sizing: border-box; }
+</style>
+
+<div class="cards">
+
+  <div class="card" data-choice="light" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;display:flex;justify-content:center">
+      <div class="phone" style="background:#F8F7FF">
+        <div class="phone-inner">
+          <div style="font-size:18px;font-weight:900;color:#111;letter-spacing:-0.5px">TOWER<span style="color:#7C3AED">MAZE</span></div>
+          <div style="height:2px;background:#7C3AED;margin:8px 0;border-radius:1px"></div>
+          <div style="background:#fff;border-radius:8px;padding:10px;margin-bottom:8px;box-shadow:0 2px 8px #0001">
+            <div style="font-size:8px;color:#999;letter-spacing:1px">BEST SCORE</div>
+            <div style="font-size:22px;font-weight:900;color:#111">1,248<span style="color:#7C3AED">m</span></div>
+          </div>
+          <div style="background:#7C3AED;border-radius:8px;padding:10px;text-align:center;color:#fff;font-weight:700;font-size:13px;margin-bottom:6px">OYNA</div>
+          <div style="background:#fff;border:2px solid #7C3AED;border-radius:8px;padding:8px;text-align:center;color:#7C3AED;font-weight:700;font-size:12px">SHOP</div>
+          <div style="margin-top:8px;background:#fff;border-radius:8px;padding:8px;box-shadow:0 2px 8px #0001">
+            <div style="font-size:8px;color:#999;letter-spacing:1px">DAILY MISSION</div>
+            <div style="font-size:10px;color:#333;margin-top:2px">Reach 28m in one run</div>
+            <div style="background:#ede9fe;border-radius:4px;height:4px;margin-top:4px"><div style="background:#7C3AED;width:40%;height:100%;border-radius:4px"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Açık Zemin</h3>
+      <p>Kırık beyaz (#F8F7FF). Hafif, temiz, gündüz kullanımında konforlu. App Store standartı.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="dark" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;display:flex;justify-content:center">
+      <div class="phone" style="background:#0F0A1E">
+        <div class="phone-inner">
+          <div style="font-size:18px;font-weight:900;color:#fff;letter-spacing:-0.5px">TOWER<span style="color:#A78BFA">MAZE</span></div>
+          <div style="height:2px;background:#7C3AED;margin:8px 0;border-radius:1px"></div>
+          <div style="background:#1C1433;border-radius:8px;padding:10px;margin-bottom:8px;border:1px solid #2D2050">
+            <div style="font-size:8px;color:#7C6FA0;letter-spacing:1px">BEST SCORE</div>
+            <div style="font-size:22px;font-weight:900;color:#fff">1,248<span style="color:#A78BFA">m</span></div>
+          </div>
+          <div style="background:#7C3AED;border-radius:8px;padding:10px;text-align:center;color:#fff;font-weight:700;font-size:13px;margin-bottom:6px">OYNA</div>
+          <div style="background:transparent;border:2px solid #7C3AED;border-radius:8px;padding:8px;text-align:center;color:#A78BFA;font-weight:700;font-size:12px">SHOP</div>
+          <div style="margin-top:8px;background:#1C1433;border-radius:8px;padding:8px;border:1px solid #2D2050">
+            <div style="font-size:8px;color:#7C6FA0;letter-spacing:1px">DAILY MISSION</div>
+            <div style="font-size:10px;color:#C4B5FD;margin-top:2px">Reach 28m in one run</div>
+            <div style="background:#2D2050;border-radius:4px;height:4px;margin-top:4px"><div style="background:#7C3AED;width:40%;height:100%;border-radius:4px"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Koyu Zemin</h3>
+      <p>Derin lacivert-mor (#0F0A1E). Premium, sinematik, gece oyun hissi. Mor aksan parlar.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="mixed" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;display:flex;justify-content:center;gap:10px">
+      <div style="text-align:center">
+        <div class="phone" style="background:#F8F7FF;height:130px">
+          <div class="phone-inner" style="padding:12px">
+            <div style="font-size:12px;font-weight:900;color:#111">TOWER<span style="color:#7C3AED">MAZE</span></div>
+            <div style="background:#7C3AED;border-radius:6px;padding:6px;text-align:center;color:#fff;font-weight:700;font-size:10px;margin-top:8px">OYNA</div>
+          </div>
+        </div>
+        <div style="font-size:9px;color:#888;margin-top:4px">Menü → Açık</div>
+      </div>
+      <div style="text-align:center">
+        <div class="phone" style="background:#0F0A1E;height:130px">
+          <div class="phone-inner" style="padding:12px">
+            <div style="font-size:12px;font-weight:900;color:#fff">HUD</div>
+            <div style="background:#1C1433;border-radius:6px;padding:6px;text-align:center;border:1px solid #7C3AED;margin-top:8px">
+              <div style="color:#A78BFA;font-size:10px;font-weight:700">48m</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:9px;color:#888;margin-top:4px">Oyun → Koyu</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Karışık</h3>
+      <p>Menüler açık, oyun-içi HUD koyu. İki dünyanın en iyisi — ama tutarsız görünebilir.</p>
+    </div>
+  </div>
+
+</div>

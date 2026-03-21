@@ -1,0 +1,86 @@
+<h2>Ana Menü — Renk Alternatifleri</h2>
+<p class="subtitle">Hangisi daha iyi hissettiriyor?</p>
+
+<div class="cards" style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">
+
+  <!-- A: Koyu arka plan -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)" style="width:190px;cursor:pointer;">
+    <div class="card-image" style="padding:0;border-radius:12px;overflow:hidden;">
+      <div style="font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:340px;background:#1C1C1E;padding:24px 18px;">
+        <div style="font-size:26px;font-weight:900;color:#FFFFFF;text-align:center;line-height:1.15;">TOWER<br>MAZE</div>
+        <div style="height:16px;"></div>
+        <div style="background:#7C4DFF;color:#fff;font-weight:700;font-size:14px;padding:15px 0;border-radius:16px;width:100%;text-align:center;box-shadow:0 4px 20px rgba(124,77,255,0.5);">START</div>
+        <div style="font-size:11px;color:#8E8E93;">Best: 103m</div>
+        <div style="display:flex;gap:8px;width:100%;">
+          <div style="flex:1;background:#2C2C2E;color:#fff;font-size:10px;font-weight:600;padding:11px 0;border-radius:12px;text-align:center;">SHOP</div>
+          <div style="flex:1;background:#2C2C2E;color:#fff;font-size:10px;font-weight:600;padding:11px 0;border-radius:12px;text-align:center;">MISSIONS</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Dark</h3>
+      <p>Siyah arka plan, mor START, gece modu hissi.</p>
+    </div>
+  </div>
+
+  <!-- B: Deep purple -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)" style="width:190px;cursor:pointer;">
+    <div class="card-image" style="padding:0;border-radius:12px;overflow:hidden;">
+      <div style="font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:340px;background:#2D1B69;padding:24px 18px;">
+        <div style="font-size:26px;font-weight:900;color:#FFFFFF;text-align:center;line-height:1.15;">TOWER<br>MAZE</div>
+        <div style="height:16px;"></div>
+        <div style="background:#FF9F0A;color:#fff;font-weight:700;font-size:14px;padding:15px 0;border-radius:16px;width:100%;text-align:center;box-shadow:0 4px 20px rgba(255,159,10,0.45);">START</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.45);">Best: 103m</div>
+        <div style="display:flex;gap:8px;width:100%;">
+          <div style="flex:1;background:rgba(255,255,255,0.1);color:#fff;font-size:10px;font-weight:600;padding:11px 0;border-radius:12px;text-align:center;">SHOP</div>
+          <div style="flex:1;background:rgba(255,255,255,0.1);color:#fff;font-size:10px;font-weight:600;padding:11px 0;border-radius:12px;text-align:center;">MISSIONS</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Deep Purple</h3>
+      <p>Koyu mor zemin, turuncu START vurgusu. Enerjik.</p>
+    </div>
+  </div>
+
+  <!-- C: Gradient bg -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)" style="width:190px;cursor:pointer;">
+    <div class="card-image" style="padding:0;border-radius:12px;overflow:hidden;">
+      <div style="font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:340px;background:linear-gradient(160deg,#1a0533 0%,#2D1B69 60%,#7C4DFF 100%);padding:24px 18px;">
+        <div style="font-size:26px;font-weight:900;color:#FFFFFF;text-align:center;line-height:1.15;text-shadow:0 2px 12px rgba(124,77,255,0.6);">TOWER<br>MAZE</div>
+        <div style="height:16px;"></div>
+        <div style="background:#FFFFFF;color:#7C4DFF;font-weight:800;font-size:14px;padding:15px 0;border-radius:16px;width:100%;text-align:center;">START</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);">Best: 103m</div>
+        <div style="display:flex;gap:8px;width:100%;">
+          <div style="flex:1;background:rgba(255,255,255,0.12);color:#fff;font-size:10px;font-weight:600;padding:11px 0;border-radius:12px;text-align:center;">SHOP</div>
+          <div style="flex:1;background:rgba(255,255,255,0.12);color:#fff;font-size:10px;font-weight:600;padding:11px 0;border-radius:12px;text-align:center;">MISSIONS</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Gradient Dark</h3>
+      <p>Koyu mor gradyan, beyaz START butonu. Dramatik.</p>
+    </div>
+  </div>
+
+  <!-- D: Light lavender -->
+  <div class="card" data-choice="d" onclick="toggleSelect(this)" style="width:190px;cursor:pointer;">
+    <div class="card-image" style="padding:0;border-radius:12px;overflow:hidden;">
+      <div style="font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:340px;background:#EDE9FE;padding:24px 18px;">
+        <div style="font-size:26px;font-weight:900;color:#3B0764;text-align:center;line-height:1.15;">TOWER<br>MAZE</div>
+        <div style="height:16px;"></div>
+        <div style="background:#7C4DFF;color:#fff;font-weight:700;font-size:14px;padding:15px 0;border-radius:16px;width:100%;text-align:center;box-shadow:0 4px 20px rgba(124,77,255,0.3);">START</div>
+        <div style="font-size:11px;color:#8E8E93;">Best: 103m</div>
+        <div style="display:flex;gap:8px;width:100%;">
+          <div style="flex:1;background:#DDD6FE;color:#5B21B6;font-size:10px;font-weight:600;padding:11px 0;border-radius:12px;text-align:center;">SHOP</div>
+          <div style="flex:1;background:#DDD6FE;color:#5B21B6;font-size:10px;font-weight:600;padding:11px 0;border-radius:12px;text-align:center;">MISSIONS</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>D — Light Lavender</h3>
+      <p>Açık lavanta zemin, koyu mor logo. Soft & premium.</p>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,80 @@
+<h2>Ana Menü Düzeni</h2>
+<p class="subtitle">Hangi ana menü kompozisyonu daha doğru hissettiriyor?</p>
+
+<div class="cards" style="display:flex;gap:24px;flex-wrap:wrap;justify-content:center;">
+
+  <!-- Option A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)" style="width:200px;cursor:pointer;">
+    <div class="card-image" style="background:#F5F5F7;padding:16px;border-radius:12px;">
+      <div style="font-family:sans-serif;display:flex;flex-direction:column;align-items:center;gap:10px;min-height:340px;justify-content:center;">
+        <!-- Logo -->
+        <div style="font-size:22px;font-weight:800;color:#1C1C1E;letter-spacing:-0.5px;text-align:center;line-height:1.2;">TOWER<br>MAZE</div>
+        <!-- Spacer -->
+        <div style="flex:1;max-height:40px;"></div>
+        <!-- Start Button -->
+        <div style="background:#7C4DFF;color:#fff;font-weight:700;font-size:14px;padding:14px 48px;border-radius:16px;width:100%;text-align:center;box-sizing:border-box;">START</div>
+        <!-- Best -->
+        <div style="font-size:11px;color:#8E8E93;font-weight:500;">Best: 103m</div>
+        <!-- Bottom Row -->
+        <div style="display:flex;gap:8px;width:100%;">
+          <div style="flex:1;background:#E5E5EA;color:#1C1C1E;font-size:10px;font-weight:600;padding:10px 0;border-radius:12px;text-align:center;">SHOP</div>
+          <div style="flex:1;background:#E5E5EA;color:#1C1C1E;font-size:10px;font-weight:600;padding:10px 0;border-radius:12px;text-align:center;">MISSIONS</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Centered Stack</h3>
+      <p>Logo → Start → Best → Alt buttons. Sade, dikey hiyerarşi.</p>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)" style="width:200px;cursor:pointer;">
+    <div class="card-image" style="background:#F5F5F7;padding:16px;border-radius:12px;">
+      <div style="font-family:sans-serif;display:flex;flex-direction:column;align-items:center;gap:10px;min-height:340px;justify-content:space-between;">
+        <!-- Top bar -->
+        <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
+          <div style="background:#fff;border-radius:999px;padding:4px 10px;font-size:10px;font-weight:700;color:#FF9F0A;">🏆 103m</div>
+          <div style="background:#E5E5EA;border-radius:999px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;">⚙</div>
+        </div>
+        <!-- Logo centered -->
+        <div style="font-size:22px;font-weight:800;color:#1C1C1E;text-align:center;line-height:1.2;">TOWER<br>MAZE</div>
+        <!-- Start Button -->
+        <div style="background:#7C4DFF;color:#fff;font-weight:700;font-size:14px;padding:14px 0;border-radius:16px;width:100%;text-align:center;">START</div>
+        <!-- Bottom Row -->
+        <div style="display:flex;gap:8px;width:100%;">
+          <div style="flex:1;background:#E5E5EA;color:#1C1C1E;font-size:10px;font-weight:600;padding:10px 0;border-radius:12px;text-align:center;">SHOP</div>
+          <div style="flex:1;background:#E5E5EA;color:#1C1C1E;font-size:10px;font-weight:600;padding:10px 0;border-radius:12px;text-align:center;">MISSIONS</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Top Bar</h3>
+      <p>Üst çubukta best score + settings. Ortada logo, altta START.</p>
+    </div>
+  </div>
+
+  <!-- Option C -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)" style="width:200px;cursor:pointer;">
+    <div class="card-image" style="background:#F5F5F7;padding:16px;border-radius:12px;">
+      <div style="font-family:sans-serif;display:flex;flex-direction:column;align-items:center;gap:10px;min-height:340px;justify-content:flex-end;">
+        <!-- Logo büyük üstte -->
+        <div style="font-size:28px;font-weight:900;color:#7C4DFF;text-align:center;letter-spacing:-1px;margin-bottom:auto;padding-top:20px;">TOWER<br><span style="color:#1C1C1E;">MAZE</span></div>
+        <!-- Best score pill -->
+        <div style="background:#fff;border-radius:999px;padding:5px 14px;font-size:10px;font-weight:600;color:#8E8E93;border:1px solid #E5E5EA;">Best: 103m</div>
+        <!-- Start Button — büyük -->
+        <div style="background:#7C4DFF;color:#fff;font-weight:800;font-size:16px;padding:18px 0;border-radius:16px;width:100%;text-align:center;letter-spacing:0.5px;">START</div>
+        <!-- Bottom Row -->
+        <div style="display:flex;gap:8px;width:100%;">
+          <div style="flex:1;background:#E5E5EA;color:#1C1C1E;font-size:10px;font-weight:600;padding:10px 0;border-radius:12px;text-align:center;">SHOP</div>
+          <div style="flex:1;background:#E5E5EA;color:#1C1C1E;font-size:10px;font-weight:600;padding:10px 0;border-radius:12px;text-align:center;">MISSIONS</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Logo Hero</h3>
+      <p>Logo büyük + renkli, START daha belirgin. Alt kısım sıkıştırılmış.</p>
+    </div>
+  </div>
+
+</div>

@@ -143,6 +143,13 @@ namespace TowerMaze
             Shader lit = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             Shader unlit = Shader.Find("Universal Render Pipeline/Unlit") ?? lit;
 
+            if (lit == null)
+            {
+                Debug.LogWarning("[TowerMaterials] Could not find Lit shader! Falling back to internal fallback.");
+                lit = Shader.Find("Hidden/InternalErrorShader");
+            }
+            if (unlit == null) unlit = lit;
+
             PathMaterial = new Material(lit);
             MainPathMaterial = new Material(lit);
             WallMaterial = new Material(lit);
@@ -150,8 +157,11 @@ namespace TowerMaze
 
             ApplyTreasureTier(0);
 
-            LavaMaterial.SetColor("_BaseColor", theme.lavaColor);
-            LavaMaterial.SetColor("_Color", theme.lavaColor);
+            if (LavaMaterial != null)
+            {
+                LavaMaterial.SetColor("_BaseColor", theme.lavaColor);
+                LavaMaterial.SetColor("_Color", theme.lavaColor);
+            }
         }
 
         public void ApplyTreasureTier(int emberBalance)
@@ -669,11 +679,11 @@ namespace TowerMaze
             difficultyProfile = profile;
             theme = definition;
             materials = new TowerMaterials(theme);
-
-            activeSegmentsRoot ??= CreateChild("ActiveSegments");
-            pooledSegmentsRoot ??= CreateChild("PooledSegments");
-            rotationController ??= GetComponent<TowerRotationController>();
-            sinkController ??= GetComponentInParent<TowerSinkController>();
+            
+            if (activeSegmentsRoot == null) activeSegmentsRoot = CreateChild("ActiveSegments");
+            if (pooledSegmentsRoot == null) pooledSegmentsRoot = CreateChild("PooledSegments");
+            if (rotationController == null) rotationController = GetComponent<TowerRotationController>();
+            if (sinkController == null) sinkController = GetComponentInParent<TowerSinkController>();
         }
 
         public void ApplyTreasureVisuals(int emberBalance)

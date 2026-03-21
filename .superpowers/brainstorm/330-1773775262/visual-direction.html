@@ -1,0 +1,85 @@
+<h2>Yeni Görsel Yön — Hangi tarza gidiyoruz?</h2>
+<p class="subtitle">TowerMaze için 4 farklı kimlik. Birini ya da birkaçını seç.</p>
+
+<div class="cards" data-multiselect>
+
+  <div class="card" data-choice="neon" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#0a0a1a;padding:16px;border-radius:8px;font-family:monospace">
+      <div style="color:#00f5ff;font-size:22px;font-weight:900;letter-spacing:3px;text-shadow:0 0 12px #00f5ff">TOWERMAZE</div>
+      <div style="margin:10px 0;height:2px;background:linear-gradient(90deg,#00f5ff,#bf00ff,transparent)"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <div style="flex:1;background:#bf00ff22;border:1px solid #bf00ff;border-radius:6px;padding:8px;text-align:center;color:#bf00ff;font-size:11px;font-weight:700">PLAY</div>
+        <div style="flex:1;background:#00f5ff22;border:1px solid #00f5ff;border-radius:6px;padding:8px;text-align:center;color:#00f5ff;font-size:11px;font-weight:700">SHOP</div>
+      </div>
+      <div style="margin-top:10px;background:#ffffff08;border:1px solid #ffffff15;border-radius:6px;padding:8px">
+        <div style="color:#ffffff60;font-size:9px;letter-spacing:2px">BEST SCORE</div>
+        <div style="color:#00f5ff;font-size:16px;font-weight:900;text-shadow:0 0 8px #00f5ff">1,248m</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Neon / Cyberpunk</h3>
+      <p>Koyu zemin, neon glow efektleri, elektrik mavisi + mor. Gece hissi, tekno kimlik.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="fantasy" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#1a1208;padding:16px;border-radius:8px;font-family:Georgia,serif">
+      <div style="color:#f5c842;font-size:20px;font-weight:900;letter-spacing:2px;text-shadow:1px 1px 0 #7a4a00,0 0 20px #f5c84260">TowerMaze</div>
+      <div style="margin:10px 0;height:2px;background:linear-gradient(90deg,#f5c842,#c87a20,transparent)"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <div style="flex:1;background:linear-gradient(180deg,#c87a20,#7a4a00);border:1px solid #f5c842;border-radius:6px;padding:8px;text-align:center;color:#fff8e0;font-size:11px;font-weight:700">⚔ BAŞLA</div>
+        <div style="flex:1;background:linear-gradient(180deg,#3a2a0a,#1a1208);border:1px solid #c87a2080;border-radius:6px;padding:8px;text-align:center;color:#c87a20;font-size:11px;font-weight:700">🏆 SHOP</div>
+      </div>
+      <div style="margin-top:10px;background:#f5c84210;border:1px solid #f5c84240;border-radius:6px;padding:8px">
+        <div style="color:#c87a20;font-size:9px;letter-spacing:2px">EN İYİ SKOR</div>
+        <div style="color:#f5c842;font-size:16px;font-weight:900">1,248m</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Fantezi / Orta Çağ</h3>
+      <p>Altın tonlar, derin kahve zeminler, serif tipografi. Epik, macera dolu hissiyat.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="minimal" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f5f5f0;padding:16px;border-radius:8px;font-family:'Helvetica Neue',sans-serif">
+      <div style="color:#111;font-size:20px;font-weight:900;letter-spacing:-1px">TOWER<span style="color:#ff4444">MAZE</span></div>
+      <div style="margin:10px 0;height:2px;background:#ff4444"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <div style="flex:2;background:#ff4444;border-radius:6px;padding:8px;text-align:center;color:#fff;font-size:11px;font-weight:700">OYNA</div>
+        <div style="flex:1;background:#eee;border-radius:6px;padding:8px;text-align:center;color:#111;font-size:11px;font-weight:700">SHOP</div>
+      </div>
+      <div style="margin-top:10px;background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:8px">
+        <div style="color:#999;font-size:9px;letter-spacing:2px;text-transform:uppercase">Best Score</div>
+        <div style="color:#111;font-size:16px;font-weight:900">1,248<span style="color:#ff4444">m</span></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Minimalist / Modern</h3>
+      <p>Temiz beyaz zemin, sert kırmızı aksan, bold geometrik şekiller. Sade ve güçlü.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="retro" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#1a0a2e;padding:16px;border-radius:8px;font-family:monospace;image-rendering:pixelated">
+      <div style="color:#fff;font-size:18px;font-weight:900;letter-spacing:2px;
+        -webkit-text-stroke:2px #ff6b00;text-shadow:3px 3px 0 #ff6b00">TOWERMAZE</div>
+      <div style="margin:8px 0;height:3px;background:repeating-linear-gradient(90deg,#ff6b00 0px,#ff6b00 8px,transparent 8px,transparent 12px)"></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <div style="flex:1;background:#ff6b00;border:3px solid #ffaa00;border-radius:0;padding:8px;text-align:center;color:#fff;font-size:10px;font-weight:700;box-shadow:3px 3px 0 #aa4400">▶ START</div>
+        <div style="flex:1;background:#2a0a4e;border:3px solid #aa44ff;border-radius:0;padding:8px;text-align:center;color:#ff88ff;font-size:10px;font-weight:700;box-shadow:3px 3px 0 #660088">SHOP</div>
+      </div>
+      <div style="margin-top:10px;background:#0a001a;border:3px solid #ff6b00;border-radius:0;padding:8px">
+        <div style="color:#ff6b00;font-size:9px;letter-spacing:2px">HI-SCORE</div>
+        <div style="color:#fff;font-size:16px;font-weight:900;text-shadow:2px 2px 0 #ff6b00">001248</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Retro Arcade</h3>
+      <p>Pixel art estetiği, turuncu+mor, pikselated köşeler, arcade hi-score ekranı hissi.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px">Birden fazla seçebilirsin — mesela "Neon ama retro dokunuşları ile" gibi.</p>

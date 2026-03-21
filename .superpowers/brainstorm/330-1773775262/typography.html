@@ -1,0 +1,77 @@
+<h2>Tipografi</h2>
+<p class="subtitle">Hangi font TowerMaze'e daha çok yakışıyor?</p>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Space+Grotesk:wght@400;700&family=Outfit:wght@400;700;900&family=Plus+Jakarta+Sans:wght@400;700;800&display=swap');
+  .font-preview { background:#fafaf8; border-radius:10px; padding:18px; }
+  .font-score { font-size:42px; font-weight:900; color:#111; line-height:1; }
+  .font-label { font-size:9px; letter-spacing:2px; color:#999; text-transform:uppercase; margin-bottom:2px; }
+  .font-btn { display:inline-block; background:#7C3AED; color:#fff; padding:8px 18px; border-radius:6px; font-size:13px; font-weight:700; margin-top:10px; }
+  .font-sub { font-size:13px; color:#555; margin-top:6px; }
+  .font-title { font-size:24px; font-weight:900; color:#111; letter-spacing:-0.5px; }
+  .accent { color:#7C3AED; }
+</style>
+
+<div class="cards">
+
+  <div class="card" data-choice="inter" onclick="toggleSelect(this)">
+    <div class="card-image font-preview" style="font-family:'Inter',sans-serif">
+      <div class="font-title">TOWER<span class="accent">MAZE</span></div>
+      <div class="font-sub">Reach new heights every run</div>
+      <div style="height:2px;background:#7C3AED;margin:10px 0;border-radius:1px"></div>
+      <div class="font-label">Best Score</div>
+      <div class="font-score">1,248<span style="color:#7C3AED;font-size:28px">m</span></div>
+      <div class="font-btn">OYNA</div>
+    </div>
+    <div class="card-body">
+      <h3>Inter</h3>
+      <p>Endüstri standardı. Figma'nın kendi fontu. Ultra okunabilir, temiz, profesyonel.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="space" onclick="toggleSelect(this)">
+    <div class="card-image font-preview" style="font-family:'Space Grotesk',sans-serif">
+      <div class="font-title">TOWER<span class="accent">MAZE</span></div>
+      <div class="font-sub">Reach new heights every run</div>
+      <div style="height:2px;background:#7C3AED;margin:10px 0;border-radius:1px"></div>
+      <div class="font-label">Best Score</div>
+      <div class="font-score">1,248<span style="color:#7C3AED;font-size:28px">m</span></div>
+      <div class="font-btn">OYNA</div>
+    </div>
+    <div class="card-body">
+      <h3>Space Grotesk</h3>
+      <p>Geometrik, biraz kişilikli. Teknik/oyun dünyasına yakın. Karakterli ama sade.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="outfit" onclick="toggleSelect(this)">
+    <div class="card-image font-preview" style="font-family:'Outfit',sans-serif">
+      <div class="font-title">TOWER<span class="accent">MAZE</span></div>
+      <div class="font-sub">Reach new heights every run</div>
+      <div style="height:2px;background:#7C3AED;margin:10px 0;border-radius:1px"></div>
+      <div class="font-label">Best Score</div>
+      <div class="font-score">1,248<span style="color:#7C3AED;font-size:28px">m</span></div>
+      <div class="font-btn">OYNA</div>
+    </div>
+    <div class="card-body">
+      <h3>Outfit</h3>
+      <p>Dostane, yuvarlak, enerjik. Hyper-casual oyunlara sıkça kullanılır. Genç ve dinamik.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="jakarta" onclick="toggleSelect(this)">
+    <div class="card-image font-preview" style="font-family:'Plus Jakarta Sans',sans-serif">
+      <div class="font-title">TOWER<span class="accent">MAZE</span></div>
+      <div class="font-sub">Reach new heights every run</div>
+      <div style="height:2px;background:#7C3AED;margin:10px 0;border-radius:1px"></div>
+      <div class="font-label">Best Score</div>
+      <div class="font-score">1,248<span style="color:#7C3AED;font-size:28px">m</span></div>
+      <div class="font-btn">OYNA</div>
+    </div>
+    <div class="card-body">
+      <h3>Plus Jakarta Sans</h3>
+      <p>Premium, sofistike. Biraz daha ağırlıklı hissettiriyor. App Store'da üst segmente işaret eder.</p>
+    </div>
+  </div>
+
+</div>
