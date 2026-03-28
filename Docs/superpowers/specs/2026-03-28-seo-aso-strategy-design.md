@@ -36,8 +36,8 @@
 
 ### iOS Keyword Field (100 char)
 
-**EN:** `tower,maze,climb,lava,ball,escape,helix,stack,rotate,endless,fire,run,dodge,puzzle,arcade`
-**TR:** `kule,labirent,tirmanma,lav,top,kacis,donen,ates,kosu,bulmaca,arcade,oyun,engel,zeka`
+**EN:** `tower,maze,climb,lava,ball,escape,helix,stack,rotate,endless,fire,run,dodge,puzzle,arcade,3d,casual`
+**TR:** `kule,labirent,tirmanma,lav,top,kacis,donen,ates,kosu,bulmaca,arcade,oyun,engel,zeka,tuzak,3d`
 
 ### Competitive Differentiation
 
@@ -64,17 +64,17 @@ The tower rotates as you climb, turning simple paths into brain-twisting puzzles
 Simple swipe controls, but the maze gets trickier with dead ends, branching paths, and surprise lava rushes. How high can you go?
 
 🎨 UNLOCK EPIC BALL SKINS
-Collect Ember coins and unlock dozens of unique ball skins — from Molten Core to Neon Pulse to Gold Chrome. Each with custom effects and trails.
+Collect Ember coins and unlock unique ball skins — from Molten Core to Neon Pro to Golden Glory. Each with custom effects and trails.
 
 🏆 FEATURES
 • Endless procedural tower — never the same run twice
 • Rotating maze mechanics with increasing difficulty
-• 15+ unique ball skins with custom VFX
+• 13+ unique ball skins with custom VFX
 • Tower skins to change the environment
 • Daily missions and streak rewards
 • Checkpoint system for epic comebacks
 • Offline play — no wifi needed
-• Compete for the highest climb
+• Challenge yourself to climb higher every run
 
 Download TowerMaze now and see how high you can climb! 🔥
 ```
@@ -96,17 +96,17 @@ Kule sen tırmanırken dönüyor, basit yolları beyin yakan bulmacalara dönü�
 Basit kaydırma kontrolleri, ama labirent çıkmaz sokaklar, ayrılan yollar ve sürpriz lav dalgalarıyla giderek zorlaşıyor. Ne kadar yükseğe çıkabilirsin?
 
 🎨 EPİK TOP SKİNLERİ AÇ
-Ember coin topla ve düzinelerce benzersiz top skin'i aç — Molten Core'dan Neon Pulse'a, Gold Chrome'a kadar. Her birinin kendine özel efektleri ve izleri var.
+Ember coin topla ve benzersiz top görünümleri aç — Molten Core'dan Neon Pro'ya, Golden Glory'ye kadar. Her birinin kendine özel efektleri ve izleri var.
 
 🏆 ÖZELLİKLER
 • Sonsuz prosedürel kule — asla aynı koşu yok
 • Artan zorlukla dönen labirent mekanikleri
-• 15+ benzersiz top skin'i ve özel efektler
-• Çevreyi değiştiren kule skin'leri
+• 13+ benzersiz top görünümü ve özel efektler
+• Çevreyi değiştiren kule görünümleri
 • Günlük görevler ve seri ödülleri
 • Epik geri dönüşler için kontrol noktası sistemi
 • Çevrimdışı oyna — wifi gerekmez
-• En yüksek tırmanış için yarış
+• Her koşuda daha yükseğe tırmanmaya çalış
 
 TowerMaze'i şimdi indir ve ne kadar yükseğe tırmanabileceğini gör! 🔥
 ```
@@ -141,6 +141,14 @@ TowerMaze'i şimdi indir ve ne kadar yükseğe tırmanabileceğini gör! 🔥
 - Center: ball character (most popular skin), rotating lava tower in background
 - Title: "TowerMaze" large font + "Climb. Escape. Survive." tagline
 - Lava effects and particles
+
+### App Preview Video (iOS, 15-30s)
+
+- Show core gameplay loop: swipe to climb → navigate maze → escape lava rush
+- Open with the most dramatic moment (lava rush near-escape)
+- End with skin unlock moment + "Download Free" CTA
+- No voiceover, gameplay audio only + subtle music
+- Portrait orientation, 1080x1920
 
 ---
 
@@ -193,9 +201,15 @@ towermaze.game/tr/       → Turkish version
   "@context": "https://schema.org",
   "@type": "MobileApplication",
   "name": "TowerMaze",
+  "description": "Climb a rotating lava tower, navigate maze paths, and escape rising lava. Free on iOS & Android.",
   "operatingSystem": "Android, iOS",
   "applicationCategory": "GameApplication",
   "genre": ["Arcade", "Puzzle"],
+  "inLanguage": ["en", "tr"],
+  "author": {
+    "@type": "Organization",
+    "name": "SezoGames"
+  },
   "offers": {
     "@type": "Offer",
     "price": "0",
@@ -203,6 +217,8 @@ towermaze.game/tr/       → Turkish version
   }
 }
 ```
+
+> **Post-launch:** Add `aggregateRating`, `screenshot`, and `datePublished` fields once available.
 
 ### Technical SEO Checklist
 
@@ -334,6 +350,35 @@ towermaze.game/tr/       → Turkish version
 1. **Store metadata** — titles, descriptions, keywords for both languages
 2. **Screenshot capture & design** — 8 screenshots per language
 3. **Feature graphic** — Google Play 1024x500
-4. **Landing page** — static site with SEO optimization
-5. **Social media accounts** — setup + bio optimization
-6. **Launch week content** — prepare assets in advance
+4. **App preview video** — iOS 15-30s gameplay video
+5. **Landing page** — static site with SEO optimization
+6. **Social media accounts** — setup + bio optimization
+7. **Launch week content** — prepare assets in advance
+
+---
+
+## 8. Measurement & Iteration
+
+### Tools
+
+- **Google Play Console** — store listing experiments, acquisition reports, search terms
+- **App Store Connect** — product page optimization, impression sources
+- **Google Search Console** — landing page search performance
+- **AppFollow or Sensor Tower** — keyword ranking tracking (free tier sufficient at launch)
+
+### Post-Launch Optimization Schedule
+
+| Timeframe | Action |
+|-----------|--------|
+| Week 1-2 | Collect baseline data: impressions, conversion rate, top search terms |
+| Week 3 | First Google Play store listing experiment (icon or screenshot A/B test) |
+| Week 4 | Revise keywords based on actual search term data from both stores |
+| Month 2 | Screenshot A/B test round 2, description optimization based on conversion data |
+| Monthly | Review keyword rankings, update long-tail keywords, refresh social content |
+
+### Key Metrics to Track
+
+- **Store conversion rate** (impressions → installs) — target: >30% for organic
+- **Keyword ranking position** — track top 20 keywords weekly
+- **Landing page CTR** — Google Search Console click-through rate
+- **Social media referral installs** — UTM-tagged store links
