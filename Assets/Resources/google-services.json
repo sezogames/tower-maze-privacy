@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "49494715515",
+    "firebase_url": "https://towermaze-4d5b6-default-rtdb.firebaseio.com",
+    "project_id": "towermaze-4d5b6",
+    "storage_bucket": "towermaze-4d5b6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:49494715515:android:26a389957d613a4eb606de",
+        "android_client_info": {
+          "package_name": "com.sezogames.towermaze"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzR09g65g74USuyz6PwJJOpgeh8Tn1wFc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

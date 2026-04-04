@@ -45,8 +45,12 @@ namespace TowerMaze
         public CoinStoreCloudSaveData store = new();
     }
 
-    public sealed class PlayFabCloudManager : MonoBehaviour
+    public sealed class FirebaseCloudManager : MonoBehaviour
     {
+        private const string PrefUid = "TowerMaze.Firebase.Uid";
+        private const string PrefRefreshToken = "TowerMaze.Firebase.RefreshToken";
+        private const string PrefIdToken = "TowerMaze.Firebase.IdToken";
+        private const string PrefNickname = "TowerMaze.Firebase.Nickname";
         private const string LocalPayloadTicksKey = "TowerMaze.Cloud.LastPayloadTicks";
 
         [SerializeField] private bool autoSyncOnStateChange = true;
@@ -57,24 +61,25 @@ namespace TowerMaze
         private ScoreManager scoreManager;
         private CoinStoreManager coinStoreManager;
         private UIManager uiManager;
-        private string sessionTicket = string.Empty;
-        private string playFabId = string.Empty;
+        private string firebaseApiKey = string.Empty;
+        private string firebaseProjectId = string.Empty;
+        private string uid = string.Empty;
+        private string idToken = string.Empty;
+        private string refreshToken = string.Empty;
+        private string nickname = string.Empty;
         private bool initialized;
         private bool loggedIn;
         private bool syncInProgress;
         private bool suppressLocalChanges;
         private Coroutine queuedSyncCoroutine;
 
-        public bool IsEnabled => config != null && config.enablePlayFabCloudSync && !string.IsNullOrWhiteSpace(config.playFabTitleId);
+        public bool IsEnabled => config != null && config.enableFirebaseCloudSync && !string.IsNullOrWhiteSpace(firebaseApiKey);
         public bool IsLoggedIn => loggedIn;
+        public event Action NicknameRequired;
 
         public void Initialize(GameConfig gameConfig, EconomyManager economy, ScoreManager score, CoinStoreManager coinStore, UIManager ui)
         {
-            if (initialized)
-            {
-                return;
-            }
-
+            if (initialized) return;
             initialized = true;
             config = gameConfig;
             economyManager = economy;
@@ -82,28 +87,16 @@ namespace TowerMaze
             coinStoreManager = coinStore;
             uiManager = ui;
 
-            if (economyManager != null)
-            {
-                economyManager.StateChanged += HandleLocalStateChanged;
-            }
+            LoadFirebaseConfig();
+            nickname = PlayerPrefs.GetString(PrefNickname, string.Empty);
 
-            if (scoreManager != null)
-            {
-                scoreManager.StateChanged += HandleLocalStateChanged;
-            }
-
-            if (coinStoreManager != null)
-            {
-                coinStoreManager.StateChanged += HandleLocalStateChanged;
-            }
+            if (economyManager != null) economyManager.StateChanged += HandleLocalStateChanged;
+            if (scoreManager != null) scoreManager.StateChanged += HandleLocalStateChanged;
+            if (coinStoreManager != null) coinStoreManager.StateChanged += HandleLocalStateChanged;
 
             if (!IsEnabled)
             {
-                if (verboseLogging)
-                {
-                    Debug.Log("PlayFab cloud sync disabled; using local save only.");
-                }
-
+                if (verboseLogging) Debug.Log("Firebase cloud sync disabled; using local save only.");
                 return;
             }
 
@@ -112,45 +105,64 @@ namespace TowerMaze
 
         private void OnDestroy()
         {
-            if (economyManager != null)
+            if (economyManager != null) economyManager.StateChanged -= HandleLocalStateChanged;
+            if (scoreManager != null) scoreManager.StateChanged -= HandleLocalStateChanged;
+            if (coinStoreManager != null) coinStoreManager.StateChanged -= HandleLocalStateChanged;
+        }
+
+        public void SetNickname(string newNickname)
+        {
+            if (string.IsNullOrWhiteSpace(newNickname)) return;
+            nickname = newNickname.Trim().ToUpperInvariant();
+            PlayerPrefs.SetString(PrefNickname, nickname);
+            PlayerPrefs.Save();
+            if (loggedIn) QueueSync(0.5f);
+        }
+
+        // ─── Firebase Config ─────────────────────────────────────────────────
+
+        private void LoadFirebaseConfig()
+        {
+            TextAsset json = Resources.Load<TextAsset>("google-services");
+            if (json == null)
             {
-                economyManager.StateChanged -= HandleLocalStateChanged;
+                Debug.LogWarning("Firebase: google-services.json not found in Resources.");
+                return;
             }
 
-            if (scoreManager != null)
+            try
             {
-                scoreManager.StateChanged -= HandleLocalStateChanged;
+                JObject root = JObject.Parse(json.text);
+                firebaseProjectId = root["project_info"]?["project_id"]?.Value<string>() ?? string.Empty;
+                JArray clients = root["client"] as JArray;
+                if (clients != null && clients.Count > 0)
+                {
+                    JArray apiKeys = clients[0]["api_key"] as JArray;
+                    if (apiKeys != null && apiKeys.Count > 0)
+                    {
+                        firebaseApiKey = apiKeys[0]["current_key"]?.Value<string>() ?? string.Empty;
+                    }
+                }
             }
-
-            if (coinStoreManager != null)
+            catch (Exception e)
             {
-                coinStoreManager.StateChanged -= HandleLocalStateChanged;
+                Debug.LogWarning($"Firebase: failed to parse google-services.json: {e.Message}");
             }
         }
 
+        // ─── State Change Handling ───────────────────────────────────────────
+
         private void HandleLocalStateChanged()
         {
-            if (suppressLocalChanges || !IsEnabled)
-            {
-                return;
-            }
-
+            if (suppressLocalChanges || !IsEnabled) return;
             SetLocalPayloadTicks(DateTime.UtcNow.Ticks);
-            if (!autoSyncOnStateChange || !loggedIn)
-            {
-                return;
-            }
-
+            if (!autoSyncOnStateChange || !loggedIn) return;
             QueueSync(1.25f);
         }
 
         private void QueueSync(float delaySeconds)
         {
-            if (queuedSyncCoroutine != null)
-            {
-                StopCoroutine(queuedSyncCoroutine);
-            }
-
+            if (queuedSyncCoroutine != null) StopCoroutine(queuedSyncCoroutine);
             queuedSyncCoroutine = StartCoroutine(DelayedSyncRoutine(delaySeconds));
         }
 
@@ -161,46 +173,96 @@ namespace TowerMaze
             yield return PushLocalStateRoutine(true, true);
         }
 
+        // ─── Authentication ──────────────────────────────────────────────────
+
         private IEnumerator LoginAndSyncRoutine()
         {
-            string customId = ResolveCustomId();
-            JObject response = null;
-            string failureMessage = string.Empty;
-            yield return SendPlayFabRequest(
-                "Client/LoginWithCustomID",
-                new
+            uid = PlayerPrefs.GetString(PrefUid, string.Empty);
+            refreshToken = PlayerPrefs.GetString(PrefRefreshToken, string.Empty);
+            idToken = PlayerPrefs.GetString(PrefIdToken, string.Empty);
+
+            if (!string.IsNullOrWhiteSpace(refreshToken))
+            {
+                bool refreshed = false;
+                yield return RefreshIdTokenRoutine(success => refreshed = success);
+                if (!refreshed)
                 {
-                    TitleId = config.playFabTitleId,
-                    CustomId = customId,
-                    CreateAccount = true
-                },
-                null,
-                root => response = root,
-                error => failureMessage = error);
-
-            if (response == null)
+                    Debug.LogWarning("Firebase token refresh failed; cloud sync disabled for this session.");
+                    yield break;
+                }
+            }
+            else
             {
-                Debug.LogWarning($"PlayFab login skipped: {failureMessage}");
-                yield break;
+                string url = $"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={firebaseApiKey}";
+                JObject body = new JObject { ["returnSecureToken"] = true };
+                JObject response = null;
+                yield return SendJsonRequest(url, "POST", body.ToString(), null,
+                    root => response = root,
+                    error => Debug.LogWarning($"Firebase signUp failed: {error}"));
+
+                if (response == null) yield break;
+
+                uid = response["localId"]?.Value<string>() ?? string.Empty;
+                idToken = response["idToken"]?.Value<string>() ?? string.Empty;
+                refreshToken = response["refreshToken"]?.Value<string>() ?? string.Empty;
+
+                if (string.IsNullOrWhiteSpace(uid) || string.IsNullOrWhiteSpace(idToken))
+                {
+                    Debug.LogWarning("Firebase signUp: missing uid or idToken.");
+                    yield break;
+                }
+
+                PlayerPrefs.SetString(PrefUid, uid);
+                PlayerPrefs.SetString(PrefRefreshToken, refreshToken);
+                PlayerPrefs.SetString(PrefIdToken, idToken);
+                PlayerPrefs.Save();
             }
 
-            JToken data = response["data"];
-            sessionTicket = data?["SessionTicket"]?.Value<string>() ?? string.Empty;
-            playFabId = data?["PlayFabId"]?.Value<string>() ?? string.Empty;
-            loggedIn = !string.IsNullOrWhiteSpace(sessionTicket);
-            if (!loggedIn)
-            {
-                Debug.LogWarning("PlayFab login failed: missing session ticket.");
-                yield break;
-            }
-
-            if (verboseLogging)
-            {
-                Debug.Log($"PlayFab login complete for {playFabId}.");
-            }
-
+            loggedIn = true;
+            if (verboseLogging) Debug.Log($"Firebase login complete for {uid}.");
             yield return InitialSyncRoutine();
         }
+
+        private IEnumerator RefreshIdTokenRoutine(Action<bool> onComplete)
+        {
+            string url = $"https://securetoken.googleapis.com/v1/token?key={firebaseApiKey}";
+            string formBody = $"grant_type=refresh_token&refresh_token={UnityWebRequest.EscapeURL(refreshToken)}";
+
+            using UnityWebRequest request = new(url, UnityWebRequest.kHttpVerbPOST);
+            byte[] bodyBytes = Encoding.UTF8.GetBytes(formBody);
+            request.uploadHandler = new UploadHandlerRaw(bodyBytes);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            yield return request.SendWebRequest();
+
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                onComplete?.Invoke(false);
+                yield break;
+            }
+
+            try
+            {
+                JObject response = JObject.Parse(request.downloadHandler.text);
+                idToken = response["id_token"]?.Value<string>() ?? string.Empty;
+                refreshToken = response["refresh_token"]?.Value<string>() ?? string.Empty;
+                uid = response["user_id"]?.Value<string>() ?? uid;
+
+                PlayerPrefs.SetString(PrefUid, uid);
+                PlayerPrefs.SetString(PrefRefreshToken, refreshToken);
+                PlayerPrefs.SetString(PrefIdToken, idToken);
+                PlayerPrefs.Save();
+
+                onComplete?.Invoke(!string.IsNullOrWhiteSpace(idToken));
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"Firebase token refresh parse error: {e.Message}");
+                onComplete?.Invoke(false);
+            }
+        }
+
+        // ─── Initial Sync ────────────────────────────────────────────────────
 
         private IEnumerator InitialSyncRoutine()
         {
@@ -211,47 +273,30 @@ namespace TowerMaze
             if (cloudPayload != null && cloudPayload.updatedAtUtcTicks > localTicks)
             {
                 suppressLocalChanges = true;
-                try
-                {
-                    ImportCloudPayload(cloudPayload);
-                }
-                finally
-                {
-                    suppressLocalChanges = false;
-                }
-
+                try { ImportCloudPayload(cloudPayload); }
+                finally { suppressLocalChanges = false; }
                 SetLocalPayloadTicks(cloudPayload.updatedAtUtcTicks);
             }
             else
             {
-                if (localTicks <= 0L)
-                {
-                    SetLocalPayloadTicks(DateTime.UtcNow.Ticks);
-                }
-
+                if (localTicks <= 0L) SetLocalPayloadTicks(DateTime.UtcNow.Ticks);
                 yield return PushLocalStateRoutine(true, true);
             }
 
             yield return RefreshLeaderboardRoutine();
         }
 
+        // ─── Cloud Save ──────────────────────────────────────────────────────
+
         private IEnumerator FetchCloudSaveRoutine(Action<TowerMazeCloudSaveData> onComplete)
         {
-            JObject response = null;
-            yield return SendPlayFabRequest(
-                "Client/GetUserData",
-                new
-                {
-                    Keys = new[] { ResolveSaveKey() }
-                },
-                sessionTicket,
+            string url = FirestoreDocUrl("users", uid);
+            JToken response = null;
+            yield return SendFirestoreRequest(url, "GET", null,
                 root => response = root,
                 error =>
                 {
-                    if (verboseLogging)
-                    {
-                        Debug.LogWarning($"PlayFab cloud fetch failed: {error}");
-                    }
+                    if (verboseLogging) Debug.LogWarning($"Firebase cloud fetch failed: {error}");
                 });
 
             if (response == null)
@@ -260,34 +305,46 @@ namespace TowerMaze
                 yield break;
             }
 
-            string rawValue = response["data"]?["Data"]?[ResolveSaveKey()]?["Value"]?.Value<string>();
-            if (string.IsNullOrWhiteSpace(rawValue))
-            {
-                onComplete?.Invoke(null);
-                yield break;
-            }
-
-            TowerMazeCloudSaveData payload = null;
             try
             {
-                payload = JsonConvert.DeserializeObject<TowerMazeCloudSaveData>(rawValue);
-            }
-            catch (Exception exception)
-            {
-                Debug.LogWarning($"PlayFab cloud payload parse failed: {exception.Message}");
-            }
+                JToken fields = response["fields"];
+                if (fields == null || fields["saveData"] == null)
+                {
+                    onComplete?.Invoke(null);
+                    yield break;
+                }
 
-            onComplete?.Invoke(payload);
+                string saveDataJson = fields["saveData"]?["stringValue"]?.Value<string>();
+                if (string.IsNullOrWhiteSpace(saveDataJson))
+                {
+                    onComplete?.Invoke(null);
+                    yield break;
+                }
+
+                TowerMazeCloudSaveData payload = JsonConvert.DeserializeObject<TowerMazeCloudSaveData>(saveDataJson);
+
+                string cloudNickname = fields["nickname"]?["stringValue"]?.Value<string>();
+                if (!string.IsNullOrWhiteSpace(cloudNickname) && string.IsNullOrWhiteSpace(nickname))
+                {
+                    nickname = cloudNickname;
+                    PlayerPrefs.SetString(PrefNickname, nickname);
+                    PlayerPrefs.Save();
+                }
+
+                onComplete?.Invoke(payload);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"Firebase cloud payload parse failed: {e.Message}");
+                onComplete?.Invoke(null);
+            }
         }
 
         private IEnumerator PushLocalStateRoutine(bool pushSaveData, bool pushLeaderboard)
         {
-            if (!loggedIn || syncInProgress)
-            {
-                yield break;
-            }
-
+            if (!loggedIn || syncInProgress) yield break;
             syncInProgress = true;
+
             try
             {
                 if (pushSaveData)
@@ -295,19 +352,20 @@ namespace TowerMaze
                     TowerMazeCloudSaveData payload = BuildLocalPayload();
                     SetLocalPayloadTicks(payload.updatedAtUtcTicks);
                     string payloadJson = JsonConvert.SerializeObject(payload);
-                    yield return SendPlayFabRequest(
-                        "Client/UpdateUserData",
-                        new
+
+                    JObject doc = new JObject
+                    {
+                        ["fields"] = new JObject
                         {
-                            Data = new Dictionary<string, string>
-                            {
-                                { ResolveSaveKey(), payloadJson }
-                            },
-                            Permission = "Private"
-                        },
-                        sessionTicket,
-                        null,
-                        error => Debug.LogWarning($"PlayFab cloud save failed: {error}"));
+                            ["saveData"] = new JObject { ["stringValue"] = payloadJson },
+                            ["nickname"] = new JObject { ["stringValue"] = nickname ?? string.Empty },
+                            ["updatedAtUtcTicks"] = new JObject { ["integerValue"] = payload.updatedAtUtcTicks.ToString() }
+                        }
+                    };
+
+                    string url = FirestoreDocUrl("users", uid);
+                    yield return SendFirestoreRequest(url, "PATCH", doc.ToString(), null,
+                        error => Debug.LogWarning($"Firebase cloud save failed: {error}"));
                 }
 
                 if (pushLeaderboard)
@@ -315,22 +373,26 @@ namespace TowerMaze
                     int bestScoreValue = Mathf.Max(0, Mathf.RoundToInt(scoreManager != null ? scoreManager.PersistedBestScore * 100f : 0f));
                     if (bestScoreValue > 0)
                     {
-                        yield return SendPlayFabRequest(
-                            "Client/UpdatePlayerStatistics",
-                            new
+                        if (string.IsNullOrWhiteSpace(nickname))
+                        {
+                            NicknameRequired?.Invoke();
+                        }
+                        else
+                        {
+                            JObject leaderboardDoc = new JObject
                             {
-                                Statistics = new[]
+                                ["fields"] = new JObject
                                 {
-                                    new
-                                    {
-                                        StatisticName = ResolveStatisticName(),
-                                        Value = bestScoreValue
-                                    }
+                                    ["nickname"] = new JObject { ["stringValue"] = nickname },
+                                    ["bestScore"] = new JObject { ["integerValue"] = bestScoreValue.ToString() },
+                                    ["updatedAtUtcTicks"] = new JObject { ["integerValue"] = DateTime.UtcNow.Ticks.ToString() }
                                 }
-                            },
-                            sessionTicket,
-                            null,
-                            error => Debug.LogWarning($"PlayFab leaderboard submit failed: {error}"));
+                            };
+
+                            string leaderboardUrl = FirestoreDocUrl("leaderboard", uid);
+                            yield return SendFirestoreRequest(leaderboardUrl, "PATCH", leaderboardDoc.ToString(), null,
+                                error => Debug.LogWarning($"Firebase leaderboard submit failed: {error}"));
+                        }
                     }
 
                     yield return RefreshLeaderboardRoutine();
@@ -342,43 +404,57 @@ namespace TowerMaze
             }
         }
 
+        // ─── Leaderboard ─────────────────────────────────────────────────────
+
         private IEnumerator RefreshLeaderboardRoutine()
         {
-            JObject response = null;
-            yield return SendPlayFabRequest(
-                "Client/GetLeaderboard",
-                new
+            int limit = config != null ? Mathf.Clamp(config.firebaseLeaderboardSize, 3, 20) : 10;
+
+            JObject query = new JObject
+            {
+                ["structuredQuery"] = new JObject
                 {
-                    StatisticName = ResolveStatisticName(),
-                    StartPosition = 0,
-                    MaxResultsCount = Mathf.Clamp(config != null ? config.playFabLeaderboardSize : 5, 3, 20)
-                },
-                sessionTicket,
-                root => response = root,
+                    ["from"] = new JArray { new JObject { ["collectionId"] = "leaderboard" } },
+                    ["orderBy"] = new JArray
+                    {
+                        new JObject
+                        {
+                            ["field"] = new JObject { ["fieldPath"] = "bestScore" },
+                            ["direction"] = "DESCENDING"
+                        }
+                    },
+                    ["limit"] = limit
+                }
+            };
+
+            string url = $"https://firestore.googleapis.com/v1/projects/{firebaseProjectId}/databases/(default)/documents:runQuery";
+            JToken responseArray = null;
+            yield return SendFirestoreRequest(url, "POST", query.ToString(),
+                root => responseArray = root,
                 error =>
                 {
-                    if (verboseLogging)
-                    {
-                        Debug.LogWarning($"PlayFab leaderboard fetch failed: {error}");
-                    }
-                });
+                    if (verboseLogging) Debug.LogWarning($"Firebase leaderboard fetch failed: {error}");
+                },
+                expectArray: true);
 
-            if (response == null || scoreManager == null)
-            {
-                yield break;
-            }
+            if (responseArray == null || scoreManager == null) yield break;
 
             List<LeaderboardEntry> entries = new();
-            JArray leaderboardItems = response["data"]?["Leaderboard"] as JArray;
-            if (leaderboardItems != null)
+            JArray items = responseArray as JArray;
+            if (items != null)
             {
-                for (int index = 0; index < leaderboardItems.Count; index++)
+                for (int index = 0; index < items.Count; index++)
                 {
-                    JToken item = leaderboardItems[index];
-                    int rank = item["Position"]?.Value<int>() ?? index;
-                    int statValue = item["StatValue"]?.Value<int>() ?? 0;
-                    string displayName = item["DisplayName"]?.Value<string>();
-                    string label = BuildLeaderboardLabel(displayName, rank);
+                    JToken item = items[index];
+                    JToken fields = item["document"]?["fields"];
+                    if (fields == null) continue;
+
+                    int statValue = 0;
+                    string scoreStr = fields["bestScore"]?["integerValue"]?.Value<string>();
+                    if (scoreStr != null) int.TryParse(scoreStr, out statValue);
+
+                    string displayName = fields["nickname"]?["stringValue"]?.Value<string>();
+                    string label = BuildLeaderboardLabel(displayName, index);
                     entries.Add(new LeaderboardEntry(statValue / 100f, 0f, label));
                 }
             }
@@ -388,6 +464,13 @@ namespace TowerMaze
                 scoreManager.SetCloudLeaderboardEntries(entries);
                 uiManager?.UpdateCachedLeaderboard(scoreManager.BestScore, scoreManager.LeaderboardEntries);
             }
+        }
+
+        // ─── Helpers ─────────────────────────────────────────────────────────
+
+        private string FirestoreDocUrl(string collection, string documentId)
+        {
+            return $"https://firestore.googleapis.com/v1/projects/{firebaseProjectId}/databases/(default)/documents/{collection}/{documentId}";
         }
 
         private TowerMazeCloudSaveData BuildLocalPayload()
@@ -404,61 +487,25 @@ namespace TowerMaze
 
         private void ImportCloudPayload(TowerMazeCloudSaveData payload)
         {
-            if (payload == null)
-            {
-                return;
-            }
-
+            if (payload == null) return;
             economyManager?.ImportCloudData(payload.economy);
             scoreManager?.ImportCloudData(payload.score);
             coinStoreManager?.ImportCloudData(payload.store);
-            uiManager?.UpdateCachedLeaderboard(scoreManager != null ? scoreManager.BestScore : 0f, scoreManager != null ? scoreManager.LeaderboardEntries : Array.Empty<LeaderboardEntry>());
-        }
-
-        private string ResolveCustomId()
-        {
-            if (config != null && !string.IsNullOrWhiteSpace(config.playFabCustomIdOverride))
-            {
-                return config.playFabCustomIdOverride.Trim();
-            }
-
-            string raw = $"{Application.identifier}_{SystemInfo.deviceUniqueIdentifier}";
-            if (string.IsNullOrWhiteSpace(raw))
-            {
-                raw = $"{Application.identifier}_editor";
-            }
-
-            return raw.Replace(" ", "_");
-        }
-
-        private string ResolveSaveKey()
-        {
-            return config != null && !string.IsNullOrWhiteSpace(config.playFabSaveKey)
-                ? config.playFabSaveKey.Trim()
-                : "towermaze_save";
-        }
-
-        private string ResolveStatisticName()
-        {
-            return config != null && !string.IsNullOrWhiteSpace(config.playFabStatisticName)
-                ? config.playFabStatisticName.Trim()
-                : "best_height_cm";
+            uiManager?.UpdateCachedLeaderboard(
+                scoreManager != null ? scoreManager.BestScore : 0f,
+                scoreManager != null ? scoreManager.LeaderboardEntries : Array.Empty<LeaderboardEntry>());
         }
 
         private static string BuildLeaderboardLabel(string displayName, int rank)
         {
             string label = string.IsNullOrWhiteSpace(displayName) ? $"P{rank + 1}" : displayName.Trim();
-            if (label.Length > 9)
-            {
-                label = label.Substring(0, 9);
-            }
-
+            if (label.Length > 9) label = label.Substring(0, 9);
             return label.ToUpperInvariant();
         }
 
         private static long GetLocalPayloadTicks()
         {
-            return long.TryParse(PlayerPrefs.GetString(LocalPayloadTicksKey, "0"), out long parsedTicks) ? parsedTicks : 0L;
+            return long.TryParse(PlayerPrefs.GetString(LocalPayloadTicksKey, "0"), out long parsed) ? parsed : 0L;
         }
 
         private static void SetLocalPayloadTicks(long ticks)
@@ -467,53 +514,107 @@ namespace TowerMaze
             PlayerPrefs.Save();
         }
 
-        private IEnumerator SendPlayFabRequest(string path, object requestBody, string authToken, Action<JObject> onSuccess, Action<string> onFailure)
-        {
-            if (config == null || string.IsNullOrWhiteSpace(config.playFabTitleId))
-            {
-                onFailure?.Invoke("TITLE ID MISSING");
-                yield break;
-            }
+        // ─── HTTP Layer ──────────────────────────────────────────────────────
 
-            string url = $"https://{config.playFabTitleId}.playfabapi.com/{path}";
-            byte[] bodyBytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(requestBody ?? new { }));
-            using UnityWebRequest request = new(url, UnityWebRequest.kHttpVerbPOST);
-            request.uploadHandler = new UploadHandlerRaw(bodyBytes);
+        private IEnumerator SendFirestoreRequest(string url, string method, string jsonBody, Action<JToken> onSuccess, Action<string> onFailure, bool expectArray = false)
+        {
+            yield return SendFirestoreRequestInternal(url, method, jsonBody, onSuccess, onFailure, expectArray, allowRetry: true);
+        }
+
+        private IEnumerator SendFirestoreRequestInternal(string url, string method, string jsonBody, Action<JToken> onSuccess, Action<string> onFailure, bool expectArray, bool allowRetry)
+        {
+            using UnityWebRequest request = new(url, method);
+            if (jsonBody != null)
+            {
+                byte[] bodyBytes = Encoding.UTF8.GetBytes(jsonBody);
+                request.uploadHandler = new UploadHandlerRaw(bodyBytes);
+            }
             request.downloadHandler = new DownloadHandlerBuffer();
             request.SetRequestHeader("Content-Type", "application/json");
-            if (!string.IsNullOrWhiteSpace(authToken))
+            if (!string.IsNullOrWhiteSpace(idToken))
             {
-                request.SetRequestHeader("X-Authorization", authToken);
+                request.SetRequestHeader("Authorization", $"Bearer {idToken}");
             }
 
             yield return request.SendWebRequest();
 
-            string responseText = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
+            string responseText = request.downloadHandler?.text ?? string.Empty;
+
+            if (request.responseCode == 401 && allowRetry)
+            {
+                bool refreshed = false;
+                yield return RefreshIdTokenRoutine(success => refreshed = success);
+                if (refreshed)
+                {
+                    yield return SendFirestoreRequestInternal(url, method, jsonBody, onSuccess, onFailure, expectArray, allowRetry: false);
+                    yield break;
+                }
+            }
+
             if (request.result != UnityWebRequest.Result.Success)
             {
                 onFailure?.Invoke(string.IsNullOrWhiteSpace(responseText) ? request.error : responseText);
                 yield break;
             }
 
-            JObject root = null;
             try
             {
-                root = string.IsNullOrWhiteSpace(responseText) ? new JObject() : JObject.Parse(responseText);
+                if (expectArray)
+                {
+                    JArray array = JArray.Parse(responseText);
+                    onSuccess?.Invoke(array);
+                }
+                else
+                {
+                    JObject root = string.IsNullOrWhiteSpace(responseText) ? new JObject() : JObject.Parse(responseText);
+                    if (root["error"] != null)
+                    {
+                        string errorMessage = root["error"]?["message"]?.Value<string>() ?? $"HTTP {request.responseCode}";
+                        onFailure?.Invoke(errorMessage);
+                        yield break;
+                    }
+                    onSuccess?.Invoke(root);
+                }
             }
-            catch (Exception exception)
+            catch (Exception e)
             {
-                onFailure?.Invoke($"INVALID PLAYFAB RESPONSE: {exception.Message}");
+                onFailure?.Invoke($"INVALID RESPONSE: {e.Message}");
+            }
+        }
+
+        private IEnumerator SendJsonRequest(string url, string method, string jsonBody, string authHeader, Action<JObject> onSuccess, Action<string> onFailure)
+        {
+            using UnityWebRequest request = new(url, method);
+            if (jsonBody != null)
+            {
+                byte[] bodyBytes = Encoding.UTF8.GetBytes(jsonBody);
+                request.uploadHandler = new UploadHandlerRaw(bodyBytes);
+            }
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
+            if (!string.IsNullOrWhiteSpace(authHeader))
+            {
+                request.SetRequestHeader("Authorization", authHeader);
+            }
+
+            yield return request.SendWebRequest();
+
+            string responseText = request.downloadHandler?.text ?? string.Empty;
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                onFailure?.Invoke(string.IsNullOrWhiteSpace(responseText) ? request.error : responseText);
                 yield break;
             }
 
-            if (request.responseCode >= 400 || root["error"] != null)
+            try
             {
-                string errorMessage = root["errorMessage"]?.Value<string>() ?? root["error"]?.Value<string>() ?? $"HTTP {request.responseCode}";
-                onFailure?.Invoke(errorMessage);
-                yield break;
+                JObject root = string.IsNullOrWhiteSpace(responseText) ? new JObject() : JObject.Parse(responseText);
+                onSuccess?.Invoke(root);
             }
-
-            onSuccess?.Invoke(root);
+            catch (Exception e)
+            {
+                onFailure?.Invoke($"INVALID RESPONSE: {e.Message}");
+            }
         }
     }
 }

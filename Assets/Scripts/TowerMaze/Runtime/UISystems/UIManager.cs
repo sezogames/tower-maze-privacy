@@ -305,6 +305,20 @@ namespace TowerMaze
             pauseScreenController.gameObject.SetActive(false);
         }
 
+        public void ShowNicknamePopup(Action<string> onConfirm)
+        {
+            var go = new GameObject("NicknamePopup");
+            go.transform.SetParent(transform, false);
+            var rt = go.AddComponent<RectTransform>();
+            Stretch(rt);
+            var canvas = go.AddComponent<Canvas>();
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 100;
+            go.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+            var popup = go.AddComponent<NicknamePopupController>();
+            popup.Initialize(runtimeFont, theme, onConfirm);
+
+        }
         public void QueueRewardToast(string title, string subtitle, Color accentColor)
         {
             rewardToastController?.Enqueue(title, subtitle, accentColor);

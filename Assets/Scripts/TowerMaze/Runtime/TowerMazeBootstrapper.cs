@@ -70,7 +70,7 @@ namespace TowerMaze
                 InAppReviewManager inAppReviewManager = EnsureComponent<InAppReviewManager>(EnsureChild(managersRoot, "InAppReviewManager"));
                 CoinStoreManager coinStoreManager = EnsureComponent<CoinStoreManager>(EnsureChild(managersRoot, "CoinStoreManager"));
                 AudioManager audioManager = EnsureComponent<AudioManager>(EnsureChild(managersRoot, "AudioManager"));
-                PlayFabCloudManager playFabCloudManager = EnsureComponent<PlayFabCloudManager>(EnsureChild(managersRoot, "PlayFabCloudManager"));
+                FirebaseCloudManager firebaseCloudManager = EnsureComponent<FirebaseCloudManager>(EnsureChild(managersRoot, "FirebaseCloudManager"));
                 RunManager runManager = EnsureComponent<RunManager>(EnsureChild(managersRoot, "RunManager"));
                 Debug.Log("[Bootstrapper] All Managers created");
                 
@@ -138,7 +138,14 @@ namespace TowerMaze
                 uiManager.Initialize(splashActive: true, gameConfig, themeDefinition, economyManager, rewardedAdManager, coinStoreManager, playerController, runManager.StartRun, runManager.StartDailyChallenge, runManager.RetryRun, runManager.ContinueRun, runManager.ReturnToMainMenu, runManager.ClaimDoubleReward, runManager.WatchAdForLifeRefill, runManager.BuyLifeRefillWithCoins, runManager.ToggleSound, runManager.ToggleVibration, runManager.PauseRun, runManager.ResumeRun, audioManager.PlayButtonClick, null, scoreManager);
                 runManager.Initialize(gameConfig, difficultyProfile, themeDefinition, towerGenerator, playerController, lavaController, scoreManager, economyManager, rewardedAdManager, audioManager, uiManager, backdropController, cameraFollow, inAppReviewManager);
 
-                playFabCloudManager.Initialize(gameConfig, economyManager, scoreManager, coinStoreManager, uiManager);
+                firebaseCloudManager.Initialize(gameConfig, economyManager, scoreManager, coinStoreManager, uiManager);
+                firebaseCloudManager.NicknameRequired += () =>
+                {
+                    uiManager.ShowNicknamePopup(name =>
+                    {
+                        firebaseCloudManager.SetNickname(name);
+                    });
+                };
                 
                 initialized = true;
                 Debug.Log($"[Bootstrapper] Awake completed successfully. Camera CullingMask: {mainCamera.cullingMask}, Layer: {mainCamera.gameObject.layer}");

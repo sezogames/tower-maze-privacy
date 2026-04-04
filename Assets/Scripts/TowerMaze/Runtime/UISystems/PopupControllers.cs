@@ -716,4 +716,102 @@ namespace TowerMaze
         public void Initialize(Font font, ThemeDefinition theme, string title) { }
         public void SetEntries(System.Collections.Generic.IReadOnlyList<LeaderboardEntry> entries) { }
     }
+
+    public sealed class NicknamePopupController : MonoBehaviour
+    {
+        private Action<string> onConfirm;
+        private InputField inputField;
+        private Button confirmButton;
+
+        public void Initialize(Font font, ThemeDefinition theme, Action<string> onConfirmCallback)
+        {
+            onConfirm = onConfirmCallback;
+
+            foreach (Transform child in transform) { Destroy(child.gameObject); }
+
+            var overlay = UIManager.CreateImage(transform, "Overlay", new Color(0, 0, 0, 0.85f));
+            UIManager.Stretch(overlay.rectTransform);
+
+            var card = new GameObject("Card");
+            card.transform.SetParent(transform, false);
+            var cardImg = card.AddComponent<Image>();
+            UICandySkin.ApplyCandyPanel(cardImg);
+            cardImg.color = new Color(0.92f, 0.88f, 1f, 0.98f);
+            var cardRt = card.GetComponent<RectTransform>();
+            cardRt.sizeDelta = new Vector2(320, 280);
+
+            var cardLayout = card.AddComponent<VerticalLayoutGroup>();
+            cardLayout.padding = new RectOffset(24, 24, 32, 24);
+            cardLayout.spacing = 16;
+            cardLayout.childAlignment = TextAnchor.UpperCenter;
+            cardLayout.childControlHeight = false;
+            cardLayout.childForceExpandHeight = false;
+
+            var title = UILanguage.Translate("ADINI GIR", "ENTER YOUR NAME", "INGRESA TU NOMBRE");
+            var titleTxt = UIManager.CreateText(card.transform, "Title", title, 18, FontStyle.Bold, Color.white, font);
+            titleTxt.gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.5f);
+
+            var inputGo = new GameObject("NicknameInput");
+            inputGo.transform.SetParent(card.transform, false);
+            var inputBg = inputGo.AddComponent<Image>();
+            inputBg.color = new Color(1, 1, 1, 0.15f);
+            inputGo.AddComponent<LayoutElement>().preferredHeight = 44;
+
+            var textGo = new GameObject("Text");
+            textGo.transform.SetParent(inputGo.transform, false);
+            var inputText = textGo.AddComponent<Text>();
+            inputText.font = font;
+            inputText.fontSize = 16;
+            inputText.fontStyle = FontStyle.Bold;
+            inputText.color = Color.white;
+            inputText.alignment = TextAnchor.MiddleCenter;
+            inputText.supportRichText = false;
+            UIManager.Stretch(inputText.rectTransform, 8, 8, 4, 4);
+
+            var placeholderGo = new GameObject("Placeholder");
+            placeholderGo.transform.SetParent(inputGo.transform, false);
+            var placeholder = placeholderGo.AddComponent<Text>();
+            placeholder.font = font;
+            placeholder.fontSize = 16;
+            placeholder.fontStyle = FontStyle.Italic;
+            placeholder.color = new Color(1, 1, 1, 0.35f);
+            placeholder.alignment = TextAnchor.MiddleCenter;
+            placeholder.text = UILanguage.Translate("TAKMA AD", "NICKNAME", "APODO");
+            UIManager.Stretch(placeholder.rectTransform, 8, 8, 4, 4);
+
+            inputField = inputGo.AddComponent<InputField>();
+            inputField.textComponent = inputText;
+            inputField.placeholder = placeholder;
+            inputField.characterLimit = 12;
+            inputField.contentType = InputField.ContentType.Alphanumeric;
+            inputField.onValueChanged.AddListener(OnInputChanged);
+
+            var confirmGo = UIManager.CreateActionButton(card.transform, "ConfirmBtn",
+                UILanguage.Translate("ONAYLA", "CONFIRM", "CONFIRMAR"),
+                font, UIStyle.Action, UIStyle.ActionLight, 44, 20);
+            confirmButton = confirmGo.GetComponent<Button>();
+            confirmButton.interactable = false;
+            UIManager.BindButton(confirmButton, OnConfirmClicked);
+        }
+
+        private void OnInputChanged(string value)
+        {
+            string cleaned = System.Text.RegularExpressions.Regex.Replace(value, @"[^A-Za-z0-9_]", "");
+            if (cleaned != value)
+            {
+                inputField.text = cleaned;
+                return;
+            }
+
+            confirmButton.interactable = cleaned.Length >= 2;
+        }
+
+        private void OnConfirmClicked()
+        {
+            string value = inputField.text.Trim().ToUpperInvariant();
+            if (value.Length < 2 || value.Length > 12) return;
+            onConfirm?.Invoke(value);
+            Destroy(gameObject);
+        }
+    }
 }

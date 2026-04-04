@@ -55,6 +55,8 @@ MonoBehaviour:
   simulatedRewardedDuration: 0.8
   androidRewardedAdUnitId: ca-app-pub-3940256099942544/5224354917
   iosRewardedAdUnitId: ca-app-pub-3940256099942544/1712485313
+  enableFirebaseCloudSync: 1
+  firebaseLeaderboardSize: 10
   controlFlipStartZone: 3
   controlFlipRepeatEveryZones: 2
   controlFlipWarningDuration: 0.7

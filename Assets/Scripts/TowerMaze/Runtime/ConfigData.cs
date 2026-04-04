@@ -70,13 +70,9 @@ namespace TowerMaze
         public string androidRewardedAdUnitId = "ca-app-pub-3940256099942544/5224354917";
         public string iosRewardedAdUnitId = "ca-app-pub-3940256099942544/1712485313";
 
-        [Header("Cloud / PlayFab")]
-        public bool enablePlayFabCloudSync;
-        public string playFabTitleId = string.Empty;
-        public string playFabSaveKey = "towermaze_save";
-        public string playFabStatisticName = "best_height_cm";
-        [Range(3, 20)] public int playFabLeaderboardSize = 5;
-        public string playFabCustomIdOverride = string.Empty;
+        [Header("Cloud / Firebase")]
+        public bool enableFirebaseCloudSync;
+        [Range(3, 20)] public int firebaseLeaderboardSize = 10;
 
         [Header("Control Flip")]
         [Min(1)] public int controlFlipStartZone = 5;
