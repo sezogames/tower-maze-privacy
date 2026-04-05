@@ -72,6 +72,7 @@ namespace TowerMaze
         private bool syncInProgress;
         private bool suppressLocalChanges;
         private Coroutine queuedSyncCoroutine;
+        private bool nicknamePromptRequestedThisSession;
 
         public bool IsEnabled => config != null && config.enableFirebaseCloudSync && !string.IsNullOrWhiteSpace(firebaseApiKey);
         public bool IsLoggedIn => loggedIn;
@@ -114,6 +115,7 @@ namespace TowerMaze
         {
             if (string.IsNullOrWhiteSpace(newNickname)) return;
             nickname = newNickname.Trim().ToUpperInvariant();
+            nicknamePromptRequestedThisSession = false;
             PlayerPrefs.SetString(PrefNickname, nickname);
             PlayerPrefs.Save();
             if (loggedIn) QueueSync(0.5f);
@@ -284,6 +286,7 @@ namespace TowerMaze
             }
 
             yield return RefreshLeaderboardRoutine();
+            RequestNicknameIfNeeded();
         }
 
         // ─── Cloud Save ──────────────────────────────────────────────────────
@@ -373,11 +376,8 @@ namespace TowerMaze
                     int bestScoreValue = Mathf.Max(0, Mathf.RoundToInt(scoreManager != null ? scoreManager.PersistedBestScore * 100f : 0f));
                     if (bestScoreValue > 0)
                     {
-                        if (string.IsNullOrWhiteSpace(nickname))
-                        {
-                            NicknameRequired?.Invoke();
-                        }
-                        else
+                        RequestNicknameIfNeeded();
+                        if (!string.IsNullOrWhiteSpace(nickname))
                         {
                             JObject leaderboardDoc = new JObject
                             {
@@ -501,6 +501,18 @@ namespace TowerMaze
             string label = string.IsNullOrWhiteSpace(displayName) ? $"P{rank + 1}" : displayName.Trim();
             if (label.Length > 9) label = label.Substring(0, 9);
             return label.ToUpperInvariant();
+        }
+
+        private void RequestNicknameIfNeeded()
+        {
+            int bestScoreValue = Mathf.Max(0, Mathf.RoundToInt(scoreManager != null ? scoreManager.PersistedBestScore * 100f : 0f));
+            if (!loggedIn || nicknamePromptRequestedThisSession || !string.IsNullOrWhiteSpace(nickname) || bestScoreValue <= 0)
+            {
+                return;
+            }
+
+            nicknamePromptRequestedThisSession = true;
+            NicknameRequired?.Invoke();
         }
 
         private static long GetLocalPayloadTicks()

@@ -312,6 +312,7 @@ namespace TowerMaze
             var rt = go.AddComponent<RectTransform>();
             Stretch(rt);
             var canvas = go.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.overrideSorting = true;
             canvas.sortingOrder = 100;
             go.AddComponent<UnityEngine.UI.GraphicRaycaster>();
