@@ -52,5 +52,19 @@ crashlytics-build.properties
 .DS_Store
 Thumbs.db
 
+# Keystore (signing credentials)
+keystore/
+*.keystore
+*.jks
+
+# Local SDK artifacts that must not be committed
+/Assets/Firebase/Plugins/x86_64/FirebaseCppApp-13_9_0.bundle
+/Assets/Firebase/Plugins/x86_64/FirebaseCppApp-13_9_0.bundle.meta
+/Assets/Firebase/Plugins/x86_64/FirebaseCppApp-13_9_0.so
+/Assets/Firebase/Plugins/x86_64/FirebaseCppApp-13_9_0.so.meta
+/Assets/Plugins/Android/*.backup
+/Assets/Plugins/Android/*.backup.meta
+/.utmp/
+
 # Local workspace helpers
 .worktrees/
