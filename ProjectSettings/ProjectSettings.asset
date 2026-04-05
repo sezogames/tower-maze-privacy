@@ -166,9 +166,9 @@ PlayerSettings:
   androidMaxAspectRatio: 2.4
   androidMinAspectRatio: 1
   applicationIdentifier:
-    Android: com.UnityTechnologies.com.unity.template.urpblank
-    Standalone: com.Unity-Technologies.com.unity.template.urp-blank
-    iPhone: com.Unity-Technologies.com.unity.template.urp-blank
+    Android: com.sezogames.towermaze
+    Standalone: com.sezogames.towermaze
+    iPhone: com.sezogames.towermaze
   buildNumber:
     Standalone: 0
     VisionOS: 0
@@ -264,8 +264,8 @@ PlayerSettings:
   useCustomMainGradleTemplate: 1
   useCustomLauncherGradleManifest: 0
   useCustomBaseGradleTemplate: 0
-  useCustomGradlePropertiesTemplate: 0
-  useCustomGradleSettingsTemplate: 0
+  useCustomGradlePropertiesTemplate: 1
+  useCustomGradleSettingsTemplate: 1
   useCustomProguardFile: 0
   AndroidTargetArchitectures: 2
   AndroidAllowedArchitectures: -13
@@ -825,7 +825,10 @@ PlayerSettings:
   webGLCloseOnQuit: 0
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
-  scriptingDefineSymbols: {}
+  scriptingDefineSymbols:
+    Android: FIREBASE_ANALYTICS;GOOGLE_MOBILE_ADS
+    Standalone: FIREBASE_ANALYTICS;GOOGLE_MOBILE_ADS
+    iPhone: FIREBASE_ANALYTICS;GOOGLE_MOBILE_ADS
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:
