@@ -53,6 +53,9 @@ namespace TowerMaze
 
     public sealed class TowerSinkController : MonoBehaviour
     {
+        private const float StartupSlowdownDuration = 10f;
+        private const float StartupSlowdownMultiplier = 0.75f;
+
         [SerializeField] private bool simulationActive;
         [SerializeField] private float currentSinkSpeed;
         [SerializeField] private float speedMultiplier = 1f;
@@ -93,7 +96,10 @@ namespace TowerMaze
 
         public void SetSpeed(float baseSpeed, float perMinuteAcceleration)
         {
-            currentSinkSpeed = (baseSpeed + ((elapsedRunTime / 60f) * perMinuteAcceleration)) * speedMultiplier;
+            float startupMultiplier = elapsedRunTime < StartupSlowdownDuration
+                ? StartupSlowdownMultiplier
+                : 1f;
+            currentSinkSpeed = (baseSpeed + ((elapsedRunTime / 60f) * perMinuteAcceleration)) * speedMultiplier * startupMultiplier;
         }
 
         public void SetSpeedMultiplier(float multiplier)
@@ -130,37 +136,35 @@ namespace TowerMaze
 
     public sealed class TowerMaterials
     {
+        private static readonly Color LockedPathColor = new(0.30f, 0.30f, 0.32f, 1f);
+
         private readonly ThemeDefinition theme;
 
         public readonly Material PathMaterial;
         public readonly Material MainPathMaterial;
         public readonly Material WallMaterial;
         public readonly Material LavaMaterial;
+        public ThemeDefinition Theme => theme;
 
         public TowerMaterials(ThemeDefinition theme)
         {
-            this.theme = theme;
-            Shader lit = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            Shader unlit = Shader.Find("Universal Render Pipeline/Unlit") ?? lit;
-
-            if (lit == null)
+            this.theme = theme ?? ScriptableObject.CreateInstance<ThemeDefinition>();
+            if (theme == null)
             {
-                Debug.LogWarning("[TowerMaterials] Could not find Lit shader! Falling back to internal fallback.");
-                lit = Shader.Find("Hidden/InternalErrorShader");
+                Debug.LogWarning("[TowerMaterials] ThemeDefinition was null. Using in-memory defaults.");
             }
-            if (unlit == null) unlit = lit;
 
-            PathMaterial = new Material(lit);
-            MainPathMaterial = new Material(lit);
-            WallMaterial = new Material(lit);
-            LavaMaterial = new Material(unlit);
+            PathMaterial = RuntimeMaterialFactory.CreateLit(this.theme, "TowerMaze_PathMaterial");
+            MainPathMaterial = RuntimeMaterialFactory.CreateLit(this.theme, "TowerMaze_MainPathMaterial");
+            WallMaterial = RuntimeMaterialFactory.CreateLit(this.theme, "TowerMaze_WallMaterial");
+            LavaMaterial = RuntimeMaterialFactory.CreateUnlit(this.theme, "TowerMaze_TowerLavaMaterial");
 
             ApplyTreasureTier(0);
 
             if (LavaMaterial != null)
             {
-                LavaMaterial.SetColor("_BaseColor", theme.lavaColor);
-                LavaMaterial.SetColor("_Color", theme.lavaColor);
+                LavaMaterial.SetColor("_BaseColor", this.theme.lavaColor);
+                LavaMaterial.SetColor("_Color", this.theme.lavaColor);
             }
         }
 
@@ -226,30 +230,46 @@ namespace TowerMaze
                 wallNormalMap,
                 wallScale,
                 wallColor,
-                Color.Lerp(Color.black, wallColor * 0.08f, richness * 0.85f),
+                Color.Lerp(Color.black, wallColor * 0.02f, richness * 0.85f),
                 Mathf.Lerp(0.7f, 0.92f, richness),
                 Mathf.Lerp(0.46f, 0.62f, richness),
                 0.75f);
+
+            // Corridor (path) appearance is locked so players always read the rolling
+            // surface the same, regardless of which tower skin is equipped.
+            pathBaseMap = theme.towerPathBaseMap;
+            pathNormalMap = theme.towerPathNormalMap;
+            pathScale = theme.towerPathTextureScale == default ? Vector2.one : theme.towerPathTextureScale;
+            
+            // We force the Main Path to visually match the normal Path perfectly
+            // so we don't reveal the puzzle solution to the player (fixing visual borders).
+            mainPathBaseMap = pathBaseMap;
+            mainPathNormalMap = pathNormalMap;
+            mainPathScale = pathScale;
+            pathColor = LockedPathColor;
+            mainPathColor = LockedPathColor;
+
             ConfigureSurface(
                 PathMaterial,
                 pathBaseMap,
                 pathNormalMap,
                 pathScale,
                 pathColor,
-                Color.Lerp(pathColor * 0.025f, pathColor * 0.13f, richness),
-                Mathf.Lerp(0.82f, 0.98f, richness),
-                Mathf.Lerp(0.62f, 0.86f, richness),
+                Color.black,
+                Mathf.Lerp(0.05f, 0.15f, richness),
+                Mathf.Lerp(0.18f, 0.32f, richness),
                 0.65f);
+
             ConfigureSurface(
                 MainPathMaterial,
                 mainPathBaseMap,
                 mainPathNormalMap,
                 mainPathScale,
                 mainPathColor,
-                Color.Lerp(mainPathColor * 0.06f, mainPathColor * 0.22f, richness),
-                Mathf.Lerp(0.88f, 1f, richness),
-                Mathf.Lerp(0.72f, 0.94f, richness),
-                0.9f);
+                Color.black,
+                Mathf.Lerp(0.05f, 0.15f, richness),
+                Mathf.Lerp(0.18f, 0.32f, richness),
+                0.65f);
         }
 
         private static void ConfigureSurface(
@@ -263,6 +283,11 @@ namespace TowerMaze
             float smoothness,
             float normalStrength)
         {
+            if (material == null)
+            {
+                return;
+            }
+
             SetColor(material, "_BaseColor", baseColor);
             SetColor(material, "_Color", baseColor);
             SetFloat(material, "_Metallic", metallic);
@@ -309,7 +334,7 @@ namespace TowerMaze
 
         private static void SetColor(Material material, string propertyName, Color value)
         {
-            if (material.HasProperty(propertyName))
+            if (material != null && material.HasProperty(propertyName))
             {
                 material.SetColor(propertyName, value);
             }
@@ -317,7 +342,7 @@ namespace TowerMaze
 
         private static void SetFloat(Material material, string propertyName, float value)
         {
-            if (material.HasProperty(propertyName))
+            if (material != null && material.HasProperty(propertyName))
             {
                 material.SetFloat(propertyName, value);
             }
@@ -325,7 +350,7 @@ namespace TowerMaze
 
         private static void SetTexture(Material material, string propertyName, Texture texture)
         {
-            if (material.HasProperty(propertyName))
+            if (material != null && material.HasProperty(propertyName))
             {
                 material.SetTexture(propertyName, texture);
             }
@@ -333,7 +358,7 @@ namespace TowerMaze
 
         private static void SetTextureScale(Material material, string propertyName, Vector2 scale)
         {
-            if (material.HasProperty(propertyName))
+            if (material != null && material.HasProperty(propertyName))
             {
                 material.SetTextureScale(propertyName, scale);
             }
@@ -348,32 +373,57 @@ namespace TowerMaze
 
     public sealed class TowerSegment : MonoBehaviour
     {
-        private struct CellRendererBinding
+        private sealed class MeshBucket
         {
-            public Renderer renderer;
-            public MazeCellKind cellKind;
+            public Transform Root;
+            public MeshFilter Filter;
+            public MeshRenderer Renderer;
+            public Mesh Mesh;
         }
 
+        private const float CoinSpinSpeed = 180f;
+
         private Transform contentRoot;
-        private readonly List<CellRendererBinding> cellRenderers = new();
+        private Transform meshesRoot;
+        private Transform coinsRoot;
+        private readonly Dictionary<int, MazeCoinCollectible> mazeCoins = new();
+        private readonly List<MazeCoinCollectible> activeCoinViews = new();
+        private readonly List<MazeCoinCollectible> pooledCoins = new();
+        private readonly List<CombineInstance> wallCombines = new();
+        private readonly List<CombineInstance> pathCombines = new();
+        private readonly List<CombineInstance> mainPathCombines = new();
+        private MeshBucket wallBucket;
+        private MeshBucket pathBucket;
+        private MeshBucket mainPathBucket;
+        private ThemeDefinition themeDefinition;
+        private float coinSpinAngle;
 
         public SegmentData Data { get; private set; }
         public int SegmentIndex => Data != null ? Data.segmentIndex : -1;
 
-        public void Build(SegmentData data, GameConfig config, TowerMaterials materials)
+        public void Build(SegmentData data, GameConfig config, TowerMaterials materials, int segmentSeed)
         {
             Data = data;
             name = $"TowerSegment_{data.segmentIndex:000}";
             transform.localPosition = Vector3.zero;
             transform.localRotation = Quaternion.identity;
+            themeDefinition = materials != null ? materials.Theme : null;
 
-            contentRoot ??= transform;
-            ClearChildren();
-            cellRenderers.Clear();
+            EnsureRoots();
+            RecycleActiveCoins();
+
+            wallCombines.Clear();
+            pathCombines.Clear();
+            mainPathCombines.Clear();
+            coinSpinAngle = 0f;
 
             float anglePerCell = config.AnglePerCell;
             float cellHeight = config.CellHeight;
             float arcWidth = config.CellArcWidth;
+            float coinSpawnChance = GetZoneAdjustedCoinSpawnChance(config, data.segmentIndex);
+            Mesh wallMesh = RoundedBoxMeshCache.GetWallMesh(config);
+            Mesh cubeMesh = PrimitiveMeshCache.CubeMesh;
+            System.Random coinRandom = new(segmentSeed ^ 0x4B9F31);
 
             for (int row = 0; row < data.height; row++)
             {
@@ -384,107 +434,348 @@ namespace TowerMaze
                     float thickness = isPath ? config.pathInsetThickness : config.wallThickness;
                     float padding = isPath ? config.pathCellPadding : config.wallCellPadding;
                     float angle = (column + 0.5f) * anglePerCell;
+                    Vector3 outward = DirectionForAngle(angle);
                     float outerRadius = isPath ? config.PathOuterRadius : config.towerRadius;
-                    Quaternion rotation = Quaternion.LookRotation(DirectionForAngle(angle), Vector3.up);
-                    Vector3 position = DirectionForAngle(angle) * (outerRadius - (thickness * 0.5f));
+                    Quaternion rotation = Quaternion.LookRotation(outward, Vector3.up);
+                    Vector3 position = outward * (outerRadius - (thickness * 0.5f));
                     position.y = (data.segmentIndex * config.segmentHeight) + ((row + 0.5f) * cellHeight);
-
-                    GameObject cellObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    cellObject.name = $"Cell_{row:00}_{column:00}";
-                    cellObject.transform.SetParent(contentRoot, false);
-                    cellObject.transform.localPosition = position;
-                    cellObject.transform.localRotation = rotation;
-                    cellObject.transform.localScale = new Vector3(
+                    Vector3 scale = new(
                         (arcWidth * padding) + config.cellWidthOverlap,
                         (cellHeight * padding) + config.cellHeightOverlap,
                         thickness + config.cellDepthOverlap);
-
-                    Collider collider = cellObject.GetComponent<Collider>();
-                    if (collider != null)
+                    CombineInstance combine = new()
                     {
-                        if (Application.isPlaying)
-                        {
-                            Destroy(collider);
-                        }
-                        else
-                        {
-                            DestroyImmediate(collider);
-                        }
-                    }
-
-                    if (!isPath)
-                    {
-                        MeshFilter meshFilter = cellObject.GetComponent<MeshFilter>();
-                        if (meshFilter != null)
-                        {
-                            meshFilter.sharedMesh = RoundedBoxMeshCache.GetWallMesh(config);
-                        }
-                    }
-
-                    Renderer renderer = cellObject.GetComponent<Renderer>();
-                    renderer.sharedMaterial = cellKind switch
-                    {
-                        MazeCellKind.MainPath => materials.MainPathMaterial,
-                        MazeCellKind.Path => materials.PathMaterial,
-                        _ => materials.WallMaterial,
+                        mesh = isPath ? cubeMesh : wallMesh,
+                        transform = Matrix4x4.TRS(position, rotation, scale),
                     };
-                    renderer.shadowCastingMode = isPath ? ShadowCastingMode.Off : ShadowCastingMode.On;
-                    renderer.receiveShadows = !isPath;
-                    cellRenderers.Add(new CellRendererBinding
+
+                    switch (cellKind)
                     {
-                        renderer = renderer,
-                        cellKind = cellKind,
-                    });
+                        case MazeCellKind.MainPath:
+                            mainPathCombines.Add(combine);
+                            break;
+                        case MazeCellKind.Path:
+                            pathCombines.Add(combine);
+                            break;
+                        default:
+                            wallCombines.Add(combine);
+                            break;
+                    }
+
+                    if (isPath)
+                    {
+                        TryCreateMazeCoin(data, config, row, column, outward, position.y, coinSpawnChance, coinRandom);
+                    }
+                }
+            }
+
+            ApplyBucket(wallBucket, wallCombines, materials != null ? materials.WallMaterial : null, ShadowCastingMode.On, true);
+            ApplyBucket(pathBucket, pathCombines, materials != null ? materials.PathMaterial : null, ShadowCastingMode.Off, false);
+            // MainPath uses the same material as Path so the solved route cannot be
+            // visually distinguished from branches.
+            ApplyBucket(mainPathBucket, mainPathCombines, materials != null ? materials.PathMaterial : null, ShadowCastingMode.Off, false);
+        }
+
+        private void Update()
+        {
+            if (activeCoinViews.Count == 0)
+            {
+                return;
+            }
+
+            coinSpinAngle = Mathf.Repeat(coinSpinAngle + (CoinSpinSpeed * Time.deltaTime), 360f);
+            for (int index = 0; index < activeCoinViews.Count; index++)
+            {
+                MazeCoinCollectible coin = activeCoinViews[index];
+                if (coin != null && coin.gameObject.activeSelf)
+                {
+                    coin.SetSpinAngle(coinSpinAngle);
                 }
             }
         }
 
         public void RefreshMaterials(TowerMaterials materials)
         {
-            for (int i = 0; i < cellRenderers.Count; i++)
+            if (materials == null)
             {
-                Renderer renderer = cellRenderers[i].renderer;
-                if (renderer == null)
-                {
-                    continue;
-                }
+                return;
+            }
 
-                renderer.sharedMaterial = cellRenderers[i].cellKind switch
+            if (wallBucket?.Renderer != null)
+            {
+                wallBucket.Renderer.sharedMaterial = materials.WallMaterial;
+            }
+
+            if (pathBucket?.Renderer != null)
+            {
+                pathBucket.Renderer.sharedMaterial = materials.PathMaterial;
+            }
+
+            if (mainPathBucket?.Renderer != null)
+            {
+                mainPathBucket.Renderer.sharedMaterial = materials.PathMaterial;
+            }
+
+            themeDefinition = materials.Theme;
+            for (int index = 0; index < activeCoinViews.Count; index++)
+            {
+                MazeCoinCollectible coin = activeCoinViews[index];
+                if (coin != null)
                 {
-                    MazeCellKind.MainPath => materials.MainPathMaterial,
-                    MazeCellKind.Path => materials.PathMaterial,
-                    _ => materials.WallMaterial,
-                };
+                    coin.Initialize(coin.LocalRow, coin.Column, coin.RewardAmount, themeDefinition);
+                    coin.SetSpinAngle(coinSpinAngle);
+                }
             }
         }
 
-        private void ClearChildren()
+        public bool TryCollectCoin(int localRow, int column, out int rewardAmount, out Vector3 worldPosition)
         {
-            List<GameObject> toDestroy = new();
-            foreach (Transform child in transform)
+            rewardAmount = 0;
+            worldPosition = Vector3.zero;
+
+            if (Data == null || localRow < 0 || localRow >= Data.height)
             {
-                toDestroy.Add(child.gameObject);
+                return false;
             }
 
-            foreach (GameObject child in toDestroy)
+            int wrappedColumn = Data.WrapColumn(column);
+            int key = GetCoinKey(localRow, wrappedColumn, Data.width);
+            if (!mazeCoins.TryGetValue(key, out MazeCoinCollectible coin) || coin == null)
             {
-                if (Application.isPlaying)
-                {
-                    Destroy(child);
-                }
-                else
-                {
-                    DestroyImmediate(child);
-                }
+                return false;
             }
 
-            cellRenderers.Clear();
+            worldPosition = coin.transform.position;
+            if (!coin.TryCollect(out rewardAmount))
+            {
+                return false;
+            }
+
+            mazeCoins.Remove(key);
+            activeCoinViews.Remove(coin);
+            ReturnCoinToPool(coin);
+            return rewardAmount > 0;
+        }
+
+        private void EnsureRoots()
+        {
+            contentRoot ??= transform;
+            meshesRoot ??= EnsureChild(contentRoot, "Meshes");
+            coinsRoot ??= EnsureChild(contentRoot, "Coins");
+            wallBucket ??= CreateBucket("Walls");
+            pathBucket ??= CreateBucket("Paths");
+            mainPathBucket ??= CreateBucket("MainPaths");
+        }
+
+        private MeshBucket CreateBucket(string bucketName)
+        {
+            Transform bucketRoot = EnsureChild(meshesRoot, bucketName);
+            MeshFilter filter = bucketRoot.GetComponent<MeshFilter>();
+            if (filter == null)
+            {
+                filter = bucketRoot.gameObject.AddComponent<MeshFilter>();
+            }
+
+            MeshRenderer renderer = bucketRoot.GetComponent<MeshRenderer>();
+            if (renderer == null)
+            {
+                renderer = bucketRoot.gameObject.AddComponent<MeshRenderer>();
+            }
+
+            Mesh mesh = filter.sharedMesh;
+            if (mesh == null)
+            {
+                mesh = new Mesh
+                {
+                    name = $"{name}_{bucketName}_Mesh",
+                    indexFormat = IndexFormat.UInt32,
+                };
+                mesh.MarkDynamic();
+                filter.sharedMesh = mesh;
+            }
+
+            return new MeshBucket
+            {
+                Root = bucketRoot,
+                Filter = filter,
+                Renderer = renderer,
+                Mesh = mesh,
+            };
+        }
+
+        private void ApplyBucket(MeshBucket bucket, List<CombineInstance> combines, Material material, ShadowCastingMode shadowCastingMode, bool receiveShadows)
+        {
+            if (bucket == null)
+            {
+                return;
+            }
+
+            if (combines.Count == 0)
+            {
+                if (bucket.Filter != null)
+                {
+                    bucket.Filter.sharedMesh = null;
+                }
+
+                if (bucket.Root != null)
+                {
+                    bucket.Root.gameObject.SetActive(false);
+                }
+
+                return;
+            }
+
+            bucket.Mesh.Clear();
+            bucket.Mesh.indexFormat = IndexFormat.UInt32;
+            bucket.Mesh.CombineMeshes(combines.ToArray(), true, true, false);
+            bucket.Filter.sharedMesh = bucket.Mesh;
+            bucket.Renderer.sharedMaterial = material;
+            bucket.Renderer.shadowCastingMode = shadowCastingMode;
+            bucket.Renderer.receiveShadows = receiveShadows;
+            bucket.Root.gameObject.SetActive(true);
+        }
+
+        private void RecycleActiveCoins()
+        {
+            for (int index = 0; index < activeCoinViews.Count; index++)
+            {
+                ReturnCoinToPool(activeCoinViews[index]);
+            }
+
+            activeCoinViews.Clear();
+            mazeCoins.Clear();
+        }
+
+        private MazeCoinCollectible GetPooledCoin()
+        {
+            int lastIndex = pooledCoins.Count - 1;
+            if (lastIndex >= 0)
+            {
+                MazeCoinCollectible pooledCoin = pooledCoins[lastIndex];
+                pooledCoins.RemoveAt(lastIndex);
+                return pooledCoin;
+            }
+
+            GameObject coinObject = new("MazeCoin");
+            coinObject.transform.SetParent(coinsRoot, false);
+            return coinObject.AddComponent<MazeCoinCollectible>();
+        }
+
+        private void ReturnCoinToPool(MazeCoinCollectible coin)
+        {
+            if (coin == null)
+            {
+                return;
+            }
+
+            coin.gameObject.SetActive(false);
+            coin.transform.SetParent(coinsRoot, false);
+            pooledCoins.Add(coin);
+        }
+
+        private void TryCreateMazeCoin(
+            SegmentData data,
+            GameConfig config,
+            int row,
+            int column,
+            Vector3 outward,
+            float height,
+            float spawnChance,
+            System.Random coinRandom)
+        {
+            if (spawnChance <= 0f)
+            {
+                return;
+            }
+
+            if (data.segmentIndex == 0 && row < 2)
+            {
+                return;
+            }
+
+            if (coinRandom.NextDouble() > spawnChance)
+            {
+                return;
+            }
+
+            Vector3 position = outward * (config.HeroLaneRadius + (HeroVisualController.BallRadius * 0.35f));
+            position.y = height;
+
+            MazeCoinCollectible coin = GetPooledCoin();
+            coin.transform.SetParent(coinsRoot, false);
+            coin.transform.localPosition = position;
+            coin.transform.localRotation = Quaternion.LookRotation(outward, Vector3.up);
+            coin.Initialize(row, column, Mathf.Max(1, config.mazeCoinReward), themeDefinition);
+            coin.SetSpinAngle(coinSpinAngle);
+            mazeCoins[GetCoinKey(row, column, data.width)] = coin;
+            activeCoinViews.Add(coin);
+        }
+
+        private static int GetCoinKey(int row, int column, int width)
+        {
+            return (row * width) + column;
+        }
+
+        private static float GetZoneAdjustedCoinSpawnChance(GameConfig config, int segmentIndex)
+        {
+            float baseChance = Mathf.Clamp01(config.mazeCoinSpawnChance);
+            if (baseChance <= 0f)
+            {
+                return 0f;
+            }
+
+            int zoneIndex = Mathf.Max(0, segmentIndex / Mathf.Max(1, config.segmentsPerZone));
+            float normalizedZone = Mathf.Clamp01(zoneIndex / 6f);
+            float earlyChance = baseChance * 0.3f;
+            float lateChance = Mathf.Min(0.2f, baseChance * 1.35f);
+            return Mathf.Lerp(earlyChance, lateChance, normalizedZone);
+        }
+
+        private static Transform EnsureChild(Transform parent, string childName)
+        {
+            Transform child = parent.Find(childName);
+            if (child != null)
+            {
+                return child;
+            }
+
+            GameObject childObject = new(childName);
+            childObject.transform.SetParent(parent, false);
+            return childObject.transform;
         }
 
         private static Vector3 DirectionForAngle(float angleDegrees)
         {
             float radians = angleDegrees * Mathf.Deg2Rad;
             return new Vector3(Mathf.Sin(radians), 0f, Mathf.Cos(radians)).normalized;
+        }
+    }
+
+    internal static class PrimitiveMeshCache
+    {
+        private static Mesh cubeMesh;
+
+        public static Mesh CubeMesh => cubeMesh ??= CreateCubeMesh();
+
+        private static Mesh CreateCubeMesh()
+        {
+            GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            MeshFilter meshFilter = cube.GetComponent<MeshFilter>();
+            Mesh mesh = meshFilter != null
+                ? Object.Instantiate(meshFilter.sharedMesh)
+                : new Mesh();
+            mesh.name = "TowerMaze_CachedCube";
+
+            if (Application.isPlaying)
+            {
+                Object.Destroy(cube);
+            }
+            else
+            {
+                Object.DestroyImmediate(cube);
+            }
+
+            return mesh;
         }
     }
 
@@ -667,6 +958,14 @@ namespace TowerMaze
         private int highestSpawnedSegment = -1;
         private int lastExitColumn;
         private int baseSeed;
+        private float difficultyOffset;
+        private int zoneOffset;
+
+        public void SetChapterDifficulty(float heightOffset, int zoneOff)
+        {
+            difficultyOffset = heightOffset;
+            zoneOffset = zoneOff;
+        }
 
         public Transform TowerSpace => transform;
         public TowerRotationController RotationController => rotationController;
@@ -675,10 +974,25 @@ namespace TowerMaze
 
         public void Initialize(GameConfig gameConfig, DifficultyProfile profile, ThemeDefinition definition)
         {
-            config = gameConfig;
-            difficultyProfile = profile;
-            theme = definition;
+            config = gameConfig != null ? gameConfig : Resources.Load<GameConfig>("TowerMaze/GameConfig");
+            difficultyProfile = profile != null
+                ? profile
+                : (Resources.Load<DifficultyProfile>("TowerMaze/DifficultyProfile")
+                    ?? Resources.Load<DifficultyProfile>("TowerMaze/StandardDifficultyProfile"));
+            theme = definition != null ? definition : ScriptableObject.CreateInstance<ThemeDefinition>();
             materials = new TowerMaterials(theme);
+
+            if (config == null)
+            {
+                config = ScriptableObject.CreateInstance<GameConfig>();
+                Debug.LogWarning("[TowerGenerator] GameConfig was null. Using in-memory defaults.");
+            }
+
+            if (difficultyProfile == null)
+            {
+                difficultyProfile = ScriptableObject.CreateInstance<DifficultyProfile>();
+                Debug.LogWarning("[TowerGenerator] DifficultyProfile was null. Using in-memory defaults.");
+            }
             
             if (activeSegmentsRoot == null) activeSegmentsRoot = CreateChild("ActiveSegments");
             if (pooledSegmentsRoot == null) pooledSegmentsRoot = CreateChild("PooledSegments");
@@ -753,7 +1067,12 @@ namespace TowerMaze
 
         public void UpdateDifficulty(float playerHeight)
         {
-            DifficultySettings settings = difficultyProfile.Evaluate(playerHeight);
+            if (difficultyProfile == null || rotationController == null || sinkController == null || config == null)
+            {
+                return;
+            }
+
+            DifficultySettings settings = difficultyProfile.Evaluate(playerHeight + difficultyOffset);
             debugDifficultyTier = difficultyProfile.GetBandIndex(playerHeight);
             rotationController.SetSpeed(settings.rotationSpeed);
             sinkController.SetSpeed(settings.sinkSpeed, config.sinkAccelerationPerMinute);
@@ -881,6 +1200,287 @@ namespace TowerMaze
             return true;
         }
 
+        public bool TryFindHorizontalTurnTarget(
+            float currentAngle,
+            float currentHeight,
+            float horizontalInput,
+            float verticalInput,
+            int maxRowOffset,
+            int maxColumnOffset,
+            out float resolvedAngle,
+            out float resolvedHeight)
+        {
+            resolvedAngle = Mathf.Repeat(currentAngle, 360f);
+            resolvedHeight = Mathf.Max(0f, currentHeight);
+
+            if (config == null || currentHeight < 0f || Mathf.Abs(horizontalInput) < 0.01f)
+            {
+                return false;
+            }
+
+            int currentRow = Mathf.Max(0, Mathf.FloorToInt(currentHeight / config.CellHeight));
+            int currentColumn = AngleToColumn(currentAngle);
+            int signedDirection = horizontalInput > 0f ? 1 : -1;
+            int rowLimit = Mathf.Max(0, maxRowOffset);
+            int columnLimit = Mathf.Clamp(maxColumnOffset, 1, 1);
+            float bestScore = float.MaxValue;
+            bool found = false;
+
+            for (int rowOffset = -rowLimit; rowOffset <= rowLimit; rowOffset++)
+            {
+                int globalRow = currentRow + rowOffset;
+                if (globalRow < 0)
+                {
+                    continue;
+                }
+
+                int segmentIndex = globalRow / config.mazeHeightCells;
+                int localRow = globalRow % config.mazeHeightCells;
+                if (!segmentDataByIndex.TryGetValue(segmentIndex, out SegmentData data))
+                {
+                    continue;
+                }
+
+                if (!data.IsOpen(localRow, currentColumn))
+                {
+                    continue;
+                }
+
+                int adjacentColumn = data.WrapColumn(currentColumn + signedDirection);
+                for (int step = 1; step <= columnLimit; step++)
+                {
+                    int candidateColumn = adjacentColumn;
+                    if (!data.IsOpen(localRow, candidateColumn))
+                    {
+                        continue;
+                    }
+
+                    float rowDistanceCells = Mathf.Abs(currentHeight - HeightForRowCenter(globalRow)) / config.CellHeight;
+                    float directionalBias = 0f;
+                    if (Mathf.Abs(verticalInput) > 0.01f && rowOffset != 0 && Mathf.Sign(rowOffset) == Mathf.Sign(verticalInput))
+                    {
+                        directionalBias = -0.2f;
+                    }
+
+                    float score = (step - 1) * 0.55f + (rowDistanceCells * 1.35f) + directionalBias;
+                    if (score >= bestScore)
+                    {
+                        continue;
+                    }
+
+                    bestScore = score;
+                    resolvedAngle = ColumnToAngleCenter(candidateColumn);
+                    resolvedHeight = HeightForRowCenter(globalRow);
+                    found = true;
+                }
+            }
+
+            return found;
+        }
+
+        public bool TryFindVerticalTurnTarget(
+            float currentAngle,
+            float currentHeight,
+            float verticalInput,
+            float horizontalInput,
+            int maxColumnOffset,
+            out float resolvedAngle,
+            out float resolvedHeight)
+        {
+            resolvedAngle = Mathf.Repeat(currentAngle, 360f);
+            resolvedHeight = Mathf.Max(0f, currentHeight);
+
+            if (config == null || currentHeight < 0f || Mathf.Abs(verticalInput) < 0.01f)
+            {
+                return false;
+            }
+
+            int currentRow = Mathf.Max(0, Mathf.FloorToInt(currentHeight / config.CellHeight));
+            int currentColumn = AngleToColumn(currentAngle);
+            int targetRow = currentRow + (verticalInput > 0f ? 1 : -1);
+            if (targetRow < 0)
+            {
+                return false;
+            }
+
+            int currentSegmentIndex = currentRow / config.mazeHeightCells;
+            int currentLocalRow = currentRow % config.mazeHeightCells;
+            if (!segmentDataByIndex.TryGetValue(currentSegmentIndex, out SegmentData currentData) ||
+                !currentData.IsOpen(currentLocalRow, currentColumn))
+            {
+                return false;
+            }
+
+            int targetSegmentIndex = targetRow / config.mazeHeightCells;
+            int targetLocalRow = targetRow % config.mazeHeightCells;
+            if (!segmentDataByIndex.TryGetValue(targetSegmentIndex, out SegmentData targetData) ||
+                targetData == null)
+            {
+                return false;
+            }
+
+            float bestScore = float.MaxValue;
+            bool found = false;
+            int columnLimit = Mathf.Max(0, maxColumnOffset);
+
+            for (int columnOffset = -columnLimit; columnOffset <= columnLimit; columnOffset++)
+            {
+                int candidateColumn = currentData.WrapColumn(currentColumn + columnOffset);
+                if (!targetData.IsOpen(targetLocalRow, candidateColumn) ||
+                    !IsHorizontalCorridorOpen(currentData, currentLocalRow, currentColumn, columnOffset))
+                {
+                    continue;
+                }
+
+                float candidateAngle = ColumnToAngleCenter(candidateColumn);
+                float angleDistanceCells = Mathf.Abs(Mathf.DeltaAngle(currentAngle, candidateAngle)) / config.AnglePerCell;
+                float horizontalBias = 0f;
+                if (Mathf.Abs(horizontalInput) > 0.01f &&
+                    columnOffset != 0 &&
+                    Mathf.Sign(columnOffset) == Mathf.Sign(horizontalInput))
+                {
+                    horizontalBias = -0.15f;
+                }
+
+                float score = angleDistanceCells + (Mathf.Abs(columnOffset) * 0.1f) + horizontalBias;
+                if (score >= bestScore)
+                {
+                    continue;
+                }
+
+                bestScore = score;
+                resolvedAngle = candidateAngle;
+                resolvedHeight = HeightForRowCenter(targetRow);
+                found = true;
+            }
+
+            return found;
+        }
+
+        private static bool IsHorizontalCorridorOpen(SegmentData data, int row, int startColumn, int columnOffset)
+        {
+            if (data == null)
+            {
+                return false;
+            }
+
+            int stepDirection = columnOffset >= 0 ? 1 : -1;
+            for (int step = 0; step <= Mathf.Abs(columnOffset); step++)
+            {
+                int wrappedColumn = data.WrapColumn(startColumn + (step * stepDirection));
+                if (!data.IsOpen(row, wrappedColumn))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public bool TryFindNearestOpenCellCenter(
+            float targetAngle,
+            float targetHeight,
+            int maxColumnOffset,
+            int maxRowOffset,
+            out float resolvedAngle,
+            out float resolvedHeight)
+        {
+            resolvedAngle = Mathf.Repeat(targetAngle, 360f);
+            resolvedHeight = Mathf.Max(0f, targetHeight);
+
+            if (config == null || targetHeight < 0f)
+            {
+                return false;
+            }
+
+            int targetRow = Mathf.Max(0, Mathf.FloorToInt(targetHeight / config.CellHeight));
+            int targetColumn = AngleToColumn(targetAngle);
+            float bestScore = float.MaxValue;
+            bool found = false;
+            int rowLimit = Mathf.Max(0, maxRowOffset);
+            int columnLimit = Mathf.Max(0, maxColumnOffset);
+
+            for (int rowOffset = -rowLimit; rowOffset <= rowLimit; rowOffset++)
+            {
+                int globalRow = targetRow + rowOffset;
+                if (globalRow < 0)
+                {
+                    continue;
+                }
+
+                int segmentIndex = globalRow / config.mazeHeightCells;
+                int localRow = globalRow % config.mazeHeightCells;
+                if (!segmentDataByIndex.TryGetValue(segmentIndex, out SegmentData data))
+                {
+                    continue;
+                }
+
+                for (int columnOffset = -columnLimit; columnOffset <= columnLimit; columnOffset++)
+                {
+                    int wrappedColumn = data.WrapColumn(targetColumn + columnOffset);
+                    if (!data.IsOpen(localRow, wrappedColumn))
+                    {
+                        continue;
+                    }
+
+                    float candidateAngle = ColumnToAngleCenter(wrappedColumn);
+                    float candidateHeight = HeightForRowCenter(globalRow);
+                    float angleDistanceCells = Mathf.Abs(Mathf.DeltaAngle(targetAngle, candidateAngle)) / config.AnglePerCell;
+                    float heightDistanceCells = Mathf.Abs(targetHeight - candidateHeight) / config.CellHeight;
+                    float score = (angleDistanceCells * angleDistanceCells) + (heightDistanceCells * heightDistanceCells * 1.15f);
+
+                    if (score >= bestScore)
+                    {
+                        continue;
+                    }
+
+                    bestScore = score;
+                    resolvedAngle = candidateAngle;
+                    resolvedHeight = candidateHeight;
+                    found = true;
+                }
+            }
+
+            return found;
+        }
+
+        public bool TryCollectCoin(float angleDegrees, float towerHeight, out int rewardAmount, out Vector3 worldPosition)
+        {
+            rewardAmount = 0;
+            worldPosition = Vector3.zero;
+
+            if (config == null || towerHeight < 0f)
+            {
+                return false;
+            }
+
+            int column = AngleToColumn(angleDegrees);
+            int globalRow = Mathf.Max(0, Mathf.FloorToInt(towerHeight / config.CellHeight));
+
+            for (int rowOffset = -1; rowOffset <= 1; rowOffset++)
+            {
+                int sampledGlobalRow = globalRow + rowOffset;
+                if (sampledGlobalRow < 0)
+                {
+                    continue;
+                }
+
+                int segmentIndex = sampledGlobalRow / config.mazeHeightCells;
+                int localRow = sampledGlobalRow % config.mazeHeightCells;
+                if (!activeSegments.TryGetValue(segmentIndex, out TowerSegment segment))
+                {
+                    continue;
+                }
+
+                if (segment.TryCollectCoin(localRow, column, out rewardAmount, out worldPosition))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private int AngleToColumn(float angleDegrees)
         {
             float wrapped = Mathf.Repeat(angleDegrees, 360f);
@@ -889,7 +1489,14 @@ namespace TowerMaze
 
         private void SpawnSegment(int segmentIndex)
         {
+            if (config == null || materials == null)
+            {
+                Debug.LogError("[TowerGenerator] SpawnSegment skipped because generator dependencies are missing.");
+                return;
+            }
+
             int zoneIndex = GetZoneIndexForSegment(segmentIndex);
+            int segmentSeed = GetSegmentSeed(segmentIndex, zoneIndex);
             SegmentData data = segmentIndex == 0
                 ? mazeGenerator.CreateTutorialSegment(config, theme, segmentIndex, lastExitColumn)
                 : mazeGenerator.Generate(
@@ -899,7 +1506,7 @@ namespace TowerMaze
                     segmentIndex,
                     zoneIndex,
                     lastExitColumn,
-                    GetSegmentSeed(segmentIndex, zoneIndex));
+                    segmentSeed);
 
             lastExitColumn = data.exitColumn;
             highestSpawnedSegment = Mathf.Max(highestSpawnedSegment, segmentIndex);
@@ -907,7 +1514,7 @@ namespace TowerMaze
 
             TowerSegment segment = segmentPool.Get(pooledSegmentsRoot);
             segment.transform.SetParent(activeSegmentsRoot, false);
-            segment.Build(data, config, materials);
+            segment.Build(data, config, materials, segmentSeed);
             activeSegments[segmentIndex] = segment;
         }
 
@@ -934,7 +1541,7 @@ namespace TowerMaze
         private int GetZoneIndexForSegment(int segmentIndex)
         {
             int segmentsPerZone = Mathf.Max(1, config.segmentsPerZone);
-            return Mathf.Max(0, segmentIndex / segmentsPerZone);
+            return Mathf.Max(0, segmentIndex / segmentsPerZone) + zoneOffset;
         }
 
         private int GetSegmentSeed(int segmentIndex, int zoneIndex)

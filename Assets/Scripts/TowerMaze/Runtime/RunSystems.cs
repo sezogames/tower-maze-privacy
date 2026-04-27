@@ -25,6 +25,7 @@ namespace TowerMaze
     {
         Normal,
         DailyChallenge,
+        Chapter,
     }
 
     public enum RunModifierType
@@ -184,6 +185,7 @@ namespace TowerMaze
         public float normalStrength;
         public float emissionIntensity;
         public string iapProductId;
+        public bool isPopular;
 
         public BallSkinDefinition(
             string id,
@@ -200,7 +202,8 @@ namespace TowerMaze
             float smoothness = 0.5f,
             float normalStrength = 1f,
             float emissionIntensity = 1f,
-            string iapProductId = "")
+            string iapProductId = "",
+            bool isPopular = false)
         {
             this.id = id;
             this.displayName = displayName;
@@ -217,6 +220,7 @@ namespace TowerMaze
             this.normalStrength = normalStrength;
             this.emissionIntensity = emissionIntensity;
             this.iapProductId = iapProductId;
+            this.isPopular = isPopular;
         }
     }
 
@@ -241,6 +245,7 @@ namespace TowerMaze
         public string mainPathNormalMapResourcePath;
         public Vector2 mainPathTextureScale;
         public string iapProductId;
+        public bool isPopular;
 
         public TowerSkinDefinition(
             string id,
@@ -260,7 +265,8 @@ namespace TowerMaze
             string mainPathBaseMapResourcePath = "",
             string mainPathNormalMapResourcePath = "",
             Vector2 mainPathTextureScale = default,
-            string iapProductId = "")
+            string iapProductId = "",
+            bool isPopular = false)
         {
             this.id = id;
             this.displayName = displayName;
@@ -280,6 +286,7 @@ namespace TowerMaze
             this.mainPathNormalMapResourcePath = mainPathNormalMapResourcePath;
             this.mainPathTextureScale = mainPathTextureScale == default ? Vector2.one : mainPathTextureScale;
             this.iapProductId = iapProductId;
+            this.isPopular = isPopular;
         }
     }
 
@@ -287,6 +294,14 @@ namespace TowerMaze
     internal sealed class SkinInventorySaveData
     {
         public List<string> ownedSkinIds = new();
+    }
+
+    public enum ReviewPromptState
+    {
+        None,
+        Rated,
+        Dismissed,
+        Never
     }
 
     public sealed class EconomyManager : MonoBehaviour
@@ -411,6 +426,31 @@ namespace TowerMaze
             SaveState();
             NotifyEmberBalanceChanged();
             NotifyTowerSkinChanged();
+        }
+
+        public bool HasPlayedDailyChallengeToday
+        {
+            get
+            {
+                RefreshDailyContentIfNeeded();
+                return dailyChallengeStatus.bestHeight > 0.1f;
+            }
+        }
+
+        public bool ShouldShowReviewPrompt()
+        {
+            if (PlayerPrefs.GetInt(ReviewRequestedKey, (int)ReviewPromptState.None) != (int)ReviewPromptState.None)
+            {
+                return false;
+            }
+
+            return TotalRuns >= 5;
+        }
+
+        public void SetReviewState(ReviewPromptState state)
+        {
+            PlayerPrefs.SetInt(ReviewRequestedKey, (int)state);
+            PlayerPrefs.Save();
         }
 
         public int CalculateRunReward(float height, int zoneNumber, float runTime)
@@ -783,10 +823,11 @@ namespace TowerMaze
                         break;
                 }
 
-                if (mission.progressValue >= mission.targetValue)
+                // Mission completion no longer auto-grants coins. The reward is only
+                // granted when the player taps the claim button (ClaimMissionReward).
+                // If they don't claim before the daily reset, the reward is forfeited.
+                if (mission.progressValue >= mission.targetValue && !mission.claimed)
                 {
-                    mission.claimed = true;
-                    grantedReward += mission.rewardEmber;
                     completedMissionCount++;
                 }
 
@@ -794,7 +835,36 @@ namespace TowerMaze
             }
 
             SaveDailyState();
-            return new DailyMissionRewardResult(grantedReward, completedMissionCount);
+            // Return 0 granted reward — claim is now manual.
+            return new DailyMissionRewardResult(0, completedMissionCount);
+        }
+
+        public DailyMissionRewardResult ClaimMissionReward(string missionId)
+        {
+            if (string.IsNullOrEmpty(missionId))
+            {
+                return new DailyMissionRewardResult(0, 0);
+            }
+
+            RefreshDailyContentIfNeeded();
+            for (int index = 0; index < dailyMissions.Count; index++)
+            {
+                DailyMissionState mission = dailyMissions[index];
+                if (mission.id != missionId) continue;
+                if (mission.claimed) return new DailyMissionRewardResult(0, 0);
+                if (mission.progressValue < mission.targetValue) return new DailyMissionRewardResult(0, 0);
+
+                mission.claimed = true;
+                dailyMissions[index] = mission;
+                int reward = mission.rewardEmber;
+                if (reward > 0)
+                {
+                    GrantEmber(reward);
+                }
+                SaveDailyState();
+                return new DailyMissionRewardResult(reward, 1);
+            }
+            return new DailyMissionRewardResult(0, 0);
         }
 
         public DailyChallengeRewardResult RegisterDailyChallengeRun(RunSummary summary)
@@ -1105,15 +1175,16 @@ namespace TowerMaze
                     "hazard_neon",
                     "Hazard Neon",
                     9000,
-                    new Color(0.16f, 0.16f, 0.18f, 1f),
-                    new Color(1f, 0.96f, 0.28f, 1f),
-                    baseMapResourcePath: "TowerMaze/BallSkins/Plastic006/Plastic006_2K-JPG_Color",
-                    normalMapResourcePath: "TowerMaze/BallSkins/Plastic006/Plastic006_2K-JPG_NormalGL",
-                    textureScale: new Vector2(2.65f, 2.65f),
-                    metallic: 0.04f,
-                    smoothness: 0.94f,
-                    normalStrength: 0.55f,
-                    emissionIntensity: 1.1f));
+                    new Color(1f, 1f, 1f, 1f),
+                    new Color(0.42f, 0.96f, 1f, 1f),
+                    baseMapResourcePath: "TowerMaze/BallSkins/Neon/NeonBaseMap",
+                    normalMapResourcePath: "",
+                    emissionMapResourcePath: "TowerMaze/BallSkins/Neon/NeonBaseMap",
+                    textureScale: new Vector2(0.65f, 0.65f),
+                    metallic: 0.05f,
+                    smoothness: 0.92f,
+                    normalStrength: 0f,
+                    emissionIntensity: 2.4f));
                 skins.Add(new BallSkinDefinition(
                     "forge_bronze",
                     "Forge Bronze",
@@ -1144,7 +1215,7 @@ namespace TowerMaze
                     "void_ice",
                     "Void Ice",
                     22000,
-                    new Color(0.12f, 0.18f, 0.24f, 1f),
+                    new Color(0.6f, 0.7f, 0.8f, 1f),
                     new Color(0.4f, 0.86f, 1f, 1f),
                     baseMapResourcePath: "TowerMaze/BallSkins/Snow003/Snow003_2K-JPG_Color",
                     normalMapResourcePath: "TowerMaze/BallSkins/Snow003/Snow003_2K-JPG_NormalGL",
@@ -1158,28 +1229,28 @@ namespace TowerMaze
                     "solar_crown",
                     "Solar Crown",
                     0,
-                    new Color(0.72f, 0.58f, 0.14f, 1f),
-                    new Color(1f, 0.94f, 0.22f, 1f),
-                    baseMapResourcePath: "TowerMaze/BallSkins/Metal044A/Metal044A_2K-JPG_Color",
-                    normalMapResourcePath: "TowerMaze/BallSkins/Metal044A/Metal044A_2K-JPG_NormalGL",
-                    textureScale: new Vector2(4.2f, 4.2f),
-                    metallic: 0.99f,
-                    smoothness: 0.97f,
-                    normalStrength: 1.3f,
-                    emissionIntensity: 3.2f,
+                    new Color(1f, 0.84f, 0.28f, 1f),
+                    new Color(1f, 0.78f, 0.10f, 1f),
+                    baseMapResourcePath: "TowerMaze/BallSkins/Gold/GoldBaseMap",
+                    normalMapResourcePath: "",
+                    textureScale: new Vector2(1.2f, 1.2f),
+                    metallic: 0.85f,
+                    smoothness: 0.95f,
+                    normalStrength: 0f,
+                    emissionIntensity: 3.5f,
                     iapProductId: "towermaze.skin.solar_crown"));
                 skins.Add(new BallSkinDefinition(
                     "dark_sovereign",
                     "Dark Sovereign",
                     0,
-                    new Color(0.05f, 0.03f, 0.1f, 1f),
-                    new Color(0.68f, 0.08f, 1f, 1f),
-                    baseMapResourcePath: "TowerMaze/BallSkins/Metal043A/Metal043A_2K-JPG_Color",
-                    normalMapResourcePath: "TowerMaze/BallSkins/Metal043A/Metal043A_2K-JPG_NormalGL",
-                    textureScale: new Vector2(3.8f, 3.8f),
-                    metallic: 0.97f,
-                    smoothness: 0.99f,
-                    normalStrength: 1.15f,
+                    new Color(0.16f, 0.12f, 0.20f, 1f),
+                    new Color(0.62f, 0.18f, 1f, 1f),
+                    baseMapResourcePath: "TowerMaze/BallSkins/Plastic006/Plastic006_2K-JPG_Color",
+                    normalMapResourcePath: "TowerMaze/BallSkins/Plastic006/Plastic006_2K-JPG_NormalGL",
+                    textureScale: new Vector2(2.4f, 2.4f),
+                    metallic: 0.65f,
+                    smoothness: 0.98f,
+                    normalStrength: 0.6f,
                     emissionIntensity: 2.8f,
                     iapProductId: "towermaze.skin.dark_sovereign"));
 
@@ -1188,22 +1259,29 @@ namespace TowerMaze
                     "silver_mirror",
                     "Silver Mirror",
                     0,
-                    new Color(0.9f, 0.9f, 0.95f, 1f),
-                    Color.black,
+                    new Color(0.92f, 0.94f, 0.98f, 1f),
+                    new Color(0.55f, 0.75f, 1f, 1f),
                     baseMapResourcePath: "TowerMaze/BallSkins/Silver/SilverBaseMap",
-                    metallic: 0.95f,
-                    smoothness: 0.95f,
+                    textureScale: new Vector2(1f, 1f),
+                    metallic: 0.98f,
+                    smoothness: 0.98f,
+                    normalStrength: 0f,
+                    emissionIntensity: 0.7f,
                     iapProductId: "towermaze.skin.silver"));
 
                 skins.Add(new BallSkinDefinition(
                     "golden_glory",
                     "Golden Glory",
                     0,
-                    new Color(1f, 0.84f, 0f, 1f),
+                    new Color(1f, 0.78f, 0.18f, 1f),
                     Color.black,
-                    baseMapResourcePath: "TowerMaze/BallSkins/Gold/GoldBaseMap",
-                    metallic: 0.92f,
+                    baseMapResourcePath: "TowerMaze/BallSkins/Metal044A/Metal044A_2K-JPG_Color",
+                    normalMapResourcePath: "TowerMaze/BallSkins/Metal044A/Metal044A_2K-JPG_NormalGL",
+                    textureScale: new Vector2(2.2f, 2.2f),
+                    metallic: 0.95f,
                     smoothness: 0.92f,
+                    normalStrength: 0.85f,
+                    emissionIntensity: 0.4f,
                     iapProductId: "towermaze.skin.gold"));
 
                 skins.Add(new BallSkinDefinition(
@@ -1215,6 +1293,22 @@ namespace TowerMaze
                     baseMapResourcePath: "TowerMaze/BallSkins/Checker/CheckerBaseMap",
                     metallic: 0f,
                     smoothness: 0.5f));
+                
+                skins.Add(new BallSkinDefinition(
+                    "neon_ball",
+                    "Neon Pro",
+                    0,
+                    new Color(1f, 0.65f, 0.95f, 1f),
+                    new Color(1f, 0.18f, 0.78f, 1f),
+                    baseMapResourcePath: "TowerMaze/BallSkins/Neon/NeonBaseMap",
+                    normalMapResourcePath: "",
+                    emissionMapResourcePath: "TowerMaze/BallSkins/Neon/NeonBaseMap",
+                    textureScale: new Vector2(0.55f, 0.55f),
+                    metallic: 0.05f,
+                    smoothness: 0.94f,
+                    normalStrength: 0f,
+                    emissionIntensity: 2.6f,
+                    iapProductId: "towermaze.bundle.neon_pro"));
             }
 
             if (towerSkins.Count == 0)
@@ -2320,7 +2414,10 @@ namespace TowerMaze
 
     public sealed class LavaController : MonoBehaviour
     {
-        private const string LavaTextureResourcePath = "TowerMaze/Lava/LavaTexture_HighQuality";
+        private const string LavaDetailTextureResourcePath = "TowerMaze/Lava/LavaTexture_HighQuality";
+        private const string LavaBaseTextureResourcePath = "TowerMaze/BallSkins/Lava004/Lava004_2K-JPG_Color";
+        private const string LavaEmissionTextureResourcePath = "TowerMaze/BallSkins/Lava004/Lava004_2K-JPG_Emission";
+        private const string LavaNormalMapResourcePath = "TowerMaze/BallSkins/Lava004/Lava004_2K-JPG_NormalGL";
 
         [SerializeField] private Transform lavaVisualRoot;
 
@@ -2330,13 +2427,21 @@ namespace TowerMaze
         private float graceTimer;
         private Material lavaPoolMaterial;
         private Material lavaGlowMaterial;
+        private Material lavaRimMaterial;
+        private Material lavaHeatShimmerMaterial;
         private Transform lavaPoolTransform;
         private Transform lavaGlowTransform;
-        private Texture2D lavaTexture;
+        private Transform lavaRimTransform;
+        private ParticleSystem lavaHeatShimmerParticles;
+        private Texture2D lavaBaseTexture;
+        private Texture2D lavaEmissionTexture;
+        private Texture2D lavaDetailTexture;
         private Texture2D lavaNormalMap;
         private Vector2 poolScrollOffset;
         private Vector2 glowScrollOffset;
         private float rushIntensityCached;
+        private static Texture2D lavaRimTexture;
+        private static Texture2D lavaShimmerTexture;
 
         public float SurfaceHeight => transform.position.y;
 
@@ -2344,8 +2449,10 @@ namespace TowerMaze
         {
             config = gameConfig;
             theme = themeDefinition;
-            lavaTexture = Resources.Load<Texture2D>(LavaTextureResourcePath);
-            lavaNormalMap = Resources.Load<Texture2D>("TowerMaze/BallSkins/Lava004/Lava004_2K-JPG_NormalGL");
+            lavaBaseTexture = Resources.Load<Texture2D>(LavaBaseTextureResourcePath);
+            lavaEmissionTexture = Resources.Load<Texture2D>(LavaEmissionTextureResourcePath);
+            lavaDetailTexture = Resources.Load<Texture2D>(LavaDetailTextureResourcePath);
+            lavaNormalMap = Resources.Load<Texture2D>(LavaNormalMapResourcePath);
             BuildVisual();
         }
 
@@ -2368,25 +2475,49 @@ namespace TowerMaze
 
         private void Update()
         {
-            // Movement effects disabled to preserve quality of the new high-res texture
-            /*
-            float rushMult = Mathf.Lerp(1f, 2.5f, rushIntensityCached);
+            float rushMult = Mathf.Lerp(0.9f, 1.9f, rushIntensityCached);
+            float time = Time.time;
 
-            if (lavaPoolTransform != null)
+            if (lavaPoolMaterial != null)
             {
-                lavaPoolTransform.Rotate(Vector3.up, 4.5f * Time.deltaTime, Space.Self);
-                poolScrollOffset += new Vector2(0.018f, 0.007f) * Time.deltaTime * rushMult;
+                poolScrollOffset += new Vector2(0.012f, 0.004f) * Time.deltaTime * rushMult;
+                Vector2 emissionOffset = (poolScrollOffset * 1.35f) + new Vector2(Mathf.Sin(time * 0.23f), Mathf.Cos(time * 0.19f)) * 0.015f;
                 lavaPoolMaterial?.SetTextureOffset("_BaseMap", poolScrollOffset);
-                lavaPoolMaterial?.SetTextureOffset("_EmissionMap", poolScrollOffset);
+                lavaPoolMaterial?.SetTextureOffset("_EmissionMap", emissionOffset);
+                lavaPoolMaterial?.SetTextureOffset("_BumpMap", poolScrollOffset * 0.85f);
             }
 
             if (lavaGlowTransform != null)
             {
-                lavaGlowTransform.Rotate(Vector3.up, -7f * Time.deltaTime, Space.Self);
-                glowScrollOffset += new Vector2(-0.012f, -0.005f) * Time.deltaTime * rushMult;
-                lavaGlowMaterial?.SetTextureOffset("_BaseMap", glowScrollOffset);
+                lavaGlowTransform.Rotate(Vector3.up, -4f * Time.deltaTime * rushMult, Space.Self);
             }
-            */
+
+            if (lavaRimTransform != null)
+            {
+                lavaRimTransform.Rotate(Vector3.up, 2.1f * Time.deltaTime * rushMult, Space.Self);
+            }
+
+            if (lavaGlowMaterial != null)
+            {
+                glowScrollOffset += new Vector2(-0.009f, 0.006f) * Time.deltaTime * rushMult;
+                lavaGlowMaterial?.SetTextureOffset("_BaseMap", glowScrollOffset);
+                float glowPulse = 0.9f + (Mathf.Sin(time * (1.8f + (rushIntensityCached * 1.2f))) * 0.08f);
+                Color glowColor = Color.Lerp(theme.lavaColor, theme.lavaEmissionColor, 0.55f);
+                glowColor.a = Mathf.Lerp(0.18f, 0.34f, rushIntensityCached) * glowPulse;
+                lavaGlowMaterial.SetColor("_BaseColor", glowColor);
+            }
+
+            if (lavaRimMaterial != null)
+            {
+                Vector2 rimOffset = new Vector2(-glowScrollOffset.y, glowScrollOffset.x) * 0.45f;
+                lavaRimMaterial.SetTextureOffset("_BaseMap", rimOffset);
+                float rimPulse = 0.92f + (Mathf.Sin(time * (2.4f + rushIntensityCached)) * 0.08f);
+                Color rimColor = Color.Lerp(theme.lavaColor, theme.lavaEmissionColor, 0.72f);
+                rimColor.a = Mathf.Lerp(0.24f, 0.4f, rushIntensityCached) * rimPulse;
+                lavaRimMaterial.SetColor("_BaseColor", rimColor);
+            }
+
+            UpdateHeatShimmerState(rushIntensityCached);
         }
 
         public void ResetState()
@@ -2407,20 +2538,36 @@ namespace TowerMaze
             rushIntensityCached = clamped;
             if (lavaPoolMaterial != null)
             {
-                lavaPoolMaterial.SetColor("_EmissionColor", theme.lavaEmissionColor * Mathf.Lerp(1.8f, 3.3f, clamped));
+                lavaPoolMaterial.SetColor("_EmissionColor", theme.lavaEmissionColor * Mathf.Lerp(2.4f, 4.35f, clamped));
             }
 
             if (lavaGlowMaterial != null)
             {
-                Color glowColor = new(theme.lavaColor.r, theme.lavaColor.g, theme.lavaColor.b, Mathf.Lerp(0.65f, 0.9f, clamped));
+                Color glowColor = Color.Lerp(theme.lavaColor, theme.lavaEmissionColor, 0.55f);
+                glowColor.a = Mathf.Lerp(0.18f, 0.34f, clamped);
                 lavaGlowMaterial.SetColor("_BaseColor", glowColor);
             }
 
             if (lavaGlowTransform != null)
             {
-                float scale = Mathf.Lerp(22f, 24.5f, clamped);
-                lavaGlowTransform.localScale = new Vector3(scale, 0.05f, scale);
+                float scale = Mathf.Lerp(20.8f, 22.7f, clamped);
+                lavaGlowTransform.localScale = new Vector3(scale, 0.035f, scale);
             }
+
+            if (lavaRimTransform != null)
+            {
+                float scale = Mathf.Lerp(19.9f, 21.3f, clamped);
+                lavaRimTransform.localScale = new Vector3(scale, 0.022f, scale);
+            }
+
+            if (lavaRimMaterial != null)
+            {
+                Color rimColor = Color.Lerp(theme.lavaColor, theme.lavaEmissionColor, 0.72f);
+                rimColor.a = Mathf.Lerp(0.24f, 0.4f, clamped);
+                lavaRimMaterial.SetColor("_BaseColor", rimColor);
+            }
+
+            UpdateHeatShimmerState(clamped);
         }
 
         public bool Tick(PlayerController player, out float heatIntensity)
@@ -2470,8 +2617,8 @@ namespace TowerMaze
             GameObject pool = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             pool.name = "LavaPool";
             pool.transform.SetParent(lavaVisualRoot, false);
-            pool.transform.localScale = new Vector3(18f, 0.25f, 18f);
-            pool.transform.localPosition = Vector3.zero;
+            pool.transform.localScale = new Vector3(18.6f, 0.08f, 18.6f);
+            pool.transform.localPosition = new Vector3(0f, -0.08f, 0f);
             lavaPoolTransform = pool.transform;
 
             Collider collider = pool.GetComponent<Collider>();
@@ -2487,41 +2634,53 @@ namespace TowerMaze
                 }
             }
 
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            Material material = new(shader);
-            material.SetColor("_BaseColor", theme.lavaColor);
+            Material material = RuntimeMaterialFactory.CreateLit(theme, "TowerMaze_LavaPool");
+            material.SetColor("_BaseColor", Color.white);
+            material.SetColor("_Color", Color.white);
             material.EnableKeyword("_EMISSION");
-            material.SetColor("_EmissionColor", theme.lavaEmissionColor * 2.1f);
-            if (lavaTexture != null)
+            material.SetColor("_EmissionColor", theme.lavaEmissionColor * 2.4f);
+            if (lavaBaseTexture != null)
             {
-                material.SetTexture("_BaseMap", lavaTexture);
-                material.SetTexture("_EmissionMap", lavaTexture);
-                material.mainTexture = lavaTexture;
-                material.SetTextureScale("_BaseMap", new Vector2(1.12f, 1.12f));
-                material.SetTextureScale("_EmissionMap", new Vector2(1.12f, 1.12f));
+                material.SetTexture("_BaseMap", lavaBaseTexture);
+                material.mainTexture = lavaBaseTexture;
+                material.SetTextureScale("_BaseMap", new Vector2(1.55f, 1.55f));
+            }
+
+            if (lavaEmissionTexture != null)
+            {
+                material.SetTexture("_EmissionMap", lavaEmissionTexture);
+                material.SetTextureScale("_EmissionMap", new Vector2(1.95f, 1.95f));
             }
 
             if (lavaNormalMap != null)
             {
                 material.EnableKeyword("_NORMALMAP");
                 material.SetTexture("_BumpMap", lavaNormalMap);
-                material.SetFloat("_BumpScale", 1.2f);
+                material.SetTextureScale("_BumpMap", new Vector2(1.7f, 1.7f));
+                material.SetFloat("_BumpScale", 0.72f);
             }
 
             if (material.HasProperty("_Smoothness"))
             {
-                material.SetFloat("_Smoothness", 0.16f);
+                material.SetFloat("_Smoothness", 0.42f);
+            }
+
+            if (material.HasProperty("_Metallic"))
+            {
+                material.SetFloat("_Metallic", 0.08f);
             }
 
             Renderer renderer = pool.GetComponent<Renderer>();
             renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
             lavaPoolMaterial = material;
 
             GameObject glow = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             glow.name = "LavaGlow";
             glow.transform.SetParent(lavaVisualRoot, false);
-            glow.transform.localScale = new Vector3(22f, 0.05f, 22f);
-            glow.transform.localPosition = new Vector3(0f, 0.2f, 0f);
+            glow.transform.localScale = new Vector3(20.8f, 0.035f, 20.8f);
+            glow.transform.localPosition = new Vector3(0f, 0.04f, 0f);
             lavaGlowTransform = glow.transform;
             Collider glowCollider = glow.GetComponent<Collider>();
             if (glowCollider != null)
@@ -2536,18 +2695,284 @@ namespace TowerMaze
                 }
             }
 
-            Material glowMaterial = new(Shader.Find("Universal Render Pipeline/Unlit") ?? shader);
-            glowMaterial.SetColor("_BaseColor", new Color(theme.lavaColor.r, theme.lavaColor.g, theme.lavaColor.b, 0.65f));
-            if (lavaTexture != null)
+            Material glowMaterial = RuntimeMaterialFactory.CreateAdditive(theme, "TowerMaze_LavaGlow");
+            glowMaterial.SetColor("_BaseColor", new Color(theme.lavaEmissionColor.r, theme.lavaEmissionColor.g, theme.lavaEmissionColor.b, 0.18f));
+            if (lavaDetailTexture != null)
             {
-                glowMaterial.SetTexture("_BaseMap", lavaTexture);
-                glowMaterial.mainTexture = lavaTexture;
-                glowMaterial.SetTextureScale("_BaseMap", new Vector2(1.28f, 1.28f));
+                glowMaterial.SetTexture("_BaseMap", lavaDetailTexture);
+                glowMaterial.mainTexture = lavaDetailTexture;
+                glowMaterial.SetTextureScale("_BaseMap", new Vector2(1.35f, 1.35f));
+            }
+            else if (lavaEmissionTexture != null)
+            {
+                glowMaterial.SetTexture("_BaseMap", lavaEmissionTexture);
+                glowMaterial.mainTexture = lavaEmissionTexture;
+                glowMaterial.SetTextureScale("_BaseMap", new Vector2(1.65f, 1.65f));
             }
 
-            glow.GetComponent<Renderer>().sharedMaterial = glowMaterial;
+            Renderer glowRenderer = glow.GetComponent<Renderer>();
+            glowRenderer.sharedMaterial = glowMaterial;
+            glowRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            glowRenderer.receiveShadows = false;
             lavaGlowMaterial = glowMaterial;
+
+            GameObject rim = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            rim.name = "LavaRim";
+            rim.transform.SetParent(lavaVisualRoot, false);
+            rim.transform.localScale = new Vector3(19.9f, 0.022f, 19.9f);
+            rim.transform.localPosition = new Vector3(0f, 0.055f, 0f);
+            lavaRimTransform = rim.transform;
+            Collider rimCollider = rim.GetComponent<Collider>();
+            if (rimCollider != null)
+            {
+                if (Application.isPlaying)
+                {
+                    Destroy(rimCollider);
+                }
+                else
+                {
+                    DestroyImmediate(rimCollider);
+                }
+            }
+
+            Material rimMaterial = RuntimeMaterialFactory.CreateAdditive(theme, "TowerMaze_LavaRim");
+            rimMaterial.renderQueue = 3002;
+            ApplyMaterialColor(rimMaterial, new Color(theme.lavaEmissionColor.r, theme.lavaEmissionColor.g, theme.lavaEmissionColor.b, 0.24f));
+            ApplyTexture(rimMaterial, GetLavaRimTexture());
+            rimMaterial.SetTextureScale("_BaseMap", new Vector2(1.02f, 1.02f));
+            Renderer rimRenderer = rim.GetComponent<Renderer>();
+            rimRenderer.sharedMaterial = rimMaterial;
+            rimRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rimRenderer.receiveShadows = false;
+            lavaRimMaterial = rimMaterial;
+
+            lavaHeatShimmerMaterial = RuntimeMaterialFactory.CreateAdditive(theme, "TowerMaze_LavaHeatShimmer");
+            lavaHeatShimmerMaterial.renderQueue = 3003;
+            ApplyMaterialColor(lavaHeatShimmerMaterial, new Color(theme.lavaColor.r, theme.lavaColor.g * 0.88f, theme.lavaEmissionColor.b, 0.2f));
+            ApplyTexture(lavaHeatShimmerMaterial, GetLavaShimmerTexture());
+            lavaHeatShimmerParticles = CreateHeatShimmerParticles();
             SetRushIntensity(0f);
+        }
+
+        private void UpdateHeatShimmerState(float intensity)
+        {
+            if (lavaHeatShimmerParticles == null)
+            {
+                return;
+            }
+
+            float clamped = Mathf.Clamp01(intensity);
+            var emission = lavaHeatShimmerParticles.emission;
+            emission.rateOverTime = Mathf.Lerp(9f, 15f, clamped);
+
+            var noise = lavaHeatShimmerParticles.noise;
+            noise.strength = Mathf.Lerp(0.18f, 0.3f, clamped);
+            noise.scrollSpeed = Mathf.Lerp(0.32f, 0.58f, clamped);
+
+            var main = lavaHeatShimmerParticles.main;
+            main.startSpeed = new ParticleSystem.MinMaxCurve(
+                Mathf.Lerp(0.42f, 0.58f, clamped),
+                Mathf.Lerp(0.86f, 1.15f, clamped));
+
+            if (lavaHeatShimmerMaterial != null)
+            {
+                Color shimmerColor = Color.Lerp(theme.lavaColor, theme.lavaEmissionColor, 0.5f);
+                shimmerColor.a = Mathf.Lerp(0.12f, 0.2f, clamped);
+                ApplyMaterialColor(lavaHeatShimmerMaterial, shimmerColor);
+            }
+        }
+
+        private ParticleSystem CreateHeatShimmerParticles()
+        {
+            GameObject particlesObject = new("LavaHeatShimmer");
+            particlesObject.transform.SetParent(lavaVisualRoot, false);
+            particlesObject.transform.localPosition = new Vector3(0f, 0.06f, 0f);
+
+            ParticleSystem particles = particlesObject.AddComponent<ParticleSystem>();
+            ParticleSystemRenderer renderer = particles.GetComponent<ParticleSystemRenderer>();
+            renderer.material = lavaHeatShimmerMaterial;
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.lengthScale = 2.2f;
+            renderer.velocityScale = 0.35f;
+            renderer.alignment = ParticleSystemRenderSpace.View;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+
+            var main = particles.main;
+            main.loop = true;
+            main.playOnAwake = true;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(1.2f, 2.1f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.42f, 0.86f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.35f, 0.82f);
+            main.maxParticles = 42;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.startColor = new ParticleSystem.MinMaxGradient(
+                new Color(1f, 0.68f, 0.26f, 0.16f),
+                new Color(1f, 0.42f, 0.18f, 0.1f));
+
+            var emission = particles.emission;
+            emission.enabled = true;
+            emission.rateOverTime = 9f;
+
+            var shape = particles.shape;
+            shape.enabled = true;
+            shape.shapeType = ParticleSystemShapeType.Donut;
+            shape.radius = 8.95f;
+            shape.donutRadius = 0.45f;
+            shape.arc = 360f;
+            shape.position = Vector3.zero;
+
+            var velocity = particles.velocityOverLifetime;
+            velocity.enabled = true;
+            velocity.space = ParticleSystemSimulationSpace.World;
+            velocity.y = new ParticleSystem.MinMaxCurve(0.5f, 0.95f);
+            velocity.x = new ParticleSystem.MinMaxCurve(-0.05f, 0.05f);
+            velocity.z = new ParticleSystem.MinMaxCurve(-0.05f, 0.05f);
+
+            var noise = particles.noise;
+            noise.enabled = true;
+            noise.strength = 0.18f;
+            noise.frequency = 0.22f;
+            noise.scrollSpeed = 0.32f;
+
+            var sizeOverLifetime = particles.sizeOverLifetime;
+            sizeOverLifetime.enabled = true;
+            sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 0.42f, 1f, 1.7f));
+
+            var colorOverLifetime = particles.colorOverLifetime;
+            colorOverLifetime.enabled = true;
+            Gradient gradient = new();
+            gradient.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(new Color(1f, 0.72f, 0.32f), 0f),
+                    new GradientColorKey(new Color(0.96f, 0.42f, 0.14f), 1f),
+                },
+                new[]
+                {
+                    new GradientAlphaKey(0f, 0f),
+                    new GradientAlphaKey(0.16f, 0.18f),
+                    new GradientAlphaKey(0.08f, 0.7f),
+                    new GradientAlphaKey(0f, 1f),
+                });
+            colorOverLifetime.color = gradient;
+
+            particles.Play();
+            return particles;
+        }
+
+        private static void ApplyMaterialColor(Material material, Color color)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            material.color = color;
+            if (material.HasProperty("_BaseColor"))
+            {
+                material.SetColor("_BaseColor", color);
+            }
+
+            if (material.HasProperty("_Color"))
+            {
+                material.SetColor("_Color", color);
+            }
+        }
+
+        private static void ApplyTexture(Material material, Texture texture)
+        {
+            if (material == null || texture == null)
+            {
+                return;
+            }
+
+            if (material.HasProperty("_BaseMap"))
+            {
+                material.SetTexture("_BaseMap", texture);
+            }
+
+            if (material.HasProperty("_MainTex"))
+            {
+                material.SetTexture("_MainTex", texture);
+            }
+
+            material.mainTexture = texture;
+        }
+
+        private static Texture2D GetLavaRimTexture()
+        {
+            if (lavaRimTexture != null)
+            {
+                return lavaRimTexture;
+            }
+
+            lavaRimTexture = BuildRingTexture("TowerMaze_LavaRimTexture", 256, 0.72f, 0.9f);
+            return lavaRimTexture;
+        }
+
+        private static Texture2D GetLavaShimmerTexture()
+        {
+            if (lavaShimmerTexture != null)
+            {
+                return lavaShimmerTexture;
+            }
+
+            lavaShimmerTexture = BuildRadialTexture("TowerMaze_LavaShimmerTexture", 96, 0f, 3.1f);
+            return lavaShimmerTexture;
+        }
+
+        private static Texture2D BuildRingTexture(string name, int size, float innerRadius, float outerRadius)
+        {
+            Texture2D texture = new(size, size, TextureFormat.RGBA32, false)
+            {
+                name = name,
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+
+            Vector2 center = new((size - 1) * 0.5f, (size - 1) * 0.5f);
+            float radius = size * 0.5f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float distance = Vector2.Distance(new Vector2(x, y), center) / radius;
+                    float inner = Mathf.SmoothStep(innerRadius - 0.1f, innerRadius + 0.02f, distance);
+                    float outer = 1f - Mathf.SmoothStep(outerRadius - 0.08f, outerRadius + 0.02f, distance);
+                    float alpha = Mathf.Clamp01(inner * outer);
+                    texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                }
+            }
+
+            texture.Apply(false, true);
+            return texture;
+        }
+
+        private static Texture2D BuildRadialTexture(string name, int size, float innerRadius, float falloff)
+        {
+            Texture2D texture = new(size, size, TextureFormat.RGBA32, false)
+            {
+                name = name,
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+
+            Vector2 center = new((size - 1) * 0.5f, (size - 1) * 0.5f);
+            float radius = size * 0.5f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float distance = Vector2.Distance(new Vector2(x, y), center) / radius;
+                    float normalized = Mathf.InverseLerp(1f, innerRadius, distance);
+                    float alpha = Mathf.Pow(Mathf.Clamp01(normalized), falloff);
+                    texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                }
+            }
+
+            texture.Apply(false, true);
+            return texture;
         }
     }
 
@@ -2575,9 +3000,12 @@ namespace TowerMaze
         private AudioManager audioManager;
         private UIManager uiManager;
         private InAppReviewManager inAppReviewManager;
+        private CoinStoreManager coinStoreManager;
+        private InterstitialAdManager interstitialAdManager;
         private CameraFollowController cameraFollowController;
         private RunMode activeRunMode;
         private RunMode pendingRunMode = RunMode.Normal;
+        private ChapterManager chapterManager;
         private RunModifierType primaryRunModifier;
         private RunModifierType secondaryRunModifier;
         private int remainingContinues;
@@ -2624,12 +3052,15 @@ namespace TowerMaze
             LavaController lava,
             ScoreManager score,
             EconomyManager economy,
+            CoinStoreManager coinStore,
             RewardedAdManager rewardedAds,
             AudioManager audio,
             UIManager ui,
             EnvironmentBackdropController backdrop = null,
             CameraFollowController cameraFollow = null,
-            InAppReviewManager inAppReviewManager = null)
+            InAppReviewManager reviewManager = null,
+            InterstitialAdManager interstitialAds = null,
+            ChapterManager chapterManager = null)
         {
             config = gameConfig != null ? gameConfig : Resources.Load<GameConfig>("TowerMaze/GameConfig");
             towerGenerator = generator;
@@ -2637,12 +3068,15 @@ namespace TowerMaze
             lavaController = lava;
             scoreManager = score;
             economyManager = economy;
+            coinStoreManager = coinStore;
             rewardedAdManager = rewardedAds;
             audioManager = audio;
             uiManager = ui;
             backdropController = backdrop;
             cameraFollowController = cameraFollow;
-            this.inAppReviewManager = inAppReviewManager;
+            inAppReviewManager = reviewManager;
+            interstitialAdManager = interstitialAds;
+            this.chapterManager = chapterManager;
 
             state = RunState.StartScreen;
             activeRunMode = RunMode.Normal;
@@ -2727,6 +3161,25 @@ namespace TowerMaze
             playerController.Tick(true);
             scoreManager.Tick(playerController.HeightOnTower, runElapsedTime);
 
+            if (towerGenerator.TryCollectCoin(playerController.AngleAroundTower, playerController.HeightOnTower, out int reward, out Vector3 worldPos))
+            {
+                // User requested to halve the coin rewards for in-game collection
+                int halvedReward = Mathf.Max(1, reward / 2);
+                economyManager.GrantEmber(halvedReward);
+                audioManager.PlayReward();
+                uiManager.SpawnCoinFloat(halvedReward);
+            }
+
+            if (activeRunMode == RunMode.Chapter && chapterManager != null)
+            {
+                float chapterTarget = chapterManager.GetChapter(chapterManager.ActiveChapterIndex).TargetHeight;
+                if (playerController.HeightOnTower >= chapterTarget)
+                {
+                    CompleteChapterRun();
+                    return;
+                }
+            }
+
             if (lavaController != null)
             {
                 bool failed = lavaController.Tick(playerController, out float heatIntensity);
@@ -2748,15 +3201,21 @@ namespace TowerMaze
 
                 if (uiManager != null)
                 {
+                    bool isChapter = activeRunMode == RunMode.Chapter && chapterManager != null;
+                    float hudBest = isChapter
+                        ? chapterManager.GetChapter(chapterManager.ActiveChapterIndex).TargetHeight
+                        : scoreManager.BestScore;
+                    string hudBestLabel = isChapter ? UILanguage.Translate("HEDEF", "TARGET", "META") : null;
                     uiManager.UpdateHud(
                         scoreManager.CurrentScore,
-                        scoreManager.BestScore,
+                        hudBest,
                         scoreManager.CurrentRunTime,
                         currentZone,
                         GetLavaGap(),
                         GetGapDangerNormalized(),
                         activeRunMode == RunMode.Normal && scoreManager.IsNewBestThisRun,
-                        ShouldShowControlsHint());
+                        ShouldShowControlsHint(),
+                        hudBestLabel);
                 }
 
                 if (failed)
@@ -2800,12 +3259,42 @@ namespace TowerMaze
 
 
 
+        public void StartChapterRun(int chapterIndex)
+        {
+            if (chapterManager == null) return;
+            chapterManager.SetActiveChapter(chapterIndex);
+            pendingRunMode = RunMode.Chapter;
+            if (!TryConsumeLifeForRequestedRun()) return;
+            SetStaticModeActive(false);
+            ResolvePendingFailedRun(false);
+            PrepareFreshRun();
+            BeginCountdown();
+        }
+
+
+
         public void RetryRun()
         {
             pendingRunMode = activeRunMode;
             if (!TryConsumeLifeForRequestedRun())
             {
-                return;
+                // No lives. If rewarded ads aren't available either (e.g. dev testing,
+                // unfilled ad inventory, offline), grant a free life so the player isn't
+                // permanently stuck. When ads are available, fall through to fail screen
+                // which prompts "watch ad" path.
+                bool adsAvailable = rewardedAdManager != null && rewardedAdManager.CanShowRewarded;
+                if (!adsAvailable && economyManager != null)
+                {
+                    economyManager.GrantLife();
+                    if (!TryConsumeLifeForRequestedRun())
+                    {
+                        return;
+                    }
+                }
+                else
+                {
+                    return;
+                }
             }
 
             SetStaticModeActive(false);
@@ -2915,7 +3404,7 @@ namespace TowerMaze
 
                 economyManager.GrantLife();
                 uiManager.QueueRewardToast("EXTRA LIFE", $"+{EconomyManager.LifeRefillAmount} LIFE", new Color(0.36f, 0.9f, 0.48f, 1f));
-                if (state == RunState.Failed) { RetryRun(); } else { RefreshLifeRefillPrompt(true); }
+                if (state == RunState.Failed) { RetryRun(); } else { StartPendingRun(); }
             });
         }
 
@@ -2935,7 +3424,7 @@ namespace TowerMaze
             }
 
             uiManager.QueueRewardToast("EXTRA LIFE", $"-{spentCoins} COIN  +{EconomyManager.LifeRefillAmount} LIFE", new Color(0.36f, 0.9f, 0.48f, 1f));
-            if (state == RunState.Failed) { RetryRun(); } else { RefreshLifeRefillPrompt(true); }
+            if (state == RunState.Failed) { RetryRun(); } else { StartPendingRun(); }
         }
 
 
@@ -2984,9 +3473,14 @@ namespace TowerMaze
                 return;
             }
             activeRunMode = pendingRunMode;
-            remainingContinues = activeRunMode == RunMode.DailyChallenge ? 0 : config.continueCount;
+            remainingContinues = (activeRunMode == RunMode.DailyChallenge || activeRunMode == RunMode.Chapter) ? 0 : config.continueCount;
             scoreManager.ResetRun();
-            int runSeed = activeRunMode == RunMode.DailyChallenge ? economyManager.DailyChallengeStatus.seed : config.seed;
+            int runSeed = activeRunMode switch
+            {
+                RunMode.DailyChallenge => economyManager.DailyChallengeStatus.seed,
+                RunMode.Chapter => chapterManager != null ? chapterManager.GetChapter(chapterManager.ActiveChapterIndex).Seed : config.seed,
+                _ => config.seed,
+            };
             towerGenerator.ResetRun(runSeed);
             towerGenerator.UpdateDifficulty(0f);
             lavaController.ResetState();
@@ -3014,6 +3508,16 @@ namespace TowerMaze
             nearLavaSeconds = 0f;
             lastZoneIndex = 0;
             usedContinueThisRun = false;
+
+            if (activeRunMode == RunMode.Chapter && chapterManager != null)
+            {
+                var ch = chapterManager.GetChapter(chapterManager.ActiveChapterIndex);
+                towerGenerator.SetChapterDifficulty(ch.DifficultyOffset, ch.ZoneOffset);
+            }
+            else
+            {
+                towerGenerator.SetChapterDifficulty(0f, 0);
+            }
         }
 
         public void ToggleSound()
@@ -3086,9 +3590,47 @@ namespace TowerMaze
                 scoreManager.CommitLeaderboardEntry();
             }
             audioManager.PlayFailCue();
-            cameraFollowController?.Shake(0.35f, 0.1f);
             audioManager.SetMusicMode(AudioManager.MusicMode.Menu);
+            if (activeRunMode == RunMode.Chapter && chapterManager != null)
+            {
+                int idx = chapterManager.ActiveChapterIndex;
+                float target = chapterManager.GetChapter(idx).TargetHeight;
+                chapterManager.RecordChapterBest(idx, scoreManager.CurrentScore);
+                uiManager.ShowChapterFail(idx, scoreManager.CurrentScore, target, pendingRunReward, ReturnToMainMenu);
+                return;
+            }
             PresentFailScreen();
+        }
+
+        private void CompleteChapterRun()
+        {
+            if (isPaused) ResumeRun();
+            state = RunState.Failed;
+            SetSimulationActive(false);
+            StopRushEffects();
+            StopControlFlipEffects();
+
+            int idx = chapterManager.ActiveChapterIndex;
+            float height = playerController.HeightOnTower;
+            chapterManager.RecordChapterComplete(idx, height);
+
+            int emberReward = 100 * idx;
+            economyManager.GrantEmber(emberReward);
+            audioManager.SetMusicMode(AudioManager.MusicMode.Menu);
+
+            bool nextUnlocked = chapterManager.IsUnlocked(idx + 1);
+            bool isLastChapter = idx >= ChapterManager.TotalChapters;
+
+            uiManager.ShowChapterComplete(
+                idx,
+                height,
+                chapterManager.GetChapter(idx).TargetHeight,
+                emberReward,
+                nextUnlocked,
+                isLastChapter,
+                ReturnToMainMenu,
+                () => { if (!isLastChapter) StartChapterRun(idx + 1); else ReturnToMainMenu(); },
+                () => uiManager.ShowChapterSelect(chapterManager, StartChapterRun));
         }
 
         private void SetSimulationActive(bool isActive)
@@ -3116,6 +3658,7 @@ namespace TowerMaze
 
             if (state == RunState.Running)
             {
+                playerController.ResetMovementDirectionToUp();
                 SetSimulationActive(true);
                 uiManager.ShowHud();
             }
@@ -3126,7 +3669,10 @@ namespace TowerMaze
             if (countdownShowingGo)
             {
                 countdownRemaining = Mathf.Max(0f, countdownEndRealtime - Time.realtimeSinceStartup);
-                uiManager.ShowCountdown("GO!", true, scoreManager.CurrentScore, scoreManager.BestScore, scoreManager.CurrentRunTime, GetCurrentZoneIndex(), GetLavaGap(), GetGapDangerNormalized(), activeRunMode == RunMode.Normal && scoreManager.IsNewBestThisRun, true);
+                bool isChapterCd = activeRunMode == RunMode.Chapter && chapterManager != null;
+                float cdBest = isChapterCd ? chapterManager.GetChapter(chapterManager.ActiveChapterIndex).TargetHeight : scoreManager.BestScore;
+                string cdBestLabel = isChapterCd ? UILanguage.Translate("HEDEF", "TARGET", "META") : null;
+                uiManager.ShowCountdown("GO!", true, scoreManager.CurrentScore, cdBest, scoreManager.CurrentRunTime, GetCurrentZoneIndex(), GetLavaGap(), GetGapDangerNormalized(), activeRunMode == RunMode.Normal && scoreManager.IsNewBestThisRun, true, cdBestLabel);
 
                 if (countdownRemaining > 0f)
                 {
@@ -3134,6 +3680,7 @@ namespace TowerMaze
                 }
 
                 state = RunState.Running;
+                playerController.ResetMovementDirectionToUp();
                 SetSimulationActive(true);
                 uiManager.ShowHud();
                 ShowOnboardingTipIfNeeded();
@@ -3161,7 +3708,12 @@ namespace TowerMaze
             countdownRemaining = Mathf.Max(0.01f, config.countdownGoSeconds);
             countdownEndRealtime = Time.realtimeSinceStartup + countdownRemaining;
             audioManager.PlayCountdownGo();
-            uiManager.ShowCountdown("GO!", true, scoreManager.CurrentScore, scoreManager.BestScore, scoreManager.CurrentRunTime, GetCurrentZoneIndex(), GetLavaGap(), GetGapDangerNormalized(), activeRunMode == RunMode.Normal && scoreManager.IsNewBestThisRun, true);
+            {
+                bool isChapterGo = activeRunMode == RunMode.Chapter && chapterManager != null;
+                float goBest = isChapterGo ? chapterManager.GetChapter(chapterManager.ActiveChapterIndex).TargetHeight : scoreManager.BestScore;
+                string goBestLabel = isChapterGo ? UILanguage.Translate("HEDEF", "TARGET", "META") : null;
+                uiManager.ShowCountdown("GO!", true, scoreManager.CurrentScore, goBest, scoreManager.CurrentRunTime, GetCurrentZoneIndex(), GetLavaGap(), GetGapDangerNormalized(), activeRunMode == RunMode.Normal && scoreManager.IsNewBestThisRun, true, goBestLabel);
+            }
         }
 
         private void UpdateCountdownVisual()
@@ -3173,7 +3725,10 @@ namespace TowerMaze
                 audioManager.PlayCountdownTick();
             }
 
-            uiManager.ShowCountdown(displayValue.ToString(), false, scoreManager.CurrentScore, scoreManager.BestScore, scoreManager.CurrentRunTime, GetCurrentZoneIndex(), GetLavaGap(), GetGapDangerNormalized(), activeRunMode == RunMode.Normal && scoreManager.IsNewBestThisRun, true);
+            bool isChapterTick = activeRunMode == RunMode.Chapter && chapterManager != null;
+            float tickBest = isChapterTick ? chapterManager.GetChapter(chapterManager.ActiveChapterIndex).TargetHeight : scoreManager.BestScore;
+            string tickBestLabel = isChapterTick ? UILanguage.Translate("HEDEF", "TARGET", "META") : null;
+            uiManager.ShowCountdown(displayValue.ToString(), false, scoreManager.CurrentScore, tickBest, scoreManager.CurrentRunTime, GetCurrentZoneIndex(), GetLavaGap(), GetGapDangerNormalized(), activeRunMode == RunMode.Normal && scoreManager.IsNewBestThisRun, true, tickBestLabel);
         }
 
         private void CommitPendingLeaderboardIfNeeded()
@@ -3208,7 +3763,7 @@ namespace TowerMaze
             RunSummary summary = BuildRunSummary();
             DailyMissionRewardResult missionReward = economyManager.RegisterCompletedRun(summary);
             DailyChallengeRewardResult challengeReward = economyManager.RegisterDailyChallengeRun(summary);
-            int totalReward = missionReward.rewardEmber + challengeReward.RewardCoins;
+            int totalReward = challengeReward.RewardCoins;
             if (!rewardClaimedThisFail && pendingRunReward > 0)
             {
                 economyManager.GrantEmber((doubled ? pendingRunReward * 2 : pendingRunReward) + totalReward);
@@ -3218,12 +3773,13 @@ namespace TowerMaze
                 economyManager.GrantEmber(totalReward);
             }
 
-            if (missionReward.rewardEmber > 0)
+            // Mission completed but reward not auto-granted — player must tap claim button.
+            if (missionReward.completedMissionCount > 0)
             {
                 string title = missionReward.completedMissionCount > 1
-                    ? $"{missionReward.completedMissionCount} MISSIONS COMPLETE"
-                    : "MISSION COMPLETE";
-                uiManager.QueueRewardToast(title, $"+{missionReward.rewardEmber} COIN", new Color(1f, 0.82f, 0.32f, 1f));
+                    ? $"{missionReward.completedMissionCount} MISSIONS READY"
+                    : "MISSION READY";
+                uiManager.QueueRewardToast(title, "TAP TO CLAIM", new Color(1f, 0.82f, 0.32f, 1f));
                 audioManager.PlayMissionComplete();
             }
 
@@ -3253,6 +3809,18 @@ namespace TowerMaze
 
             RefreshLifeRefillPrompt(returnToStartWhenNotFailed: false);
             return false;
+        }
+        private void StartPendingRun()
+        {
+            if (!TryConsumeLifeForRequestedRun())
+            {
+                return;
+            }
+
+            SetStaticModeActive(false);
+            ResolvePendingFailedRun(false);
+            PrepareFreshRun();
+            BeginCountdown();
         }
 
         private void RefreshLifeRefillPrompt(bool returnToStartWhenNotFailed = false)
@@ -3441,7 +4009,6 @@ namespace TowerMaze
             currentRushMultiplier = config.rushWarningSpeedMultiplier;
             ApplySinkMultiplier();
             audioManager.StartRushAlarm();
-            cameraFollowController?.Shake(0.2f, 0.06f);
             uiManager.SetRushState(true, false, 1f, 1f);
         }
 

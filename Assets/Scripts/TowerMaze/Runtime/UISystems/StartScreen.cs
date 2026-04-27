@@ -13,22 +13,70 @@ namespace TowerMaze
         private Font runtimeFont;
         private Text bestScoreText;
         private Text captionText;
+        private Text startButtonLabelText;
+        private Text shopButtonText;
+        private Text missionsButtonText;
+        private Text settingsTitleText;
+        private Text settingsAudioHeaderText;
+        private Text languageLabelText;
+        private Text missionsTitleText;
+        private Text missionsSubtitleText;
+        private Text leaderboardTitleText;
+        private Text leaderboardCloseButtonText;
         private RectTransform startButtonRt;
+        private RectTransform bestScoreChipRt;
+        private RectTransform startLifeBarRt;
+        private RectTransform dailyChallengeButtonRt;
+        private RectTransform endlessButtonRt;
+        private RectTransform leaderboardButtonRt;
+        private RectTransform settingsButtonRt;
+        private RectTransform logoRt;
+        private readonly List<Text> logoTextLayers = new();
+        private RectTransform secondaryRowRt;
+        private Button dailyChallengeButton;
+        private Image dailyChallengeButtonImage;
+        private Text dailyChallengeTitleText;
+        #pragma warning disable CS0414
+        private Text dailyChallengeSubtitleText;
+        #pragma warning restore CS0414
         private LifeBarUI startLifeBarUI;
         private GameObject settingsPanel;
         private RectTransform settingsPanelRt;
         private CanvasGroup settingsPanelCanvasGroup;
         private Coroutine settingsPanelRoutine;
-        private Image settingsSoundOnBg;
-        private Image settingsSoundOffBg;
-        private Image settingsVibOnBg;
-        private Image settingsVibOffBg;
+        private Text settingsSoundLabelText;
+        private Text settingsVibrationLabelText;
+        private Text settingsSoundOnText;
+        private Text settingsSoundOffText;
+        private Text settingsVibOnText;
+        private Text settingsVibOffText;
+        private Image settingsSoundToggleBg;
+        private Image settingsVibToggleBg;
+        private Image settingsSoundIcon;
+        private Image settingsVibIcon;
+        private Text settingsSoundToggleText;
+        private Text settingsVibToggleText;
+        private Text privacyButtonText;
+        private Text graphicsQualityButtonText;
+        private GameObject privacyOverlay;
+        private RectTransform privacySheet;
+        private Text privacyTitleText;
+        private Text privacySubtitleText;
+        private Text privacyBodyText;
+        private RectTransform privacyBodyRect;
+        private ScrollRect privacyScrollRect;
         private bool cachedSoundEnabled;
         private bool cachedVibrationEnabled;
         private Coroutine pulseCoroutine;
+        private GameObject leaderboardOverlay;
         private RectTransform leaderboardSheet;
+        private RectTransform leaderboardContentRect;
+        private ScrollRect leaderboardScrollRect;
+        private Text leaderboardSubtitleText;
+        private GameObject missionsOverlay;
         private RectTransform missionsSheet;
         private Text missionCountdownText;
+        private Coroutine missionCountdownRoutine;
         private System.Action<string> _onClaimMission;
         private GameObject[] missionClaimBtns;
         private string[] missionIds;
@@ -36,107 +84,195 @@ namespace TowerMaze
         private Text[] missionProgressTexts;
         private Image[] missionProgressFills;
         private Text[] missionRewardTexts;
+        private Image[] missionRewardBackgrounds;
+        private Button[] missionRewardButtons;
         private Text[] missionStatusTexts;
-        private Image[] leaderboardRowBgs;
-        private Text[] leaderboardRankTexts;
-        private Text[] leaderboardNameTexts;
-        private Text[] leaderboardScoreTexts;
-        private readonly string[] supportedLanguageCodes = { "TR", "EN", "ES" };
+        private Text[] missionClaimButtonTexts;
+        private GameObject dailyChallengePopupOverlay;
+        private RectTransform dailyChallengePopupSheet;
+        private Text dailyChallengePopupPlayLabel;
+        private Button dailyChallengePopupPlayButton;
+        private Image dailyChallengePopupPlayImage;
+        private Text dailyChallengePopupTargetText;
+        private Text dailyChallengePopupRewardText;
+        private Text dailyChallengePopupModifierText;
+        private Text dailyChallengePopupStatusText;
+        private Text dailyChallengePopupDisclaimerText;
+        private Action storedOnPlayDailyChallenge;
+        private Action storedOnPlayChapter;
+        private Action storedOnPlayEndless;
+        private Action storedOnShowChapters;
+        private ChapterManager cachedChapterManager;
+        private readonly List<Outline> leaderboardRowOutlines = new();
+        private readonly List<Image> leaderboardRowBgs = new();
+        private readonly List<Text> leaderboardRankTexts = new();
+        private readonly List<Text> leaderboardNameTexts = new();
+        private readonly List<Text> leaderboardScoreTexts = new();
+        private readonly string[] supportedLanguageCodes = UILanguage.SupportedCodes;
         private Image[] languageChipBackgrounds;
         private Text[] languageChipTexts;
+        private float cachedBestScoreValue;
+        private string cachedOwnRankText = "--";
+        private DailyChallengeStatus cachedDailyChallengeStatus;
+        private Coroutine ownRowPulseRoutine;
+        private IReadOnlyList<LeaderboardEntry> cachedLeaderboardEntries = Array.Empty<LeaderboardEntry>();
+        private IReadOnlyList<DailyMissionState> cachedDailyMissions = Array.Empty<DailyMissionState>();
+        private static readonly Color LogoCandyChipActive = new Color(0.06f, 0.73f, 0.51f, 1f);   // Jelly Green (UIStyle.Owned)
+        private static readonly Color LogoCandyChipInactive = new Color(0.94f, 0.27f, 0.27f, 1f); // Jelly Red (UIStyle.Danger)
+        private static readonly Color LogoCandyChipInactiveText = new Color(1f, 1f, 1f, 0.85f);
+        private static readonly Color LogoCandyAqua = new(0.28f, 0.64f, 0.88f, 1f);
+        private static readonly Color LogoCandyMint = new(0.40f, 0.79f, 0.57f, 1f);
+        private static readonly Color LogoCandyOwnRowTint = new(0.64f, 0.42f, 0.92f, 1f);
+        private static readonly Color LogoCandyRewardTint = new(1f, 0.94f, 0.80f, 1f);
+        private static readonly Color SheetOverlayTint = new(UIStyle.MenuBg.r, UIStyle.MenuBg.g, UIStyle.MenuBg.b, 0.58f);
+        private static readonly Color SheetPanelTint = new(0.85f, 0.73f, 0.91f, 0.985f);
+        private static readonly Color SheetSectionTint = new(0.95f, 0.88f, 0.94f, 0.99f);
+        private static readonly Color SheetWarmTint = new(0.98f, 0.78f, 0.60f, 0.985f);
+        private static readonly Color SheetTitleRibbonTint = new(0.64f, 0.42f, 0.92f, 0.98f);
+        private static readonly Color SheetTitleTextTint = new(1f, 1f, 1f, 1f);
+        private static readonly Color SheetTitleShadowTint = new(1f, 0.84f, 0.42f, 0.26f);
+        private static readonly Color SheetTitleOutlineTint = new(0.24f, 0.10f, 0.44f, 0.84f);
+        private static readonly Color SheetChromeOutlineTint = new(0.36f, 0.22f, 0.58f, 0.30f);
+        private static readonly Color SheetChromeShadowTint = new(0.08f, 0.04f, 0.15f, 0.24f);
+        private static readonly Color LeaderboardRowTint = new(0.92f, 0.84f, 0.95f, 0.99f);
 
         public void Initialize(Font font, ThemeDefinition theme, EconomyManager economy,
             Action onPlay, Action onPlayDailyChallenge, Action onOpenShop, Action onClaimChest,
             Action onToggleSound, Action onToggleVibration, Action onRerollMissions,
-            Action onButtonClick = null)
+            Action onButtonClick = null, Action<string> onClaimMission = null,
+            Action onPlayChapter = null, Action onPlayEndless = null, Action onShowChapters = null,
+            ChapterManager chapterManager = null)
         {
+            storedOnPlayChapter = onPlayChapter ?? onPlay;
+            storedOnPlayEndless = onPlayEndless ?? onPlay;
+            storedOnShowChapters = onShowChapters;
+            cachedChapterManager = chapterManager;
             economyManager = economy;
             buttonClickSound = onButtonClick;
             runtimeFont = font;
+            _onClaimMission = onClaimMission;
+            UILanguage.EnsureDefaultLanguage();
 
             // ── Full-screen background ─────────────────────────────────────────────
             Image bg = UIManager.CreateImage("StartBg", transform, UIStyle.MenuBg);
             UIManager.Stretch(bg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
-            Image lifeBarCard = UIManager.CreateCard("StartLifeBarCard", transform, UIStyle.SurfaceDark, UIStyle.BorderDark);
-            lifeBarCard.rectTransform.anchorMin = new Vector2(0.03f, 0.89f);
-            lifeBarCard.rectTransform.anchorMax = new Vector2(0.38f, 0.98f);
-            lifeBarCard.rectTransform.offsetMin = lifeBarCard.rectTransform.offsetMax = Vector2.zero;
-            startLifeBarUI = lifeBarCard.gameObject.AddComponent<LifeBarUI>();
+            GameObject lifeBarCardGo = new GameObject("StartLifeBarCard");
+            lifeBarCardGo.transform.SetParent(transform, false);
+            Image startLifeBarCard = lifeBarCardGo.AddComponent<Image>();
+            Texture2D lifeTex = Resources.Load<Texture2D>("TowerMaze/UITheme/out_btn_purple");
+            if (lifeTex != null)
+                startLifeBarCard.sprite = Sprite.Create(lifeTex, new Rect(0, 0, lifeTex.width, lifeTex.height), new Vector2(0.5f, 0.5f), 100f);
+            
+            startLifeBarCard.rectTransform.anchorMin = new Vector2(0.04f, 0.90f);
+            startLifeBarCard.rectTransform.anchorMax = new Vector2(0.36f, 0.99f);
+            startLifeBarCard.rectTransform.offsetMin = startLifeBarCard.rectTransform.offsetMax = Vector2.zero;
+            startLifeBarRt = startLifeBarCard.rectTransform;
+            startLifeBarUI = startLifeBarCard.gameObject.AddComponent<LifeBarUI>();
             startLifeBarUI.Initialize(font);
+            startLifeBarUI.SetCompactHeaderLayout(true);
             startLifeBarUI.SetEconomyManager(economyManager);
+            storedOnPlayDailyChallenge = onPlayDailyChallenge;
+            GameObject dailyChallengeButtonGo = CreateDailyChallengeButton(transform, font,
+                ShowDailyChallengePopup, buttonClickSound);
+            dailyChallengeButtonRt = dailyChallengeButtonGo.GetComponent<RectTransform>();
 
             // ── Top bar ───────────────────────────────────────────────────────────
             // Leaderboard icon button (🏅)
-            var lbBtnGo = CreateIconCircle("LeaderboardBtn", transform, font, "\U0001f3c5",
+            Texture2D flagTex = Resources.Load<Texture2D>("TowerMaze/UITheme/out_icon_flag");
+            Sprite flagSprite = flagTex != null ? Sprite.Create(flagTex, new Rect(0, 0, flagTex.width, flagTex.height), new Vector2(0.5f, 0.5f), 100f) : null;
+            var lbBtnGo = CreateCandyIconCircle("LeaderboardBtn", transform, flagSprite,
                 ShowLeaderboardSheet, buttonClickSound);
             var lbRt = lbBtnGo.GetComponent<RectTransform>();
-            lbRt.anchorMin = new Vector2(0.74f, 0.89f);
-            lbRt.anchorMax = new Vector2(0.86f, 0.98f);
+            lbRt.anchorMin = new Vector2(0.70f, 0.89f);
+            lbRt.anchorMax = new Vector2(0.84f, 0.99f);
             lbRt.offsetMin = lbRt.offsetMax = Vector2.zero;
+            leaderboardButtonRt = lbRt;
 
             // Settings icon button (⚙)
-            var settingsBtnGo = CreateIconCircle("SettingsBtn", transform, font, "\u2699",
+            Texture2D gearTex = Resources.Load<Texture2D>("TowerMaze/UITheme/out_icon_gear");
+            Sprite gearSprite = gearTex != null ? Sprite.Create(gearTex, new Rect(0, 0, gearTex.width, gearTex.height), new Vector2(0.5f, 0.5f), 100f) : null;
+            var settingsBtnGo = CreateCandyIconCircle("SettingsBtn", transform, gearSprite,
                 ShowSettingsPanel, buttonClickSound);
             var settingsRt = settingsBtnGo.GetComponent<RectTransform>();
-            settingsRt.anchorMin = new Vector2(0.87f, 0.89f);
-            settingsRt.anchorMax = new Vector2(0.99f, 0.98f);
+            settingsRt.anchorMin = new Vector2(0.86f, 0.89f);
+            settingsRt.anchorMax = new Vector2(1.00f, 0.99f);
             settingsRt.offsetMin = settingsRt.offsetMax = Vector2.zero;
+            settingsButtonRt = settingsRt;
             lbBtnGo.transform.SetAsLastSibling();
             settingsBtnGo.transform.SetAsLastSibling();
 
             // ── Logo ──────────────────────────────────────────────────────────────
-            Text logo = UIManager.CreateText("Logo", transform, font, 36,
-                TextAnchor.MiddleCenter, UIStyle.TextPrimary);
-            logo.text = "TOWER MAZE";
-            logo.fontStyle = FontStyle.Bold;
-            logo.rectTransform.anchorMin = new Vector2(0.15f, 0.80f);
-            logo.rectTransform.anchorMax = new Vector2(0.85f, 0.90f);
-            logo.rectTransform.offsetMin = logo.rectTransform.offsetMax = Vector2.zero;
+            GameObject logoGroup = new GameObject("Logo");
+            logoGroup.transform.SetParent(transform, false);
+            logoRt = logoGroup.AddComponent<RectTransform>();
+            logoRt.anchorMin = new Vector2(-0.05f, 0.46f);
+            logoRt.anchorMax = new Vector2(1.05f, 0.96f);
+            logoRt.offsetMin = logoRt.offsetMax = Vector2.zero;
 
-            // ── START button (GradientImage orange, Pulse on enable) ───────────
-            var startGo = new GameObject("StartButton");
-            startGo.transform.SetParent(transform, false);
-            startButtonRt = startGo.AddComponent<RectTransform>();
-            startButtonRt.anchorMin = new Vector2(0.20f, 0.65f);
-            startButtonRt.anchorMax = new Vector2(0.80f, 0.74f);
+            Image logoImage = logoGroup.AddComponent<Image>();
+            Texture2D logoTex = Resources.Load<Texture2D>("TowerMaze/UITheme/CandyTowerMazeLogo");
+            if (logoTex != null)
+            {
+                logoImage.sprite = Sprite.Create(logoTex, new Rect(0, 0, logoTex.width, logoTex.height), new Vector2(0.5f, 0.5f), 100f);
+                logoImage.preserveAspect = true;
+            }
+
+            // ── START button (Candy Orange) ───────────
+            GameObject startBtnGo = new GameObject("StartButton");
+            startBtnGo.transform.SetParent(transform, false);
+            Button startBtn = startBtnGo.AddComponent<Button>();
+            Image startImg = startBtnGo.AddComponent<Image>();
+            Texture2D startTex = Resources.Load<Texture2D>("TowerMaze/UITheme/out_btn_orange");
+            if (startTex != null)
+                startImg.sprite = Sprite.Create(startTex, new Rect(0, 0, startTex.width, startTex.height), new Vector2(0.5f, 0.5f), 100f);
+            startBtn.targetGraphic = startImg;
+            startButtonRt = startBtnGo.GetComponent<RectTransform>();
+            startButtonRt.anchorMin = new Vector2(0.12f, 0.44f);
+            startButtonRt.anchorMax = new Vector2(0.88f, 0.58f);
             startButtonRt.offsetMin = startButtonRt.offsetMax = Vector2.zero;
-            var startGrad = startGo.AddComponent<GradientImage>();
-            startGrad.colorBottom = UIStyle.Action;
-            startGrad.colorTop    = UIStyle.ActionLight;
-            var startBtn = startGo.AddComponent<Button>();
+            Text startLbl = UIManager.CreateText("Label", startBtnGo.transform, font, 24, TextAnchor.MiddleCenter, Color.white, UIFontRole.Button);
+            startLbl.fontStyle = FontStyle.Bold;
+            startLbl.color = Color.white;
+            startLbl.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(startLbl, 18, 24, UIFontRole.Button);
+            startLbl.text = GetChapterButtonLabel();
+            UIManager.Stretch(startLbl.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            Shadow startLabelShadow = startLbl.gameObject.AddComponent<Shadow>();
+            startLabelShadow.effectColor = new Color(0.18f, 0.06f, 0.28f, 0.34f);
+            startLabelShadow.effectDistance = new Vector2(0f, -2f);
+            Outline startLabelOutline = startLbl.gameObject.AddComponent<Outline>();
+            startLabelOutline.effectColor = new Color(1f, 0.95f, 0.82f, 0.18f);
+            startLabelOutline.effectDistance = new Vector2(1f, -1f);
             UIManager.BindButton(startBtn,
-                () => { StartCoroutine(UIStyle.ButtonPress(startButtonRt)); onPlay?.Invoke(); }, null);
-            var startLabel = UIManager.CreateText("Label", startGo.transform, font, 15,
-                TextAnchor.MiddleCenter, Color.white);
-            startLabel.text = "START";
-            startLabel.fontStyle = FontStyle.Bold;
-            UIManager.Stretch(startLabel.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                () => { StartCoroutine(UIStyle.ButtonPress(startButtonRt)); storedOnPlayChapter?.Invoke(); }, null);
+            startButtonLabelText = startBtn.GetComponentInChildren<Text>();
 
-            // ── Best score caption below START ────────────────────────────────
-            captionText = UIManager.CreateText("BestCaption", transform, font, 12,
-                TextAnchor.MiddleCenter, UIStyle.TextPrimary);
-            captionText.text = "Best: 0m";
-            captionText.rectTransform.anchorMin = new Vector2(0.20f, 0.60f);
-            captionText.rectTransform.anchorMax = new Vector2(0.80f, 0.64f);
-            captionText.rectTransform.offsetMin = captionText.rectTransform.offsetMax = Vector2.zero;
 
-            // ── Secondary row: [SHOP] [📋 MISSIONS] at 65% alpha ─────────────
+            // ── Secondary row: [SHOP] [MISSIONS] ─────────────
             var secondaryRow = new GameObject("SecondaryRow");
             secondaryRow.transform.SetParent(transform, false);
             var rowCg = secondaryRow.AddComponent<CanvasGroup>();
-            rowCg.alpha = 0.65f;
+            rowCg.alpha = 1.00f; // opaque to maintain glossy candy colors
             var rowRt = secondaryRow.AddComponent<RectTransform>();
-            rowRt.anchorMin = new Vector2(0.20f, 0.52f);
-            rowRt.anchorMax = new Vector2(0.80f, 0.59f);
+            rowRt.anchorMin = new Vector2(0.15f, 0.30f);
+            rowRt.anchorMax = new Vector2(0.85f, 0.38f);
             rowRt.offsetMin = rowRt.offsetMax = Vector2.zero;
+            secondaryRowRt = rowRt;
 
             var shopBtnGo = CreateSecondaryButton("ShopBtn", secondaryRow.transform, font, "SHOP",
                 () => onOpenShop?.Invoke(), buttonClickSound);
             var missionsBtnGo = CreateSecondaryButton("MissionsBtn", secondaryRow.transform, font,
-                "\U0001f4cb MISSIONS", ShowMissionsSheet, buttonClickSound);
+                "MISSIONS", ShowMissionsSheet, buttonClickSound);
+            shopButtonText = shopBtnGo.GetComponentInChildren<Text>();
+            missionsButtonText = missionsBtnGo.GetComponentInChildren<Text>();
             LayoutTwoChildren(rowRt, shopBtnGo.GetComponent<RectTransform>(),
                 missionsBtnGo.GetComponent<RectTransform>(), 8f);
+
+            // ── ENDLESS button (below Daily Challenge, same candy style) ──────
+            GameObject endlessButtonGo = CreateEndlessButton(transform, font,
+                () => storedOnPlayEndless?.Invoke(), buttonClickSound);
+            endlessButtonRt = endlessButtonGo.GetComponent<RectTransform>();
 
             // ── Settings panel (built once, starts offscreen) ─────────────────
             BuildSettingsPanel(font, onToggleSound, onToggleVibration);
@@ -144,6 +280,12 @@ namespace TowerMaze
             // ── Bottom sheets (leaderboard + missions) ────────────────────────
             BuildLeaderboardSheet(font);
             BuildMissionsSheet(font);
+            BuildPrivacyPolicySheet(font);
+            BuildDailyChallengePopup(font);
+            ApplyPortraitLayout();
+            ApplyLocalizedTexts();
+            UpdateMissionCountdown(GetTimeUntilNextLocalDay());
+            EnsureMissionCountdownTicker();
         }
 
         private void OnEnable()
@@ -151,12 +293,27 @@ namespace TowerMaze
             if (startButtonRt == null) return;
             if (pulseCoroutine != null) StopCoroutine(pulseCoroutine);
             pulseCoroutine = StartCoroutine(UIStyle.Pulse(startButtonRt, 1f, 1.05f, 1.4f));
+            ApplyPortraitLayout();
+            ApplyLocalizedTexts();
+            UpdateMissionCountdown(GetTimeUntilNextLocalDay());
+            EnsureMissionCountdownTicker();
         }
 
         private void OnDisable()
         {
             if (pulseCoroutine != null) { StopCoroutine(pulseCoroutine); pulseCoroutine = null; }
             if (settingsPanelRoutine != null) { StopCoroutine(settingsPanelRoutine); settingsPanelRoutine = null; }
+            if (missionCountdownRoutine != null) { StopCoroutine(missionCountdownRoutine); missionCountdownRoutine = null; }
+        }
+
+        private void OnRectTransformDimensionsChange()
+        {
+            if (!isActiveAndEnabled)
+            {
+                return;
+            }
+
+            ApplyPortraitLayout();
         }
 
         public void SetState(float bestScore, int emberBalance,
@@ -165,94 +322,45 @@ namespace TowerMaze
             DailyChestStatus chestStatus, DailyChallengeStatus challengeStatus,
             int missionRerollCost, bool soundEnabled, bool vibrationEnabled)
         {
+            cachedBestScoreValue = bestScore;
+            cachedLeaderboardEntries = leaderboardEntries ?? Array.Empty<LeaderboardEntry>();
+            cachedDailyMissions = dailyMissions ?? Array.Empty<DailyMissionState>();
+            cachedDailyChallengeStatus = challengeStatus;
             if (bestScoreText != null)
                 bestScoreText.text = $"\U0001f3c6 {bestScore:0}m";
             if (captionText != null)
-                captionText.text = $"Best: {bestScore:0}m";
+                captionText.text = FormatBestCaption(bestScore);
 
             cachedSoundEnabled = soundEnabled;
             cachedVibrationEnabled = vibrationEnabled;
-
-            // Update ON/OFF chips for Sound
-            if (settingsSoundOnBg != null) settingsSoundOnBg.color = cachedSoundEnabled ? UIStyle.Brand : UIStyle.SurfaceDark;
-            if (settingsSoundOffBg != null) settingsSoundOffBg.color = cachedSoundEnabled ? UIStyle.SurfaceDark : UIStyle.Brand;
-            // Update ON/OFF chips for Vibration
-            if (settingsVibOnBg != null) settingsVibOnBg.color = cachedVibrationEnabled ? UIStyle.Brand : UIStyle.SurfaceDark;
-            if (settingsVibOffBg != null) settingsVibOffBg.color = cachedVibrationEnabled ? UIStyle.SurfaceDark : UIStyle.Brand;
             startLifeBarUI?.SetEconomyManager(economyManager);
             RefreshLanguageTabs();
+            ApplyLocalizedTexts();
+            RefreshLeaderboardRows(resetPosition: false);
 
-            // Populate leaderboard rows and highlight local player's entry in brand purple.
-            if (leaderboardRowBgs != null && leaderboardEntries != null)
-            {
-                string localPlayerName = PlayerPrefs.GetString("PlayerName", "");
-                for (int i = 0; i < leaderboardRowBgs.Length; i++)
-                {
-                    if (i < leaderboardEntries.Count)
-                    {
-                        var entry = leaderboardEntries[i];
-                        bool isOwnEntry = !string.IsNullOrEmpty(localPlayerName) && entry.label == localPlayerName;
-                        leaderboardRowBgs[i].color = isOwnEntry
-                            ? new Color(UIStyle.Brand.r, UIStyle.Brand.g, UIStyle.Brand.b, 0.15f)
-                            : UIStyle.SurfaceDark;
-                        leaderboardRankTexts[i].color = isOwnEntry ? UIStyle.Brand : (i == 0 ? UIStyle.Gold : UIStyle.TextDim);
-                        leaderboardNameTexts[i].text = entry.label;
-                        leaderboardScoreTexts[i].text = $"{entry.height:0}m";
-                    }
-                    else
-                    {
-                        leaderboardRowBgs[i].color = UIStyle.SurfaceDark;
-                        leaderboardRankTexts[i].color = i == 0 ? UIStyle.Gold : UIStyle.TextDim;
-                        leaderboardNameTexts[i].text = "---";
-                        leaderboardScoreTexts[i].text = "0m";
-                    }
-                }
-            }
-
-            // Populate mission cards.
-            if (missionTitleTexts != null && missionProgressTexts != null && missionProgressFills != null && missionRewardTexts != null && missionStatusTexts != null)
-            {
-                int missionCount = missionTitleTexts.Length;
-                for (int i = 0; i < missionCount; i++)
-                {
-                    bool hasMission = dailyMissions != null && i < dailyMissions.Count;
-                    if (!hasMission)
-                    {
-                        missionIds[i] = string.Empty;
-                        missionTitleTexts[i].text = "No mission";
-                        missionProgressTexts[i].text = "0/0";
-                        missionProgressFills[i].rectTransform.anchorMax = new Vector2(0f, 1f);
-                        missionRewardTexts[i].text = "+0 COIN";
-                        missionStatusTexts[i].text = "INACTIVE";
-                        missionStatusTexts[i].color = UIStyle.TextDim;
-                        if (missionClaimBtns != null && i < missionClaimBtns.Length && missionClaimBtns[i] != null)
-                        {
-                            missionClaimBtns[i].SetActive(false);
-                        }
-
-                        continue;
-                    }
-
-                    DailyMissionState mission = dailyMissions[i];
-                    missionIds[i] = mission.id;
-                    missionTitleTexts[i].text = mission.description;
-                    missionProgressTexts[i].text = $"{mission.progressValue}/{mission.targetValue}";
-                    float progress = mission.targetValue > 0 ? Mathf.Clamp01((float)mission.progressValue / mission.targetValue) : 0f;
-                    missionProgressFills[i].rectTransform.anchorMax = new Vector2(progress, 1f);
-                    missionRewardTexts[i].text = $"+{mission.rewardEmber} COIN";
-
-                    bool completedUnclaimed = mission.IsCompleted && !mission.claimed;
-                    bool claimed = mission.claimed;
-                    missionStatusTexts[i].text = claimed ? "CLAIMED" : (completedUnclaimed ? "COMPLETED" : "IN PROGRESS");
-                    missionStatusTexts[i].color = claimed ? UIStyle.TextDim : (completedUnclaimed ? UIStyle.Owned : UIStyle.TextPrimary);
-                    if (missionClaimBtns != null && i < missionClaimBtns.Length && missionClaimBtns[i] != null)
-                    {
-                        missionClaimBtns[i].SetActive(false);
-                    }
-                }
-            }
+            RefreshMissionCards();
 
             UpdateMissionCountdown(GetTimeUntilNextLocalDay());
+            EnsureMissionCountdownTicker();
+            if (startButtonLabelText != null)
+                startButtonLabelText.text = GetChapterButtonLabel();
+        }
+
+        public void SetChapterManager(ChapterManager chapterManager)
+        {
+            cachedChapterManager = chapterManager;
+            if (startButtonLabelText != null)
+                startButtonLabelText.text = GetChapterButtonLabel();
+        }
+
+        private string GetChapterButtonLabel()
+        {
+            if (cachedChapterManager != null)
+            {
+                int n = cachedChapterManager.UnlockedUpTo;
+                return string.Format(UILanguage.Translate("BÖLÜM {0}", "LEVEL {0}", "NIVEL {0}"), n);
+            }
+            return UILanguage.Translate("BAŞLA", "START", "INICIO");
         }
 
         // ── Private helpers ───────────────────────────────────────────────────
@@ -263,36 +371,197 @@ namespace TowerMaze
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             var img = go.AddComponent<Image>();
-            img.color = new Color(1f, 1f, 1f, 0.10f);
-            RectTransform rt = go.GetComponent<RectTransform>();
+            SetupCandyOrb(img);
             var btn = go.AddComponent<Button>();
             UIManager.BindButton(btn, () => {
                 StartCoroutine(UIStyle.ButtonPress(go.GetComponent<RectTransform>())); onClick?.Invoke();
             }, sound);
-            var lbl = UIManager.CreateText("Icon", go.transform, font, 13,
+            var lbl = UIManager.CreateText("Icon", go.transform, font, 16,
                 TextAnchor.MiddleCenter, UIStyle.TextPrimary);
-            lbl.text = icon;
+            lbl.text = icon ?? string.Empty;
             UIManager.Stretch(lbl.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             return go;
         }
+
+        private GameObject CreateCandyIconCircle(string name, Transform parent,
+            Sprite iconSprite, Action onClick, Action sound)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var img = go.AddComponent<Image>();
+            SetupCandyOrb(img);
+            var btn = go.AddComponent<Button>();
+            UIManager.BindButton(btn, () => {
+                StartCoroutine(UIStyle.ButtonPress(go.GetComponent<RectTransform>())); onClick?.Invoke();
+            }, sound);
+            if (iconSprite != null)
+            {
+                var iconGo = new GameObject("Icon");
+                iconGo.transform.SetParent(go.transform, false);
+                var iconImg = iconGo.AddComponent<Image>();
+                iconImg.sprite = iconSprite;
+                iconImg.preserveAspect = true;
+                UIManager.Stretch(iconGo.GetComponent<RectTransform>(), new Vector2(0.15f, 0.15f), new Vector2(0.85f, 0.85f), Vector2.zero, Vector2.zero);
+            }
+            return go;
+        }
+
+
 
         private GameObject CreateSecondaryButton(string name, Transform parent, Font font,
             string label, Action onClick, Action sound)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
-            RectTransform rt = go.GetComponent<RectTransform>();
-            var img = go.AddComponent<Image>();
-            img.color = new Color(1f, 1f, 1f, 0.10f);
+            bool isShopButton = string.Equals(name, "ShopBtn", StringComparison.OrdinalIgnoreCase);
+            bool isMissionsButton = string.Equals(name, "MissionsBtn", StringComparison.OrdinalIgnoreCase);
+            Image img = go.AddComponent<Image>();
+            if (isMissionsButton)
+            {
+                SetupCandyButton(img, "out_btn_purple", new Vector4(150f, 160f, 150f, 160f), 350f);
+            }
+            else
+            {
+                string btnTexName = isShopButton ? "out_btn_purple" : "out_btn_orange";
+                Vector4 btnSlice = isShopButton ? new Vector4(150f, 160f, 150f, 160f) : new Vector4(150f, 130f, 150f, 130f);
+                SetupCandyButton(img, btnTexName, btnSlice, 350f);
+            }
             var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
             UIManager.BindButton(btn, () => {
                 StartCoroutine(UIStyle.ButtonPress(go.GetComponent<RectTransform>())); onClick?.Invoke();
             }, sound);
-            var lbl = UIManager.CreateText("Label", go.transform, font, 10,
-                TextAnchor.MiddleCenter, new Color(1f, 1f, 1f, 0.70f));
+            var lbl = UIManager.CreateText("Label", go.transform, font, 15,
+                TextAnchor.MiddleCenter, Color.white, UIFontRole.Button);
             lbl.text = label;
+            lbl.fontStyle = FontStyle.Bold;
+            lbl.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(lbl, 13, 15, UIFontRole.Button);
             UIManager.Stretch(lbl.rectTransform, Vector2.zero, Vector2.one,
                 new Vector2(8f, 0f), new Vector2(-8f, 0f));
+
+            if (isMissionsButton)
+            {
+                lbl.alignment = TextAnchor.MiddleCenter;
+                lbl.color = Color.white;
+                UIManager.SetScaledBestFit(lbl, 14, 17, UIFontRole.Button);
+                UIManager.Stretch(lbl.rectTransform, Vector2.zero, Vector2.one,
+                    new Vector2(8f, 0f), new Vector2(-8f, 0f));
+                Shadow missionsLabelShadow = lbl.gameObject.AddComponent<Shadow>();
+                missionsLabelShadow.effectColor = new Color(0.18f, 0.06f, 0.28f, 0.34f);
+                missionsLabelShadow.effectDistance = new Vector2(0f, -2f);
+                Outline missionsLabelOutline = lbl.gameObject.AddComponent<Outline>();
+                missionsLabelOutline.effectColor = new Color(1f, 0.95f, 0.82f, 0.18f);
+                missionsLabelOutline.effectDistance = new Vector2(1f, -1f);
+            }
+
+            if (isShopButton)
+            {
+                Sprite shopWordmark = UICandySkin.GetSprite("ShopWordmark", 100f);
+                if (shopWordmark != null)
+                {
+                    GameObject wordmarkObject = new GameObject("Wordmark");
+                    wordmarkObject.transform.SetParent(go.transform, false);
+                    Image wordmarkImage = wordmarkObject.AddComponent<Image>();
+                    wordmarkImage.sprite = shopWordmark;
+                    wordmarkImage.preserveAspect = true;
+                    wordmarkImage.raycastTarget = false;
+                    UIManager.Stretch(wordmarkImage.rectTransform, Vector2.zero, Vector2.one, new Vector2(-4f, -2f), new Vector2(4f, 2f));
+                    wordmarkImage.rectTransform.localScale = new Vector3(1.08f, 1.08f, 1f);
+                    lbl.gameObject.SetActive(false);
+                }
+            }
+            return go;
+        }
+
+        private GameObject CreateDailyChallengeButton(Transform parent, Font font, Action onClick, Action sound)
+        {
+            GameObject go = new GameObject("DailyChallengeButton");
+            go.transform.SetParent(parent, false);
+
+            dailyChallengeButtonImage = go.AddComponent<Image>();
+            SetupCandyButton(dailyChallengeButtonImage, "out_btn_purple", new Vector4(150f, 160f, 150f, 160f), 350f);
+            ConfigureCandyChrome(
+                dailyChallengeButtonImage,
+                new Color(0.08f, 0.04f, 0.16f, 0.22f),
+                new Color(1f, 0.93f, 0.72f, 0.14f),
+                new Vector2(0f, -4f),
+                new Vector2(1f, -1f));
+            AddAmbientGloss(
+                dailyChallengeButtonImage.rectTransform,
+                "ChallengeGloss",
+                new Vector2(0.05f, 0.56f),
+                new Vector2(0.95f, 0.96f),
+                new Color(1f, 1f, 1f, 0.22f),
+                new Color(1f, 1f, 1f, 0f));
+            AddAmbientGloss(
+                dailyChallengeButtonImage.rectTransform,
+                "ChallengeWarmCore",
+                new Vector2(0.06f, 0.12f),
+                new Vector2(0.94f, 0.66f),
+                new Color(1f, 0.74f, 0.34f, 0.14f),
+                new Color(1f, 0.74f, 0.34f, 0f));
+
+            dailyChallengeButton = go.AddComponent<Button>();
+            dailyChallengeButton.targetGraphic = dailyChallengeButtonImage;
+            UIManager.BindButton(dailyChallengeButton, () =>
+            {
+                StartCoroutine(UIStyle.ButtonPress(go.GetComponent<RectTransform>()));
+                onClick?.Invoke();
+            }, sound);
+
+            dailyChallengeTitleText = UIManager.CreateText("Title", go.transform, font, 15, TextAnchor.MiddleCenter, Color.white, UIFontRole.Button);
+            dailyChallengeTitleText.fontStyle = FontStyle.Bold;
+            dailyChallengeTitleText.resizeTextForBestFit = true;
+            dailyChallengeTitleText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            dailyChallengeTitleText.verticalOverflow = VerticalWrapMode.Overflow;
+            UIManager.SetScaledBestFit(dailyChallengeTitleText, 10, 15, UIFontRole.Button);
+            UIManager.Stretch(dailyChallengeTitleText.rectTransform, new Vector2(0.08f, 0.18f), new Vector2(0.92f, 0.82f), Vector2.zero, Vector2.zero);
+            Shadow titleShadow = dailyChallengeTitleText.gameObject.AddComponent<Shadow>();
+            titleShadow.effectColor = new Color(0.14f, 0.05f, 0.20f, 0.44f);
+            titleShadow.effectDistance = new Vector2(0f, -3f);
+
+            dailyChallengeSubtitleText = null;
+
+            RefreshDailyChallengeButton();
+            return go;
+        }
+
+        private GameObject CreateEndlessButton(Transform parent, Font font, Action onClick, Action sound)
+        {
+            GameObject go = new GameObject("EndlessButton");
+            go.transform.SetParent(parent, false);
+
+            Image img = go.AddComponent<Image>();
+            SetupCandyButton(img, "out_btn_purple", new Vector4(150f, 160f, 150f, 160f), 350f);
+            ConfigureCandyChrome(
+                img,
+                new Color(0.08f, 0.04f, 0.16f, 0.22f),
+                new Color(1f, 0.93f, 0.72f, 0.14f),
+                new Vector2(0f, -4f),
+                new Vector2(1f, -1f));
+            AddAmbientGloss(img.rectTransform, "EndlessGloss",
+                new Vector2(0.05f, 0.56f), new Vector2(0.95f, 0.96f),
+                new Color(1f, 1f, 1f, 0.22f), new Color(1f, 1f, 1f, 0f));
+
+            Button btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            UIManager.BindButton(btn, () =>
+            {
+                StartCoroutine(UIStyle.ButtonPress(go.GetComponent<RectTransform>()));
+                onClick?.Invoke();
+            }, sound);
+
+            Text lbl = UIManager.CreateText("Title", go.transform, font, 15, TextAnchor.MiddleCenter, Color.white, UIFontRole.Button);
+            lbl.fontStyle = FontStyle.Bold;
+            lbl.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(lbl, 10, 15, UIFontRole.Button);
+            UIManager.Stretch(lbl.rectTransform, new Vector2(0.08f, 0.18f), new Vector2(0.92f, 0.82f), Vector2.zero, Vector2.zero);
+            lbl.text = UILanguage.Translate("SONSUZ", "ENDLESS", "INFINITO");
+            Shadow shadow = lbl.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0.14f, 0.05f, 0.20f, 0.44f);
+            shadow.effectDistance = new Vector2(0f, -3f);
+
             return go;
         }
 
@@ -308,6 +577,297 @@ namespace TowerMaze
             b.offsetMin = b.offsetMax = Vector2.zero;
         }
 
+        private RectTransform CreateLogoWordContainer(string name, Transform parent, Vector2 anchorMin, Vector2 anchorMax)
+        {
+            GameObject wordObject = new GameObject(name);
+            wordObject.transform.SetParent(parent, false);
+            RectTransform wordRect = wordObject.AddComponent<RectTransform>();
+            wordRect.anchorMin = anchorMin;
+            wordRect.anchorMax = anchorMax;
+            wordRect.offsetMin = wordRect.offsetMax = Vector2.zero;
+            return wordRect;
+        }
+
+        private void CreateLogoWordLayers(string namePrefix, RectTransform parent, Font font, string textValue,
+            Color faceColor, Color depthColor, Color highlightColor, TextAnchor alignment)
+        {
+            CreateLogoLayer(namePrefix + "Depth", parent, font, textValue, depthColor, new Vector2(6.5f, -6.5f), alignment);
+            CreateLogoLayer(namePrefix + "Highlight", parent, font, textValue, highlightColor, new Vector2(-2f, 2f), alignment);
+
+            Text face = CreateLogoLayer(namePrefix + "Face", parent, font, textValue, faceColor, Vector2.zero, alignment);
+            Shadow faceShadow = face.gameObject.AddComponent<Shadow>();
+            faceShadow.effectColor = new Color(0.10f, 0.04f, 0.17f, 0.56f);
+            faceShadow.effectDistance = new Vector2(0f, -6f);
+
+            Outline faceOutline = face.gameObject.AddComponent<Outline>();
+            faceOutline.effectColor = new Color(1f, 0.95f, 0.78f, 0.30f);
+            faceOutline.effectDistance = new Vector2(1.5f, -1.5f);
+        }
+
+        private Text CreateLogoLayer(string name, RectTransform parent, Font font, string textValue, Color color, Vector2 offset, TextAnchor alignment)
+        {
+            Text label = UIManager.CreateText(name, parent, font, 56, alignment, color);
+            label.text = textValue;
+            label.fontStyle = FontStyle.Bold;
+            label.horizontalOverflow = HorizontalWrapMode.Overflow;
+            label.verticalOverflow = VerticalWrapMode.Overflow;
+            label.resizeTextForBestFit = false;
+            label.lineSpacing = 0.86f;
+            Vector2 leftInset = alignment == TextAnchor.MiddleLeft ? new Vector2(4f, 0f) : Vector2.zero;
+            UIManager.Stretch(label.rectTransform, Vector2.zero, Vector2.one, leftInset, Vector2.zero);
+            label.rectTransform.anchoredPosition = offset;
+            logoTextLayers.Add(label);
+            return label;
+        }
+
+        private void SetupCandyButton(Image img, string textureName, Vector4 slice, float ppu = 100f)
+        {
+            UICandySkin.ApplyCandyButton(img, textureName, slice, ppu);
+        }
+
+        private void SetupCandyPanel(Image img)
+        {
+            SetupCandyButton(img, "sheet_modal_panel", new Vector4(220f, 220f, 220f, 220f), 220f);
+        }
+
+        private void SetupCandyRow(Image img)
+        {
+            SetupCandyButton(img, "sheet_modal_row", new Vector4(160f, 160f, 160f, 160f), 220f);
+        }
+
+        private void SetupCandyOrb(Image img)
+        {
+            UICandySkin.ApplyCandyOrb(img);
+        }
+
+        private static void ConfigureCandyChrome(Image image, Color shadowColor, Color outlineColor, Vector2 shadowDistance, Vector2 outlineDistance)
+        {
+            if (image == null)
+            {
+                return;
+            }
+
+            Shadow shadow = image.GetComponent<Shadow>() ?? image.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = shadowColor;
+            shadow.effectDistance = shadowDistance;
+
+            Outline outline = image.GetComponent<Outline>() ?? image.gameObject.AddComponent<Outline>();
+            outline.effectColor = outlineColor;
+            outline.effectDistance = outlineDistance;
+        }
+
+        private static GradientImage GetOrCreateGradient(RectTransform parent, string name)
+        {
+            Transform existing = parent.Find(name);
+            GradientImage gradient = existing != null ? existing.GetComponent<GradientImage>() : null;
+            if (gradient != null)
+            {
+                return gradient;
+            }
+
+            GameObject gradientObject = new(name);
+            gradientObject.transform.SetParent(parent, false);
+            return gradientObject.AddComponent<GradientImage>();
+        }
+
+        private void ApplyCandySheetPanel(Image image)
+        {
+            SetupCandyPanel(image);
+            image.color = SheetPanelTint;
+            ConfigureCandyChrome(image, SheetChromeShadowTint, SheetChromeOutlineTint, new Vector2(0f, -10f), new Vector2(2f, -2f));
+        }
+
+        private void ApplyCandySectionRow(Image image, Color tint)
+        {
+            SetupCandyRow(image);
+            image.color = tint;
+            ConfigureCandyChrome(image, new Color(0.08f, 0.03f, 0.16f, 0.14f), new Color(0.48f, 0.35f, 0.76f, 0.18f), new Vector2(0f, -4f), new Vector2(1f, -1f));
+        }
+
+        private void AddAmbientGloss(RectTransform parent, string name, Vector2 anchorMin, Vector2 anchorMax, Color topColor, Color bottomColor)
+        {
+            if (parent == null)
+            {
+                return;
+            }
+
+            GradientImage ambient = GetOrCreateGradient(parent, name);
+            ambient.colorTop = topColor;
+            ambient.colorBottom = bottomColor;
+            UIManager.Stretch(ambient.rectTransform, anchorMin, anchorMax, Vector2.zero, Vector2.zero);
+            ambient.rectTransform.SetAsFirstSibling();
+            ambient.raycastTarget = false;
+        }
+
+        private void ApplyCandyChipPolish(Image image, bool warm)
+        {
+            if (image == null)
+            {
+                return;
+            }
+
+            ConfigureCandyChrome(
+                image,
+                new Color(0.10f, 0.05f, 0.18f, 0.16f),
+                new Color(1f, 1f, 1f, warm ? 0.12f : 0.07f),
+                new Vector2(0f, -2f),
+                new Vector2(1f, -1f));
+
+            AddAmbientGloss(
+                image.rectTransform,
+                "Gloss",
+                new Vector2(0.04f, 0.54f),
+                new Vector2(0.96f, 0.96f),
+                new Color(1f, 1f, 1f, warm ? 0.24f : 0.18f),
+                new Color(1f, 1f, 1f, 0f));
+
+            AddAmbientGloss(
+                image.rectTransform,
+                "Rim",
+                new Vector2(0.05f, 0.72f),
+                new Vector2(0.95f, 0.98f),
+                warm ? new Color(1f, 0.84f, 0.44f, 0.18f) : new Color(1f, 1f, 1f, 0.08f),
+                new Color(1f, 1f, 1f, 0f));
+        }
+
+        private Text CreateCandyTitleRibbon(Transform parent, Font font, string name, string fallbackText, Vector2 anchorMin, Vector2 anchorMax, int fontSize)
+        {
+            Image ribbon = UIManager.CreateImage(name + "Ribbon", parent, Color.white);
+            ApplyCandySectionRow(ribbon, SheetTitleRibbonTint);
+            UIManager.Stretch(ribbon.rectTransform, anchorMin, anchorMax, Vector2.zero, Vector2.zero);
+
+            GradientImage gloss = GetOrCreateGradient(ribbon.rectTransform, "Gloss");
+            gloss.colorTop = new Color(1f, 1f, 1f, 0.26f);
+            gloss.colorBottom = new Color(1f, 1f, 1f, 0f);
+            UIManager.Stretch(gloss.rectTransform, new Vector2(0.03f, 0.54f), new Vector2(0.97f, 0.96f), Vector2.zero, Vector2.zero);
+            gloss.rectTransform.SetAsFirstSibling();
+            gloss.raycastTarget = false;
+
+            GradientImage warmRim = GetOrCreateGradient(ribbon.rectTransform, "WarmRim");
+            warmRim.colorTop = new Color(1f, 0.82f, 0.44f, 0.24f);
+            warmRim.colorBottom = new Color(1f, 0.82f, 0.44f, 0f);
+            UIManager.Stretch(warmRim.rectTransform, new Vector2(0.02f, 0.78f), new Vector2(0.98f, 0.98f), Vector2.zero, Vector2.zero);
+            warmRim.rectTransform.SetAsFirstSibling();
+            warmRim.raycastTarget = false;
+
+            Image orb = UIManager.CreateImage(name + "Orb", ribbon.transform, Color.white);
+            SetupCandyOrb(orb);
+            UIManager.Stretch(orb.rectTransform, new Vector2(0.03f, 0.16f), new Vector2(0.15f, 0.84f), Vector2.zero, Vector2.zero);
+            orb.raycastTarget = false;
+
+            Text title = UIManager.CreateText(name + "Text", ribbon.transform, font, fontSize, TextAnchor.MiddleLeft, SheetTitleTextTint);
+            title.text = fallbackText;
+            title.fontStyle = FontStyle.Bold;
+            title.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(title, Mathf.Max(14, fontSize - 5), fontSize, UIFontRole.Popup);
+            UIManager.Stretch(title.rectTransform, new Vector2(0.16f, 0.06f), new Vector2(0.90f, 0.94f), new Vector2(4f, 0f), new Vector2(-8f, 0f));
+
+            Shadow titleShadow = title.GetComponent<Shadow>() ?? title.gameObject.AddComponent<Shadow>();
+            titleShadow.effectColor = SheetTitleShadowTint;
+            titleShadow.effectDistance = new Vector2(0f, -4f);
+
+            Outline titleOutline = title.GetComponent<Outline>() ?? title.gameObject.AddComponent<Outline>();
+            titleOutline.effectColor = SheetTitleOutlineTint;
+            titleOutline.effectDistance = new Vector2(1.5f, -1.5f);
+
+            return title;
+        }
+
+        private Text CreateCandySectionBadge(Transform parent, Font font, string name, string textValue, Vector2 anchorMin, Vector2 anchorMax, Color tint)
+        {
+            Image badge = UIManager.CreateImage(name, parent, Color.white);
+            ApplyCandySectionRow(badge, tint);
+            UIManager.Stretch(badge.rectTransform, anchorMin, anchorMax, Vector2.zero, Vector2.zero);
+            AddAmbientGloss(badge.rectTransform, "BadgeGloss", new Vector2(0.04f, 0.50f), new Vector2(0.96f, 0.94f), new Color(1f, 1f, 1f, 0.22f), new Color(1f, 1f, 1f, 0f));
+
+            Text label = UIManager.CreateText(name + "Text", badge.transform, font, 14, TextAnchor.MiddleCenter, Color.white, UIFontRole.Popup);
+            label.text = textValue;
+            label.fontStyle = FontStyle.Bold;
+            label.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(label, 12, 14, UIFontRole.Popup);
+            UIManager.Stretch(label.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 0f), new Vector2(-8f, 0f));
+            return label;
+        }
+
+        private void ApplyTitleOrbSprite(Transform parent, string titleName, string spriteName)
+        {
+            if (parent == null)
+            {
+                return;
+            }
+
+            Transform ribbon = parent.Find(titleName + "Ribbon");
+            Transform orbTransform = ribbon != null ? ribbon.Find(titleName + "Orb") : null;
+            Transform titleTransform = ribbon != null ? ribbon.Find(titleName + "Text") : null;
+            if (orbTransform == null)
+            {
+                return;
+            }
+
+            Image orbImage = orbTransform.GetComponent<Image>();
+            Sprite orbSprite = UICandySkin.GetSprite(spriteName, 100f);
+            if (orbImage == null || orbSprite == null)
+            {
+                return;
+            }
+
+            orbImage.sprite = orbSprite;
+            orbImage.type = Image.Type.Simple;
+            orbImage.preserveAspect = true;
+            orbImage.color = Color.white;
+
+            RectTransform orbRect = orbTransform as RectTransform;
+            if (orbRect != null)
+            {
+                UIManager.Stretch(orbRect, new Vector2(0.015f, 0.08f), new Vector2(0.205f, 0.92f), Vector2.zero, Vector2.zero);
+            }
+
+            RectTransform titleRect = titleTransform as RectTransform;
+            if (titleRect != null)
+            {
+                UIManager.Stretch(titleRect, new Vector2(0.21f, 0.06f), new Vector2(0.90f, 0.94f), new Vector2(4f, 0f), new Vector2(-8f, 0f));
+            }
+        }
+
+        private void ApplyTitleOrbSprite(Transform parent, string titleName, Sprite sprite)
+        {
+            if (parent == null || sprite == null)
+            {
+                return;
+            }
+
+            Transform ribbon = parent.Find(titleName + "Ribbon");
+            Transform orbTransform = ribbon != null ? ribbon.Find(titleName + "Orb") : null;
+            Transform titleTransform = ribbon != null ? ribbon.Find(titleName + "Text") : null;
+            if (orbTransform == null)
+            {
+                return;
+            }
+
+            Image orbImage = orbTransform.GetComponent<Image>();
+            if (orbImage == null)
+            {
+                return;
+            }
+
+            orbImage.sprite = sprite;
+            orbImage.type = Image.Type.Simple;
+            orbImage.preserveAspect = true;
+            orbImage.color = Color.white;
+
+            RectTransform orbRect = orbTransform as RectTransform;
+            if (orbRect != null)
+            {
+                UIManager.Stretch(orbRect, new Vector2(0.03f, 0.14f), new Vector2(0.17f, 0.86f), new Vector2(2f, 0f), new Vector2(-2f, 0f));
+            }
+
+            RectTransform titleRect = titleTransform as RectTransform;
+            if (titleRect != null)
+            {
+                UIManager.Stretch(titleRect, new Vector2(0.18f, 0.06f), new Vector2(0.90f, 0.94f), new Vector2(4f, 0f), new Vector2(-8f, 0f));
+            }
+        }
+
         private void BuildSettingsPanel(Font font, Action onToggleSound, Action onToggleVibration)
         {
             // Dimmed overlay backer
@@ -315,7 +875,7 @@ namespace TowerMaze
             overlay.transform.SetParent(transform, false);
             var overlayRt = overlay.AddComponent<RectTransform>();
             UIManager.Stretch(overlayRt, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            overlay.AddComponent<Image>().color = new Color(0, 0, 0, 0.75f);
+            overlay.AddComponent<Image>().color = SheetOverlayTint;
             settingsPanel = overlay;
             settingsPanelCanvasGroup = overlay.AddComponent<CanvasGroup>();
             settingsPanelCanvasGroup.alpha = 0f;
@@ -324,44 +884,83 @@ namespace TowerMaze
             GameObject card = new GameObject("SettingsCard");
             card.transform.SetParent(overlay.transform, false);
             settingsPanelRt = card.AddComponent<RectTransform>();
-            settingsPanelRt.anchorMin = new Vector2(0.12f, 0.40f);
-            settingsPanelRt.anchorMax = new Vector2(0.88f, 0.78f);
+            settingsPanelRt.anchorMin = new Vector2(0.05f, 0.20f);
+            settingsPanelRt.anchorMax = new Vector2(0.95f, 0.88f);
             settingsPanelRt.offsetMin = settingsPanelRt.offsetMax = Vector2.zero;
-            card.AddComponent<Image>().color = UIStyle.ShopBg;
+            Image cardImage = card.AddComponent<Image>();
+            ApplyCandySheetPanel(cardImage);
+            AddAmbientGloss(settingsPanelRt, "SettingsTopGloss", new Vector2(0.04f, 0.58f), new Vector2(0.96f, 0.98f), new Color(1f, 1f, 1f, 0.18f), new Color(1f, 1f, 1f, 0f));
+            AddAmbientGloss(settingsPanelRt, "SettingsLowerWash", new Vector2(0.07f, 0.04f), new Vector2(0.93f, 0.48f), new Color(1f, 0.86f, 0.56f, 0.09f), new Color(0.96f, 0.84f, 1f, 0f));
 
-            var title = UIManager.CreateText("Title", card.transform, font, 18, TextAnchor.MiddleCenter, UIStyle.TextPrimary);
-            title.text = "SETTINGS";
-            title.fontStyle = FontStyle.Bold;
-            title.rectTransform.anchorMin = new Vector2(0f, 0.88f);
-            title.rectTransform.anchorMax = new Vector2(1f, 0.98f);
-            title.rectTransform.offsetMin = title.rectTransform.offsetMax = Vector2.zero;
+            settingsTitleText = CreateCandyTitleRibbon(card.transform, font, "SettingsTitle", "SETTINGS", new Vector2(0.06f, 0.84f), new Vector2(0.90f, 0.97f), 22);
+            Texture2D settingsOrbTexture = Resources.Load<Texture2D>("TowerMaze/UITheme/out_icon_gear");
+            if (settingsOrbTexture != null)
+            {
+                Sprite settingsOrbSprite = Sprite.Create(settingsOrbTexture, new Rect(0, 0, settingsOrbTexture.width, settingsOrbTexture.height), new Vector2(0.5f, 0.5f), 100f);
+                ApplyTitleOrbSprite(card.transform, "SettingsTitle", settingsOrbSprite);
+            }
 
-            var closeGo = CreateIconCircle("CloseBtn", card.transform, font, "\u00d7",
-                HideSettingsPanel, buttonClickSound);
-            var closeRt = closeGo.GetComponent<RectTransform>();
-            closeRt.anchorMin = new Vector2(0.85f, 0.88f);
-            closeRt.anchorMax = new Vector2(0.97f, 0.97f);
-            closeRt.offsetMin = closeRt.offsetMax = Vector2.zero;
+            Button closeButton = UIManager.CreateCandyCloseButton("CloseBtn", card.transform, font, 16);
+            UIManager.BindButton(closeButton, HideSettingsPanel, buttonClickSound);
+            var closeRt = (RectTransform)closeButton.transform;
+            closeRt.anchorMin = new Vector2(1f, 1f);
+            closeRt.anchorMax = new Vector2(1f, 1f);
+            closeRt.pivot = new Vector2(1f, 1f);
+            closeRt.anchoredPosition = new Vector2(-22f, -18f);
+            closeRt.sizeDelta = new Vector2(54f, 54f);
 
-            BuildSettingsToggleRow("Sound", font, card.transform,
-                ref settingsSoundOnBg, ref settingsSoundOffBg, 0.70f,
+            Image controlsBacker = UIManager.CreateImage("ControlsBacker", card.transform, Color.white);
+            ApplyCandySectionRow(controlsBacker, new Color(SheetSectionTint.r, SheetSectionTint.g, SheetSectionTint.b, 0.56f));
+            controlsBacker.rectTransform.anchorMin = new Vector2(0.08f, 0.46f);
+            controlsBacker.rectTransform.anchorMax = new Vector2(0.92f, 0.76f);
+            controlsBacker.rectTransform.offsetMin = controlsBacker.rectTransform.offsetMax = Vector2.zero;
+            controlsBacker.raycastTarget = false;
+            AddAmbientGloss(controlsBacker.rectTransform, "ControlsGloss", new Vector2(0.03f, 0.56f), new Vector2(0.97f, 0.95f), new Color(1f, 1f, 1f, 0.12f), new Color(1f, 1f, 1f, 0f));
+            controlsBacker.transform.SetAsFirstSibling();
+
+            settingsAudioHeaderText = CreateCandySectionBadge(
+                controlsBacker.transform,
+                font,
+                "ControlsHeaderBadge",
+                "AUDIO",
+                new Vector2(0.05f, 0.82f),
+                new Vector2(0.35f, 0.97f),
+                UIStyle.Action); // Main screen orange
+            settingsAudioHeaderText.alignment = TextAnchor.MiddleCenter;
+
+            BuildSettingsToggleRow("Sound", font, controlsBacker.transform,
+                ref settingsSoundLabelText, ref settingsSoundIcon, ref settingsSoundToggleBg, ref settingsSoundToggleText, 0.60f,
                 () => { onToggleSound?.Invoke(); });
 
-            BuildSettingsToggleRow("Vibration", font, card.transform,
-                ref settingsVibOnBg, ref settingsVibOffBg, 0.55f,
+            BuildSettingsToggleRow("Vibration", font, controlsBacker.transform,
+                ref settingsVibrationLabelText, ref settingsVibIcon, ref settingsVibToggleBg, ref settingsVibToggleText, 0.24f,
                 () => { onToggleVibration?.Invoke(); });
 
-            // Language section
-            var langLabel = UIManager.CreateText(card.transform, "LangLabel", "LANGUAGE",
-                10, FontStyle.Bold, UIStyle.TextFaint, font, TextAnchor.MiddleLeft);
-            langLabel.rectTransform.anchorMin = new Vector2(0.06f, 0.38f);
-            langLabel.rectTransform.anchorMax = new Vector2(0.60f, 0.44f);
-            langLabel.rectTransform.offsetMin = langLabel.rectTransform.offsetMax = Vector2.zero;
+            Image languageBacker = UIManager.CreateImage("LanguageBacker", card.transform, Color.white);
+            ApplyCandySectionRow(languageBacker, new Color(SheetSectionTint.r, SheetSectionTint.g, SheetSectionTint.b, 0.46f));
+            languageBacker.rectTransform.anchorMin = new Vector2(0.08f, 0.18f);
+            languageBacker.rectTransform.anchorMax = new Vector2(0.92f, 0.40f);
+            languageBacker.rectTransform.offsetMin = languageBacker.rectTransform.offsetMax = Vector2.zero;
+            languageBacker.raycastTarget = false;
+            AddAmbientGloss(languageBacker.rectTransform, "LanguageBackerGlow", new Vector2(0.04f, 0.34f), new Vector2(0.96f, 0.88f), new Color(1f, 1f, 1f, 0.09f), new Color(1f, 1f, 1f, 0f));
+            languageBacker.transform.SetAsFirstSibling();
 
-            Image langCard = UIManager.CreateCard("LanguageCard", card.transform, UIStyle.SurfaceDark, UIStyle.BorderDark);
-            langCard.rectTransform.anchorMin = new Vector2(0.06f, 0.22f);
-            langCard.rectTransform.anchorMax = new Vector2(0.95f, 0.38f);
+            var langLabel = CreateCandySectionBadge(
+                languageBacker.transform,
+                font,
+                "LangLabelBadge",
+                "LANGUAGE",
+                new Vector2(0.05f, 0.76f),
+                new Vector2(0.40f, 0.96f),
+                UIStyle.Action); // Main screen orange
+            languageLabelText = langLabel;
+
+            Image langCard = UIManager.CreateCard("LanguageCard", languageBacker.transform, Color.white, new Color(0f, 0f, 0f, 0f));
+            ApplyCandySectionRow(langCard, SheetSectionTint);
+            langCard.rectTransform.anchorMin = new Vector2(0.05f, 0.12f);
+            langCard.rectTransform.anchorMax = new Vector2(0.95f, 0.64f);
             langCard.rectTransform.offsetMin = langCard.rectTransform.offsetMax = Vector2.zero;
+            AddAmbientGloss(langCard.rectTransform, "LanguageCardGloss", new Vector2(0.04f, 0.52f), new Vector2(0.96f, 0.95f), new Color(1f, 1f, 1f, 0.16f), new Color(1f, 1f, 1f, 0f));
 
             languageChipBackgrounds = new Image[supportedLanguageCodes.Length];
             languageChipTexts = new Text[supportedLanguageCodes.Length];
@@ -372,52 +971,169 @@ namespace TowerMaze
 
             RefreshLanguageTabs();
 
+            Button privacyBtn = UIManager.CreateButton("PrivacyBtn", card.transform, font, "PRIVACY POLICY", Color.white, Color.white);
+            SetupCandyButton(privacyBtn.targetGraphic as Image, "out_btn_purple", new Vector4(150f, 160f, 150f, 160f), 350f);
+            RectTransform privacyRt = (RectTransform)privacyBtn.transform;
+            privacyRt.anchorMin = new Vector2(0.08f, 0.05f);
+            privacyRt.anchorMax = new Vector2(0.49f, 0.13f);
+            privacyRt.offsetMin = privacyRt.offsetMax = Vector2.zero;
+            AddAmbientGloss(privacyRt, "PrivacyButtonGloss", new Vector2(0.03f, 0.56f), new Vector2(0.97f, 0.95f), new Color(1f, 1f, 1f, 0.22f), new Color(1f, 1f, 1f, 0f));
+            UIManager.StyleButtonLabel(privacyBtn, 14, TextAnchor.MiddleCenter, Vector2.zero, Vector2.zero);
+            privacyButtonText = privacyBtn.GetComponentInChildren<Text>();
+            if (privacyButtonText != null)
+            {
+                privacyButtonText.fontStyle = FontStyle.Bold;
+                privacyButtonText.resizeTextForBestFit = true;
+                UIManager.SetScaledBestFit(privacyButtonText, 11, 14, UIFontRole.Button);
+            }
+
+            UIManager.BindButton(privacyBtn, ShowPrivacyPolicySheet, buttonClickSound);
+
+            Button qualityBtn = UIManager.CreateButton("QualityBtn", card.transform, font, "GRAPHICS", Color.white, Color.white);
+            SetupCandyButton(qualityBtn.targetGraphic as Image, "out_btn_purple", new Vector4(150f, 160f, 150f, 160f), 350f);
+            RectTransform qualityRt = (RectTransform)qualityBtn.transform;
+            qualityRt.anchorMin = new Vector2(0.51f, 0.05f);
+            qualityRt.anchorMax = new Vector2(0.92f, 0.13f);
+            qualityRt.offsetMin = qualityRt.offsetMax = Vector2.zero;
+            AddAmbientGloss(qualityRt, "QualityButtonGloss", new Vector2(0.03f, 0.56f), new Vector2(0.97f, 0.95f), new Color(1f, 1f, 1f, 0.22f), new Color(1f, 1f, 1f, 0f));
+            UIManager.StyleButtonLabel(qualityBtn, 14, TextAnchor.MiddleCenter, Vector2.zero, Vector2.zero);
+            graphicsQualityButtonText = qualityBtn.GetComponentInChildren<Text>();
+            if (graphicsQualityButtonText != null)
+            {
+                graphicsQualityButtonText.fontStyle = FontStyle.Bold;
+                graphicsQualityButtonText.resizeTextForBestFit = true;
+                UIManager.SetScaledBestFit(graphicsQualityButtonText, 11, 14, UIFontRole.Button);
+            }
+            RefreshGraphicsQualityLabel();
+            UIManager.BindButton(qualityBtn, CycleGraphicsQuality, buttonClickSound);
+
             settingsPanelRt.anchoredPosition = new Vector2(1200f, 0f);
             settingsPanel.SetActive(false);
+            UIManager.ApplyPopupTextRoles(overlay.transform);
+        }
+
+        private static Sprite cachedFlatPillSprite;
+        private static Sprite GetFlatPillSprite()
+        {
+            if (cachedFlatPillSprite != null) return cachedFlatPillSprite;
+
+            const int height = 48;
+            const int width = 96;
+            float radius = height * 0.5f;
+            Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            tex.wrapMode = TextureWrapMode.Clamp;
+            tex.filterMode = FilterMode.Bilinear;
+
+            Color[] pixels = new Color[width * height];
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    float cx = x + 0.5f;
+                    float cy = y + 0.5f;
+                    // Center of left/right capsule arcs:
+                    float leftCx = radius;
+                    float rightCx = width - radius;
+                    float dx = 0f;
+                    if (cx < leftCx) dx = leftCx - cx;
+                    else if (cx > rightCx) dx = cx - rightCx;
+                    float dy = Mathf.Abs(cy - radius);
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                    // Anti-aliased coverage at edge.
+                    float alpha = Mathf.Clamp01(radius - dist);
+                    pixels[(y * width) + x] = new Color(1f, 1f, 1f, alpha);
+                }
+            }
+            tex.SetPixels(pixels);
+            tex.Apply(false, true);
+
+            // 9-slice border = radius so corners stay perfectly round when stretched.
+            Vector4 border = new(radius, radius, radius, radius);
+            cachedFlatPillSprite = Sprite.Create(tex,
+                new Rect(0, 0, width, height),
+                new Vector2(0.5f, 0.5f),
+                100f, 0, SpriteMeshType.FullRect, border);
+            cachedFlatPillSprite.name = "TowerMaze_FlatPill";
+            return cachedFlatPillSprite;
+        }
+
+        private static Sprite LoadTextureAsSprite(string resourcePath)
+        {
+            Texture2D tex = Resources.Load<Texture2D>(resourcePath);
+            if (tex == null) return null;
+            return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
         }
 
         private void BuildSettingsToggleRow(string labelStr, Font font, Transform parent,
-            ref Image onChipBg, ref Image offChipBg, float anchorYMid, Action onToggle)
+            ref Text rowLabelText, ref Image iconImg, ref Image chipBg, ref Text chipText, float anchorYMid, Action onToggle)
         {
-            float h = 0.07f;
-            var lbl = UIManager.CreateText("Lbl_" + labelStr, parent, font, 12,
-                TextAnchor.MiddleLeft, UIStyle.TextPrimary);
-            lbl.text = labelStr.ToUpper();
-            lbl.rectTransform.anchorMin = new Vector2(0.06f, anchorYMid - h * 0.5f);
-            lbl.rectTransform.anchorMax = new Vector2(0.60f, anchorYMid + h * 0.5f);
-            lbl.rectTransform.offsetMin = lbl.rectTransform.offsetMax = Vector2.zero;
+            float rowHalfHeight = 0.15f;
+            Image rowShell = UIManager.CreateImage(labelStr + "Row", parent, Color.white);
+            ApplyCandySectionRow(rowShell, new Color(1f, 1f, 1f, 0.92f));
+            rowShell.rectTransform.anchorMin = new Vector2(0.05f, anchorYMid - rowHalfHeight);
+            rowShell.rectTransform.anchorMax = new Vector2(0.95f, anchorYMid + rowHalfHeight);
+            rowShell.rectTransform.offsetMin = rowShell.rectTransform.offsetMax = Vector2.zero;
+            rowShell.raycastTarget = false;
+            AddAmbientGloss(rowShell.rectTransform, "RowGloss", new Vector2(0.03f, 0.54f), new Vector2(0.97f, 0.94f), new Color(1f, 1f, 1f, 0.20f), new Color(1f, 1f, 1f, 0f));
 
-            // ON chip
-            var onGo = new GameObject("On_" + labelStr);
-            onGo.transform.SetParent(parent, false);
-            onChipBg = onGo.AddComponent<Image>();
-            onChipBg.color = UIStyle.Brand; // active by default; updated in SetState
-            var onRt = onChipBg.rectTransform;
-            onRt.anchorMin = new Vector2(0.63f, anchorYMid - 0.04f);
-            onRt.anchorMax = new Vector2(0.78f, anchorYMid + 0.04f);
-            onRt.offsetMin = onRt.offsetMax = Vector2.zero;
-            var onBtn = onGo.AddComponent<Button>(); onBtn.targetGraphic = onChipBg;
-            UIManager.BindButton(onBtn, () => { onToggle?.Invoke(); }, null);
-            var onLbl = UIManager.CreateText("Lbl", onGo.transform, font, 11,
+            bool soundRow = string.Equals(labelStr, "Sound", StringComparison.OrdinalIgnoreCase);
+
+            iconImg = UIManager.CreateImage(labelStr + "Icon", rowShell.transform, Color.white);
+            iconImg.preserveAspect = true;
+            iconImg.raycastTarget = false;
+            UIManager.Stretch(iconImg.rectTransform, new Vector2(0.06f, 0.16f), new Vector2(0.24f, 0.84f), Vector2.zero, Vector2.zero);
+            string iconPath = soundRow ? "TowerMaze/UITheme/jelly_sound_icon_hq" : "TowerMaze/UITheme/jelly_vib_icon_hq";
+            iconImg.sprite = Resources.Load<Sprite>(iconPath) ?? LoadTextureAsSprite(iconPath);
+            iconImg.rectTransform.localScale = new Vector3(1.65f, 1.65f, 1f);
+
+            var lbl = UIManager.CreateText("Lbl_" + labelStr, rowShell.transform, font, 18,
+                TextAnchor.MiddleLeft, UIStyle.PopupText);
+            lbl.text = labelStr.ToUpperInvariant();
+            lbl.fontStyle = FontStyle.Bold;
+            lbl.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(lbl, 14, 18, UIFontRole.Popup);
+            UIManager.Stretch(lbl.rectTransform, new Vector2(0.24f, 0.20f), new Vector2(0.54f, 0.80f), Vector2.zero, Vector2.zero);
+            rowLabelText = lbl;
+
+            var go = new GameObject("Toggle_" + labelStr);
+            go.transform.SetParent(rowShell.transform, false);
+            chipBg = go.AddComponent<Image>();
+            chipBg.preserveAspect = true;
+            chipBg.color = Color.white;
+            chipBg.sprite = Resources.Load<Sprite>("TowerMaze/UITheme/jelly_btn_off");
+            ConfigureCandyChrome(
+                chipBg,
+                new Color(0.10f, 0.06f, 0.16f, 0.16f),
+                new Color(1f, 1f, 1f, 0.08f),
+                new Vector2(0f, -2f),
+                new Vector2(1f, -1f));
+            AddAmbientGloss(
+                chipBg.rectTransform,
+                "ToggleGloss",
+                new Vector2(0.04f, 0.54f),
+                new Vector2(0.96f, 0.94f),
+                new Color(1f, 1f, 1f, 0.14f),
+                new Color(1f, 1f, 1f, 0f));
+
+            var rt = chipBg.rectTransform;
+            UIManager.Stretch(rt, new Vector2(0.69f, 0.18f), new Vector2(0.94f, 0.82f), Vector2.zero, Vector2.zero);
+
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = chipBg;
+            UIManager.BindButton(btn, () => {
+                StartCoroutine(UIStyle.ButtonPress(rt));
+                onToggle?.Invoke();
+            }, buttonClickSound);
+
+            chipText = UIManager.CreateText("StatusTxt", go.transform, font, 15,
                 TextAnchor.MiddleCenter, Color.white);
-            onLbl.text = "ON";
-            UIManager.Stretch(onLbl.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-
-            // OFF chip
-            var offGo = new GameObject("Off_" + labelStr);
-            offGo.transform.SetParent(parent, false);
-            offChipBg = offGo.AddComponent<Image>();
-            offChipBg.color = UIStyle.SurfaceDark; // inactive by default; updated in SetState
-            var offRt = offChipBg.rectTransform;
-            offRt.anchorMin = new Vector2(0.80f, anchorYMid - 0.04f);
-            offRt.anchorMax = new Vector2(0.95f, anchorYMid + 0.04f);
-            offRt.offsetMin = offRt.offsetMax = Vector2.zero;
-            var offBtn = offGo.AddComponent<Button>(); offBtn.targetGraphic = offChipBg;
-            UIManager.BindButton(offBtn, () => { onToggle?.Invoke(); }, null);
-            var offLbl = UIManager.CreateText("Lbl", offGo.transform, font, 11,
-                TextAnchor.MiddleCenter, UIStyle.TextDim);
-            offLbl.text = "OFF";
-            UIManager.Stretch(offLbl.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            chipText.fontStyle = FontStyle.Bold;
+            chipText.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(chipText, 12, 15, UIFontRole.Button);
+            UIManager.Stretch(chipText.rectTransform, new Vector2(0.05f, 0.15f), new Vector2(0.95f, 0.85f), Vector2.zero, Vector2.zero);
+            Shadow chipShadow = chipText.gameObject.AddComponent<Shadow>();
+            chipShadow.effectColor = new Color(0.16f, 0.08f, 0.20f, 0.28f);
+            chipShadow.effectDistance = new Vector2(0f, -1f);
         }
 
         private void SpawnLangButton(Transform parent, string code, Font font, int index)
@@ -425,21 +1141,40 @@ namespace TowerMaze
             var go = new GameObject($"Lang_{code}");
             go.transform.SetParent(parent, false);
             var img = go.AddComponent<Image>();
+            img.sprite = Resources.Load<Sprite>("TowerMaze/UITheme/jelly_btn_off");
+            img.preserveAspect = true;
+            img.color = Color.white;
+            
             var rt = go.GetComponent<RectTransform>();
             float slotWidth = 1f / Mathf.Max(1, supportedLanguageCodes.Length);
-            rt.anchorMin = new Vector2(slotWidth * index + 0.015f, 0.16f);
-            rt.anchorMax = new Vector2(slotWidth * (index + 1) - 0.015f, 0.84f);
+            rt.anchorMin = new Vector2(slotWidth * index + 0.03f, 0.18f);
+            rt.anchorMax = new Vector2(slotWidth * (index + 1) - 0.03f, 0.82f);
             rt.offsetMin = rt.offsetMax = Vector2.zero;
+            ConfigureCandyChrome(
+                img,
+                new Color(0.10f, 0.06f, 0.16f, 0.14f),
+                new Color(1f, 1f, 1f, 0.08f),
+                new Vector2(0f, -2f),
+                new Vector2(1f, -1f));
+            AddAmbientGloss(
+                img.rectTransform,
+                "LangGloss",
+                new Vector2(0.04f, 0.54f),
+                new Vector2(0.96f, 0.94f),
+                new Color(1f, 1f, 1f, 0.14f),
+                new Color(1f, 1f, 1f, 0f));
 
             var btn = go.AddComponent<Button>();
             btn.targetGraphic = img;
             var txt = UIManager.CreateText(go.transform, "T", code,
-                12, FontStyle.Bold, Color.white, font, TextAnchor.MiddleCenter);
+                16, FontStyle.Bold, Color.white, font, TextAnchor.MiddleCenter);
+            txt.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(txt, 14, 17, UIFontRole.Button);
             UIManager.Stretch(txt.rectTransform);
             UIManager.BindButton(btn, () => {
-                PlayerPrefs.SetString("Language", code);
-                PlayerPrefs.Save();
+                UILanguage.SetLanguageCode(code);
                 RefreshLanguageTabs();
+                ApplyLocalizedTexts();
             });
 
             if (languageChipBackgrounds != null && index < languageChipBackgrounds.Length)
@@ -460,18 +1195,34 @@ namespace TowerMaze
                 return;
             }
 
-            string currentCode = PlayerPrefs.GetString("Language", "TR");
+            string currentCode = UILanguage.GetLanguageCode();
             for (int index = 0; index < supportedLanguageCodes.Length; index++)
             {
-                bool active = string.Equals(currentCode, supportedLanguageCodes[index], StringComparison.OrdinalIgnoreCase);
+                string code = supportedLanguageCodes[index].ToUpperInvariant();
+                bool active = string.Equals(currentCode, code, StringComparison.OrdinalIgnoreCase);
                 if (languageChipBackgrounds[index] != null)
                 {
-                    languageChipBackgrounds[index].color = active ? UIStyle.Brand : new Color(1f, 1f, 1f, 0.12f);
+                    // Premium Tinting Logic: Distinct colors per language
+                    Color targetCol = new Color(0.4f, 0.4f, 0.4f, 0.6f); // Inactive glass grey
+                    if (active)
+                    {
+                        targetCol = code switch
+                        {
+                            "TR" => new Color(1.0f, 0.30f, 0.55f), // Turkish Pink (Swapped)
+                            "EN" => new Color(0.55f, 0.35f, 1.0f), // English Purple
+                            "ES" => new Color(1.0f, 0.44f, 0.12f), // Spanish Orange (Swapped)
+                            _ => Color.white
+                        };
+                    }
+                    
+                    languageChipBackgrounds[index].color = targetCol;
+                    languageChipBackgrounds[index].rectTransform.localScale = active ? new Vector3(1.04f, 1.04f, 1f) : Vector3.one;
                 }
 
                 if (languageChipTexts[index] != null)
                 {
-                    languageChipTexts[index].color = active ? Color.white : UIStyle.TextPrimary;
+                    languageChipTexts[index].color = active ? Color.white : new Color(1f, 1f, 1f, 0.6f);
+                    languageChipTexts[index].fontStyle = FontStyle.Bold;
                 }
             }
         }
@@ -547,245 +1298,1465 @@ namespace TowerMaze
 
         private void ShowLeaderboardSheet()
         {
-            if (leaderboardSheet == null) return;
+            if (leaderboardOverlay == null || leaderboardSheet == null) return;
+            RefreshLeaderboardRows(resetPosition: true);
+            leaderboardOverlay.SetActive(true);
             leaderboardSheet.gameObject.SetActive(true);
             float h = leaderboardSheet.rect.height > 1f ? leaderboardSheet.rect.height : 800f;
             StartCoroutine(UIStyle.SlideUp(leaderboardSheet, h, 0.25f));
         }
 
+        /// <summary>
+        /// Called by UIManager when fresh Firebase leaderboard data arrives.
+        /// Updates the cached entries and immediately refreshes the popup rows
+        /// whether the popup is open or not, so data is always up-to-date.
+        /// </summary>
+        public void UpdateLeaderboardData(float bestScore, IReadOnlyList<LeaderboardEntry> entries)
+        {
+            cachedBestScoreValue = bestScore;
+            cachedLeaderboardEntries = entries ?? Array.Empty<LeaderboardEntry>();
+            // Always refresh rows — if the popup is closed this is fast (no-op on hidden objects).
+            // If the popup is open, the user will see live Firebase data appear.
+            RefreshLeaderboardRows(resetPosition: false);
+        }
+
         private void ShowMissionsSheet()
         {
-            if (missionsSheet == null) return;
+            if (missionsOverlay == null || missionsSheet == null) return;
+            UpdateMissionCountdown(GetTimeUntilNextLocalDay());
+            missionsOverlay.SetActive(true);
             missionsSheet.gameObject.SetActive(true);
             float h = missionsSheet.rect.height > 1f ? missionsSheet.rect.height : 900f;
             StartCoroutine(UIStyle.SlideUp(missionsSheet, h, 0.25f));
         }
 
-        private IEnumerator CloseSheet(RectTransform sheet)
+        private void RefreshGraphicsQualityLabel()
+        {
+            if (graphicsQualityButtonText == null) return;
+            QualityOverrideMode mode = DeviceQualityProfile.CurrentOverrideMode;
+            string modeWord = mode switch
+            {
+                QualityOverrideMode.Low => TranslateText("DUSUK", "LOW", "BAJO"),
+                QualityOverrideMode.Mid => TranslateText("ORTA", "MID", "MEDIO"),
+                QualityOverrideMode.High => TranslateText("YUKSEK", "HIGH", "ALTO"),
+                _ => TranslateText("OTO", "AUTO", "AUTO"),
+            };
+            string prefix = TranslateText("GRAFIK", "GRAPHICS", "GRAFICOS");
+            graphicsQualityButtonText.text = $"{prefix}: {modeWord}";
+        }
+
+        private void CycleGraphicsQuality()
+        {
+            QualityOverrideMode current = DeviceQualityProfile.CurrentOverrideMode;
+            QualityOverrideMode next = current switch
+            {
+                QualityOverrideMode.Auto => QualityOverrideMode.Low,
+                QualityOverrideMode.Low => QualityOverrideMode.Mid,
+                QualityOverrideMode.Mid => QualityOverrideMode.High,
+                _ => QualityOverrideMode.Auto,
+            };
+            DeviceQualityProfile.SetOverrideMode(next);
+            RefreshGraphicsQualityLabel();
+        }
+
+        private void ShowPrivacyPolicySheet()
+        {
+            if (privacyOverlay == null || privacySheet == null)
+            {
+                return;
+            }
+
+            RefreshPrivacyScrollLayout(resetPosition: true);
+            privacyOverlay.SetActive(true);
+            privacyOverlay.transform.SetAsLastSibling();
+            privacySheet.gameObject.SetActive(true);
+            float h = privacySheet.rect.height > 1f ? privacySheet.rect.height : 960f;
+            StartCoroutine(UIStyle.SlideUp(privacySheet, h, 0.25f));
+        }
+
+        private IEnumerator CloseSheet(RectTransform sheet, GameObject overlayRoot = null)
         {
             float h = sheet.rect.height > 1f ? sheet.rect.height : 800f;
             yield return StartCoroutine(UIStyle.SlideDown(sheet, h, 0.20f));
+            if (overlayRoot != null)
+            {
+                overlayRoot.SetActive(false);
+                yield break;
+            }
+
             sheet.gameObject.SetActive(false);
-        }
-
-        private void CreateLeaderboardFlag(Transform parent, Color flagColor)
-        {
-            Image pole = UIManager.CreateImage("FlagPole", parent, new Color(1f, 1f, 1f, 0.45f));
-            pole.rectTransform.anchorMin = new Vector2(0.03f, 0.24f);
-            pole.rectTransform.anchorMax = new Vector2(0.035f, 0.78f);
-            pole.rectTransform.offsetMin = pole.rectTransform.offsetMax = Vector2.zero;
-            pole.raycastTarget = false;
-
-            Image pennant = UIManager.CreateImage("FlagPennant", parent, flagColor);
-            pennant.rectTransform.anchorMin = new Vector2(0.035f, 0.55f);
-            pennant.rectTransform.anchorMax = new Vector2(0.11f, 0.76f);
-            pennant.rectTransform.offsetMin = pennant.rectTransform.offsetMax = Vector2.zero;
-            pennant.raycastTarget = false;
         }
 
         private void BuildLeaderboardSheet(Font font)
         {
-            var go = new GameObject("LeaderboardSheet");
-            go.transform.SetParent(transform, false);
-            leaderboardSheet = go.AddComponent<RectTransform>();
-            leaderboardSheet.anchorMin = new Vector2(0f, 0f);
-            leaderboardSheet.anchorMax = new Vector2(1f, 0.65f);
-            leaderboardSheet.offsetMin = leaderboardSheet.offsetMax = Vector2.zero;
-            go.AddComponent<CanvasGroup>().alpha = 0f;
-            go.AddComponent<Image>().color = UIStyle.ShopBg;
+            leaderboardOverlay = new GameObject("LeaderboardOverlay");
+            leaderboardOverlay.transform.SetParent(transform, false);
+            RectTransform overlayRt = leaderboardOverlay.AddComponent<RectTransform>();
+            UIManager.Stretch(overlayRt, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            leaderboardOverlay.AddComponent<Image>().color = SheetOverlayTint;
+            leaderboardOverlay.AddComponent<CanvasGroup>().alpha = 1f;
 
-            var handle = UIManager.CreateImage("Handle", go.transform, new Color(1f, 1f, 1f, 0.15f));
-            handle.rectTransform.anchorMin = new Vector2(0.35f, 0.965f);
-            handle.rectTransform.anchorMax = new Vector2(0.65f, 0.985f);
+            GameObject cardGo = new GameObject("LeaderboardCard");
+            cardGo.transform.SetParent(leaderboardOverlay.transform, false);
+            leaderboardSheet = cardGo.AddComponent<RectTransform>();
+            leaderboardSheet.anchorMin = new Vector2(0.05f, 0.12f);
+            leaderboardSheet.anchorMax = new Vector2(0.95f, 0.87f);
+            leaderboardSheet.offsetMin = leaderboardSheet.offsetMax = Vector2.zero;
+            Image cardImage = cardGo.AddComponent<Image>();
+            ApplyCandySheetPanel(cardImage);
+            cardGo.AddComponent<CanvasGroup>().alpha = 0f;
+
+            Image handle = UIManager.CreateImage("Handle", cardGo.transform, Color.clear);
+            handle.rectTransform.anchorMin = new Vector2(0.35f, 0.95f);
+            handle.rectTransform.anchorMax = new Vector2(0.65f, 0.97f);
             handle.rectTransform.offsetMin = handle.rectTransform.offsetMax = Vector2.zero;
             handle.raycastTarget = false;
 
-            var title = UIManager.CreateText("Title", go.transform, font, 14,
-                TextAnchor.MiddleLeft, UIStyle.TextPrimary);
-            title.text = "\U0001f3c5 Top Runs";
-            title.fontStyle = FontStyle.Bold;
-            title.rectTransform.anchorMin = new Vector2(0.04f, 0.87f);
-            title.rectTransform.anchorMax = new Vector2(0.80f, 0.96f);
-            title.rectTransform.offsetMin = title.rectTransform.offsetMax = Vector2.zero;
-
-            const int rowCount = 5;
-            leaderboardRowBgs = new Image[rowCount];
-            leaderboardRankTexts = new Text[rowCount];
-            leaderboardNameTexts = new Text[rowCount];
-            leaderboardScoreTexts = new Text[rowCount];
-
-            for (int i = 0; i < rowCount; i++)
+            leaderboardTitleText = CreateCandyTitleRibbon(cardGo.transform, font, "LeaderboardTitle", "TOP RUNS", new Vector2(0.08f, 0.82f), new Vector2(0.92f, 0.95f), 21);
+            Texture2D leaderboardOrbTexture = Resources.Load<Texture2D>("TowerMaze/UITheme/out_icon_flag");
+            if (leaderboardOrbTexture != null)
             {
-                float yTop = 0.86f - i * 0.155f;
-                Image row = UIManager.CreateCard($"Row{i}", go.transform, UIStyle.SurfaceDark, UIStyle.BorderDark);
-                row.rectTransform.anchorMin = new Vector2(0.04f, yTop - 0.14f);
-                row.rectTransform.anchorMax = new Vector2(0.96f, yTop);
-                row.rectTransform.offsetMin = row.rectTransform.offsetMax = Vector2.zero;
-                leaderboardRowBgs[i] = row;
-                CreateLeaderboardFlag(row.transform, i == 0 ? UIStyle.Gold : UIStyle.Brand);
-
-                var rank = UIManager.CreateText("Rank", row.transform, font, 11, TextAnchor.MiddleLeft,
-                    i == 0 ? UIStyle.Gold : UIStyle.TextDim);
-                rank.text = $"#{i + 1}";
-                rank.rectTransform.anchorMin = new Vector2(0.12f, 0f);
-                rank.rectTransform.anchorMax = new Vector2(0.24f, 1f);
-                rank.rectTransform.offsetMin = rank.rectTransform.offsetMax = Vector2.zero;
-                leaderboardRankTexts[i] = rank;
-
-                var nameText = UIManager.CreateText("Name", row.transform, font, 10,
-                    TextAnchor.MiddleLeft, UIStyle.TextPrimary);
-                nameText.text = "---";
-                nameText.rectTransform.anchorMin = new Vector2(0.25f, 0f);
-                nameText.rectTransform.anchorMax = new Vector2(0.72f, 1f);
-                nameText.rectTransform.offsetMin = nameText.rectTransform.offsetMax = Vector2.zero;
-                leaderboardNameTexts[i] = nameText;
-
-                var score = UIManager.CreateText("Score", row.transform, font, 10,
-                    TextAnchor.MiddleRight, UIStyle.TextPrimary);
-                score.fontStyle = FontStyle.Bold;
-                score.text = "0m";
-                score.rectTransform.anchorMin = new Vector2(0.73f, 0f);
-                score.rectTransform.anchorMax = new Vector2(0.97f, 1f);
-                score.rectTransform.offsetMin = score.rectTransform.offsetMax = Vector2.zero;
-                leaderboardScoreTexts[i] = score;
+                Sprite leaderboardOrbSprite = Sprite.Create(leaderboardOrbTexture, new Rect(0, 0, leaderboardOrbTexture.width, leaderboardOrbTexture.height), new Vector2(0.5f, 0.5f), 100f);
+                ApplyTitleOrbSprite(cardGo.transform, "LeaderboardTitle", leaderboardOrbSprite);
             }
 
-            var closeBtn = UIManager.CreateButton("CloseBtn", go.transform, font, "Close",
-                UIStyle.SurfaceDark, UIStyle.TextPrimary);
-            UIManager.Stretch((RectTransform)closeBtn.transform,
-                new Vector2(0.04f, 0.02f), new Vector2(0.96f, 0.11f), Vector2.zero, Vector2.zero);
-            UIManager.StyleButtonLabel(closeBtn, 11, TextAnchor.MiddleCenter, Vector2.zero, Vector2.zero);
-            UIManager.BindButton(closeBtn, () => StartCoroutine(CloseSheet(leaderboardSheet)), null);
+            Image subtitleChip = UIManager.CreateImage("SubtitleChip", cardGo.transform, Color.white);
+            ApplyCandySectionRow(subtitleChip, SheetSectionTint);
+            subtitleChip.rectTransform.anchorMin = new Vector2(0.12f, 0.73f);
+            subtitleChip.rectTransform.anchorMax = new Vector2(0.88f, 0.81f);
+            subtitleChip.rectTransform.offsetMin = subtitleChip.rectTransform.offsetMax = Vector2.zero;
 
-            go.SetActive(false);
+            leaderboardSubtitleText = UIManager.CreateText("Subtitle", cardGo.transform, font, 15, TextAnchor.MiddleLeft, UIStyle.PopupTextDim);
+            leaderboardSubtitleText.text = "Sen: 0m - #--. sira";
+            leaderboardSubtitleText.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(leaderboardSubtitleText, 13, 15, UIFontRole.Popup);
+            leaderboardSubtitleText.rectTransform.SetParent(subtitleChip.transform, false);
+            UIManager.Stretch(leaderboardSubtitleText.rectTransform, Vector2.zero, Vector2.one, new Vector2(16f, 0f), new Vector2(-16f, 0f));
+
+            GameObject viewportObject = new GameObject("LeaderboardViewport");
+            viewportObject.transform.SetParent(cardGo.transform, false);
+            RectTransform viewportRect = viewportObject.AddComponent<RectTransform>();
+            viewportRect.anchorMin = new Vector2(0.10f, 0.17f);
+            viewportRect.anchorMax = new Vector2(0.90f, 0.71f);
+            viewportRect.offsetMin = viewportRect.offsetMax = Vector2.zero;
+            Image viewportImage = viewportObject.AddComponent<Image>();
+            viewportImage.color = new Color(1f, 1f, 1f, 0.03f);
+            viewportImage.raycastTarget = true;
+            Mask viewportMask = viewportObject.AddComponent<Mask>();
+            viewportMask.showMaskGraphic = false;
+
+            GameObject scrollObject = new GameObject("LeaderboardScrollView");
+            scrollObject.transform.SetParent(viewportObject.transform, false);
+            RectTransform scrollRect = scrollObject.AddComponent<RectTransform>();
+            UIManager.Stretch(scrollRect, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            Image scrollHitArea = scrollObject.AddComponent<Image>();
+            scrollHitArea.color = new Color(1f, 1f, 1f, 0.001f);
+            scrollHitArea.raycastTarget = true;
+
+            leaderboardScrollRect = scrollObject.AddComponent<ScrollRect>();
+            leaderboardScrollRect.horizontal = false;
+            leaderboardScrollRect.vertical = true;
+            leaderboardScrollRect.movementType = ScrollRect.MovementType.Clamped;
+            leaderboardScrollRect.scrollSensitivity = 38f;
+            leaderboardScrollRect.viewport = viewportRect;
+
+            GameObject contentObject = new GameObject("LeaderboardContent");
+            contentObject.transform.SetParent(scrollObject.transform, false);
+            leaderboardContentRect = contentObject.AddComponent<RectTransform>();
+            UIManager.Stretch(leaderboardContentRect, new Vector2(0f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+            leaderboardContentRect.pivot = new Vector2(0.5f, 1f);
+            VerticalLayoutGroup layout = contentObject.AddComponent<VerticalLayoutGroup>();
+            layout.spacing = 12f;
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = false;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            layout.padding = new RectOffset(0, 0, 0, 8);
+            ContentSizeFitter fitter = contentObject.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            leaderboardScrollRect.content = leaderboardContentRect;
+
+            Button closeBtn = UIManager.CreateButton("CloseBtn", cardGo.transform, font, "KAPAT", Color.white, Color.white);
+            SetupCandyButton(closeBtn.targetGraphic as Image, "out_btn_purple", new Vector4(150f, 160f, 150f, 160f), 350f);
+            RectTransform closeRt = (RectTransform)closeBtn.transform;
+            closeRt.anchorMin = new Vector2(0.12f, 0.04f);
+            closeRt.anchorMax = new Vector2(0.88f, 0.13f);
+            closeRt.offsetMin = closeRt.offsetMax = Vector2.zero;
+            UIManager.StyleButtonLabel(closeBtn, 16, TextAnchor.MiddleCenter, Vector2.zero, Vector2.zero);
+            leaderboardCloseButtonText = closeBtn.GetComponentInChildren<Text>();
+            if (leaderboardCloseButtonText != null)
+            {
+                leaderboardCloseButtonText.resizeTextForBestFit = true;
+                UIManager.SetScaledBestFit(leaderboardCloseButtonText, 14, 16, UIFontRole.Button);
+            }
+            UIManager.BindButton(closeBtn, () => StartCoroutine(CloseSheet(leaderboardSheet, leaderboardOverlay)), buttonClickSound);
+            RefreshLeaderboardRows(resetPosition: false);
+
+            leaderboardOverlay.SetActive(false);
+            UIManager.ApplyPopupTextRoles(leaderboardOverlay.transform);
         }
 
-private void BuildMissionsSheet(Font font)
+        private void BuildPrivacyPolicySheet(Font font)
         {
-            GameObject overlay = new GameObject("MissionsOverlay");
-            overlay.transform.SetParent(transform, false);
-            RectTransform overlayRt = overlay.AddComponent<RectTransform>();
+            privacyOverlay = new GameObject("PrivacyOverlay");
+            privacyOverlay.transform.SetParent(transform, false);
+            RectTransform overlayRt = privacyOverlay.AddComponent<RectTransform>();
             UIManager.Stretch(overlayRt, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            overlay.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.75f);
-            missionsSheet = overlayRt;
-            overlay.AddComponent<CanvasGroup>().alpha = 0f;
+            privacyOverlay.AddComponent<Image>().color = SheetOverlayTint;
+            privacyOverlay.AddComponent<CanvasGroup>().alpha = 1f;
+
+            GameObject card = new GameObject("PrivacyCard");
+            card.transform.SetParent(privacyOverlay.transform, false);
+            privacySheet = card.AddComponent<RectTransform>();
+            privacySheet.anchorMin = new Vector2(0.04f, 0.05f);
+            privacySheet.anchorMax = new Vector2(0.96f, 0.95f);
+            privacySheet.offsetMin = privacySheet.offsetMax = Vector2.zero;
+            Image cardImage = card.AddComponent<Image>();
+            ApplyCandySheetPanel(cardImage);
+            card.AddComponent<CanvasGroup>().alpha = 0f;
+
+            Image handle = UIManager.CreateImage("Handle", card.transform, Color.clear);
+            handle.rectTransform.anchorMin = new Vector2(0.40f, 0.965f);
+            handle.rectTransform.anchorMax = new Vector2(0.60f, 0.985f);
+            handle.rectTransform.offsetMin = handle.rectTransform.offsetMax = Vector2.zero;
+            handle.raycastTarget = false;
+
+            privacyTitleText = UIManager.CreateText("Title", card.transform, font, 22, TextAnchor.MiddleLeft, UIStyle.PopupText);
+            privacyTitleText.fontStyle = FontStyle.Bold;
+            privacyTitleText.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(privacyTitleText, 18, 22, UIFontRole.Popup);
+            privacyTitleText.rectTransform.anchorMin = new Vector2(0.12f, 0.87f);
+            privacyTitleText.rectTransform.anchorMax = new Vector2(0.88f, 0.95f);
+            privacyTitleText.rectTransform.offsetMin = privacyTitleText.rectTransform.offsetMax = Vector2.zero;
+
+            privacySubtitleText = UIManager.CreateText("Subtitle", card.transform, font, 14, TextAnchor.MiddleLeft, UIStyle.PopupTextDim);
+            privacySubtitleText.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(privacySubtitleText, 12, 14, UIFontRole.Popup);
+            privacySubtitleText.rectTransform.anchorMin = new Vector2(0.12f, 0.82f);
+            privacySubtitleText.rectTransform.anchorMax = new Vector2(0.88f, 0.87f);
+            privacySubtitleText.rectTransform.offsetMin = privacySubtitleText.rectTransform.offsetMax = Vector2.zero;
+
+            Button closeButton = UIManager.CreateCandyCloseButton("CloseBtn", card.transform, font, 16);
+            UIManager.BindButton(closeButton, () => StartCoroutine(CloseSheet(privacySheet, privacyOverlay)), buttonClickSound);
+            RectTransform closeRt = (RectTransform)closeButton.transform;
+            closeRt.anchorMin = new Vector2(1f, 1f);
+            closeRt.anchorMax = new Vector2(1f, 1f);
+            closeRt.pivot = new Vector2(1f, 1f);
+            closeRt.anchoredPosition = new Vector2(-22f, -18f);
+            closeRt.sizeDelta = new Vector2(54f, 54f);
+
+            GameObject viewportObject = new GameObject("Viewport");
+            viewportObject.transform.SetParent(card.transform, false);
+            RectTransform viewportRect = viewportObject.AddComponent<RectTransform>();
+            viewportRect.anchorMin = new Vector2(0.12f, 0.08f);
+            viewportRect.anchorMax = new Vector2(0.88f, 0.78f);
+            viewportRect.offsetMin = viewportRect.offsetMax = Vector2.zero;
+            Image viewportImage = viewportObject.AddComponent<Image>();
+            viewportImage.color = new Color(0.08f, 0.10f, 0.16f, 0.18f);
+            viewportImage.raycastTarget = true;
+            Mask viewportMask = viewportObject.AddComponent<Mask>();
+            viewportMask.showMaskGraphic = false;
+
+            GameObject scrollObject = new GameObject("ScrollView");
+            scrollObject.transform.SetParent(viewportObject.transform, false);
+            RectTransform scrollRect = scrollObject.AddComponent<RectTransform>();
+            UIManager.Stretch(scrollRect, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            Image scrollHitArea = scrollObject.AddComponent<Image>();
+            scrollHitArea.color = new Color(1f, 1f, 1f, 0.001f);
+            scrollHitArea.raycastTarget = true;
+
+            ScrollRect scroll = scrollObject.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 40f;
+            scroll.viewport = viewportRect;
+            privacyScrollRect = scroll;
+
+            privacyBodyText = UIManager.CreateText("Body", scrollObject.transform, font, 14, TextAnchor.UpperLeft, Color.white);
+            privacyBodyText.fontStyle = FontStyle.Normal;
+            privacyBodyText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            privacyBodyText.verticalOverflow = VerticalWrapMode.Overflow;
+            privacyBodyText.resizeTextForBestFit = false;
+            privacyBodyText.supportRichText = false;
+            privacyBodyText.lineSpacing = 1.1f;
+            privacyBodyText.raycastTarget = false;
+
+            RectTransform bodyRect = privacyBodyText.rectTransform;
+            privacyBodyRect = bodyRect;
+            bodyRect.anchorMin = new Vector2(0f, 1f);
+            bodyRect.anchorMax = new Vector2(1f, 1f);
+            bodyRect.pivot = new Vector2(0.5f, 1f);
+            bodyRect.offsetMin = new Vector2(12f, 0f);
+            bodyRect.offsetMax = new Vector2(-12f, 0f);
+            bodyRect.anchoredPosition = Vector2.zero;
+
+            ContentSizeFitter fitter = privacyBodyText.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            scroll.content = bodyRect;
+            RefreshPrivacyScrollLayout(resetPosition: false);
+
+            privacyOverlay.SetActive(false);
+            UIManager.ApplyPopupTextRoles(privacyOverlay.transform);
+        }
+
+        private void BuildMissionsSheet(Font font)
+        {
+            missionsOverlay = new GameObject("MissionsOverlay");
+            missionsOverlay.transform.SetParent(transform, false);
+            RectTransform overlayRt = missionsOverlay.AddComponent<RectTransform>();
+            UIManager.Stretch(overlayRt, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            missionsOverlay.AddComponent<Image>().color = SheetOverlayTint;
+            missionsOverlay.AddComponent<CanvasGroup>().alpha = 1f;
 
             GameObject card = new GameObject("MissionsCard");
-            card.transform.SetParent(overlay.transform, false);
-            RectTransform cardRt = card.AddComponent<RectTransform>();
-            cardRt.anchorMin = new Vector2(0.12f, 0.15f);
-            cardRt.anchorMax = new Vector2(0.88f, 0.85f);
-            cardRt.offsetMin = cardRt.offsetMax = Vector2.zero;
-            card.AddComponent<Image>().color = UIStyle.ShopBg;
+            card.transform.SetParent(missionsOverlay.transform, false);
+            missionsSheet = card.AddComponent<RectTransform>();
+            missionsSheet.anchorMin = new Vector2(0.04f, 0.07f);
+            missionsSheet.anchorMax = new Vector2(0.96f, 0.91f);
+            missionsSheet.offsetMin = missionsSheet.offsetMax = Vector2.zero;
+            Image cardImage = card.AddComponent<Image>();
+            ApplyCandySheetPanel(cardImage);
+            card.AddComponent<CanvasGroup>().alpha = 0f;
 
-            Text title = UIManager.CreateText("Title", card.transform, font, 18, TextAnchor.MiddleLeft, UIStyle.TextPrimary);
-            title.text = "DAILY MISSIONS";
-            title.fontStyle = FontStyle.Bold;
-            title.rectTransform.anchorMin = new Vector2(0.06f, 0.90f);
-            title.rectTransform.anchorMax = new Vector2(0.60f, 0.98f);
-            title.rectTransform.offsetMin = title.rectTransform.offsetMax = Vector2.zero;
+            Image missionHandle = UIManager.CreateImage("Handle", card.transform, Color.clear);
+            missionHandle.rectTransform.anchorMin = new Vector2(0.35f, 0.95f);
+            missionHandle.rectTransform.anchorMax = new Vector2(0.65f, 0.97f);
+            missionHandle.rectTransform.offsetMin = missionHandle.rectTransform.offsetMax = Vector2.zero;
+            missionHandle.raycastTarget = false;
 
-            missionCountdownText = UIManager.CreateText("Countdown", card.transform, font, 11, TextAnchor.MiddleRight, UIStyle.TextDim);
+            missionsTitleText = CreateCandyTitleRibbon(card.transform, font, "MissionsTitle", "DAILY MISSIONS", new Vector2(0.08f, 0.82f), new Vector2(0.92f, 0.95f), 22);
+            ApplyTitleOrbSprite(card.transform, "MissionsTitle", "missions_icon_jelly_premium");
+
+            Image subtitleChip = UIManager.CreateImage("SubtitleChip", card.transform, Color.white);
+            ApplyCandySectionRow(subtitleChip, SheetSectionTint);
+            subtitleChip.rectTransform.anchorMin = new Vector2(0.12f, 0.72f);
+            subtitleChip.rectTransform.anchorMax = new Vector2(0.56f, 0.79f);
+            subtitleChip.rectTransform.offsetMin = subtitleChip.rectTransform.offsetMax = Vector2.zero;
+
+            Text subtitle = UIManager.CreateText("Subtitle", subtitleChip.transform, font, 16, TextAnchor.MiddleCenter, UIStyle.PopupTextDim);
+            subtitle.text = "Her gün sıfırlanır";
+            subtitle.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(subtitle, 13, 16, UIFontRole.Popup);
+            UIManager.Stretch(subtitle.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 0f), new Vector2(-10f, 0f));
+            missionsSubtitleText = subtitle;
+
+            Image countdownChip = UIManager.CreateImage("CountdownChip", card.transform, Color.white);
+            ApplyCandySectionRow(countdownChip, UIStyle.MenuBg);
+            countdownChip.rectTransform.anchorMin = new Vector2(0.60f, 0.72f);
+            countdownChip.rectTransform.anchorMax = new Vector2(0.82f, 0.79f);
+            countdownChip.rectTransform.offsetMin = countdownChip.rectTransform.offsetMax = Vector2.zero;
+
+            missionCountdownText = UIManager.CreateText("Countdown", countdownChip.transform, font, 17, TextAnchor.MiddleCenter, Color.white);
             missionCountdownText.text = "23:59:59";
-            missionCountdownText.rectTransform.anchorMin = new Vector2(0.60f, 0.90f);
-            missionCountdownText.rectTransform.anchorMax = new Vector2(0.94f, 0.98f);
-            missionCountdownText.rectTransform.offsetMin = missionCountdownText.rectTransform.offsetMax = Vector2.zero;
+            missionCountdownText.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(missionCountdownText, 14, 17, UIFontRole.Popup);
+            UIManager.Stretch(missionCountdownText.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 0f), new Vector2(-10f, 0f));
 
-            GameObject closeGo = CreateIconCircle("CloseBtn", card.transform, font, "X",
-                () => StartCoroutine(CloseSheet(missionsSheet)), buttonClickSound);
-            RectTransform closeRt = closeGo.GetComponent<RectTransform>();
-            closeRt.anchorMin = new Vector2(0.88f, 0.92f);
-            closeRt.anchorMax = new Vector2(0.98f, 0.98f);
-            closeRt.offsetMin = closeRt.offsetMax = Vector2.zero;
+            Button closeButton = UIManager.CreateCandyCloseButton("CloseBtn", card.transform, font, 16);
+            UIManager.BindButton(closeButton, () => StartCoroutine(CloseSheet(missionsSheet, missionsOverlay)), buttonClickSound);
+            RectTransform closeRt = (RectTransform)closeButton.transform;
+            closeRt.anchorMin = new Vector2(1f, 1f);
+            closeRt.anchorMax = new Vector2(1f, 1f);
+            closeRt.pivot = new Vector2(1f, 1f);
+            closeRt.anchoredPosition = new Vector2(-22f, -18f);
+            closeRt.sizeDelta = new Vector2(54f, 54f);
+            closeButton.transform.SetAsLastSibling();
 
             GameObject listGo = new GameObject("List");
             listGo.transform.SetParent(card.transform, false);
             RectTransform listRt = listGo.AddComponent<RectTransform>();
-            listRt.anchorMin = new Vector2(0.04f, 0.05f);
-            listRt.anchorMax = new Vector2(0.96f, 0.88f);
+            listRt.anchorMin = new Vector2(0.05f, 0.06f);
+            listRt.anchorMax = new Vector2(0.95f, 0.66f);
             listRt.offsetMin = listRt.offsetMax = Vector2.zero;
 
-            const int missionCount = 3;
+            const int missionCount = 2;
             missionClaimBtns = new GameObject[missionCount];
             missionIds = new string[missionCount];
             missionTitleTexts = new Text[missionCount];
             missionProgressTexts = new Text[missionCount];
             missionProgressFills = new Image[missionCount];
             missionRewardTexts = new Text[missionCount];
+            missionRewardBackgrounds = new Image[missionCount];
+            missionRewardButtons = new Button[missionCount];
             missionStatusTexts = new Text[missionCount];
+            missionClaimButtonTexts = new Text[missionCount];
 
             for (int i = 0; i < missionCount; i++)
             {
                 int idx = i;
-                float yTop = 1f - i * 0.33f;
-                Image missionCard = UIManager.CreateCard($"Mission{i}", listRt, UIStyle.SurfaceDark, UIStyle.BorderDark);
-                missionCard.rectTransform.anchorMin = new Vector2(0f, yTop - 0.31f);
+                float yTop = 1f - i * 0.48f;
+                Image missionCard = UIManager.CreateCard($"Mission{i}", listRt, Color.white, new Color(0f, 0f, 0f, 0f));
+                ApplyCandySectionRow(missionCard, SheetSectionTint);
+                missionCard.rectTransform.anchorMin = new Vector2(0f, yTop - 0.40f);
                 missionCard.rectTransform.anchorMax = new Vector2(1f, yTop);
                 missionCard.rectTransform.offsetMin = missionCard.rectTransform.offsetMax = Vector2.zero;
 
-                Text mTitle = UIManager.CreateText("Title", missionCard.transform, font, 11, TextAnchor.UpperLeft, UIStyle.TextPrimary);
-                mTitle.text = "Mission";
+                Text mTitle = UIManager.CreateText("Title", missionCard.transform, font, 18, TextAnchor.UpperLeft, UIStyle.PopupText);
+                mTitle.text = "Görev";
                 mTitle.fontStyle = FontStyle.Bold;
-                mTitle.rectTransform.anchorMin = new Vector2(0.04f, 0.58f);
-                mTitle.rectTransform.anchorMax = new Vector2(0.75f, 0.93f);
+                mTitle.resizeTextForBestFit = true;
+                UIManager.SetScaledBestFit(mTitle, 14, 18, UIFontRole.Popup);
+                mTitle.rectTransform.anchorMin = new Vector2(0.04f, 0.62f);
+                mTitle.rectTransform.anchorMax = new Vector2(0.70f, 0.90f);
                 mTitle.rectTransform.offsetMin = mTitle.rectTransform.offsetMax = Vector2.zero;
                 missionTitleTexts[i] = mTitle;
 
-                Text progress = UIManager.CreateText("Progress", missionCard.transform, font, 9, TextAnchor.UpperRight, UIStyle.TextDim);
-                progress.text = "0/0";
-                progress.rectTransform.anchorMin = new Vector2(0.76f, 0.60f);
-                progress.rectTransform.anchorMax = new Vector2(0.96f, 0.93f);
+                Text progress = UIManager.CreateText("Progress", missionCard.transform, font, 15, TextAnchor.UpperRight, UIStyle.PopupText);
+                progress.text = "0/0 tamamlandı";
+                progress.resizeTextForBestFit = true;
+                UIManager.SetScaledBestFit(progress, 12, 15, UIFontRole.Popup);
+                progress.rectTransform.anchorMin = new Vector2(0.70f, 0.64f);
+                progress.rectTransform.anchorMax = new Vector2(0.96f, 0.88f);
                 progress.rectTransform.offsetMin = progress.rectTransform.offsetMax = Vector2.zero;
                 missionProgressTexts[i] = progress;
 
-                Image barTrack = UIManager.CreateImage("BarTrack", missionCard.transform, new Color(1f, 1f, 1f, 0.08f));
-                barTrack.rectTransform.anchorMin = new Vector2(0.04f, 0.34f);
-                barTrack.rectTransform.anchorMax = new Vector2(0.96f, 0.42f);
+                Sprite pillSprite = GetFlatPillSprite();
+
+                Image barTrack = UIManager.CreateImage("BarTrack", missionCard.transform, Color.white);
+                if (pillSprite != null)
+                {
+                    barTrack.sprite = pillSprite;
+                    barTrack.type = Image.Type.Sliced;
+                    barTrack.pixelsPerUnitMultiplier = 1f;
+                }
+                barTrack.color = new Color(0.18f, 0.13f, 0.30f, 0.95f);
+                barTrack.rectTransform.anchorMin = new Vector2(0.04f, 0.39f);
+                barTrack.rectTransform.anchorMax = new Vector2(0.96f, 0.51f);
                 barTrack.rectTransform.offsetMin = barTrack.rectTransform.offsetMax = Vector2.zero;
                 barTrack.raycastTarget = false;
 
-                Image barFill = UIManager.CreateImage("BarFill", barTrack.transform, UIStyle.Brand);
+                Image barFill = UIManager.CreateImage("BarFill", barTrack.transform, Color.white);
+                if (pillSprite != null)
+                {
+                    barFill.sprite = pillSprite;
+                    barFill.type = Image.Type.Sliced;
+                    barFill.pixelsPerUnitMultiplier = 1f;
+                }
+                barFill.color = UIStyle.MenuBg;
                 barFill.rectTransform.anchorMin = new Vector2(0f, 0f);
                 barFill.rectTransform.anchorMax = new Vector2(0f, 1f);
                 barFill.rectTransform.offsetMin = barFill.rectTransform.offsetMax = Vector2.zero;
                 barFill.raycastTarget = false;
                 missionProgressFills[i] = barFill;
 
-                Image rewardBg = UIManager.CreateImage("RewardBg", missionCard.transform, new Color(UIStyle.Gold.r, UIStyle.Gold.g, UIStyle.Gold.b, 0.15f));
-                rewardBg.rectTransform.anchorMin = new Vector2(0.04f, 0.06f);
-                rewardBg.rectTransform.anchorMax = new Vector2(0.42f, 0.31f);
+                Image rewardBg = UIManager.CreateImage("RewardBg", missionCard.transform, new Color(0f, 0f, 0f, 0.4f));
+                SetupCandyButton(rewardBg, "out_btn_orange", new Vector4(150f, 130f, 150f, 130f), 350f);
+                rewardBg.color = Color.white;
+                rewardBg.rectTransform.anchorMin = new Vector2(0.65f, 0.12f);
+                rewardBg.rectTransform.anchorMax = new Vector2(0.96f, 0.34f);
                 rewardBg.rectTransform.offsetMin = rewardBg.rectTransform.offsetMax = Vector2.zero;
-                rewardBg.raycastTarget = false;
+                rewardBg.raycastTarget = true;
+                missionRewardBackgrounds[i] = rewardBg;
 
-                Text rewardText = UIManager.CreateText("Reward", rewardBg.transform, font, 9, TextAnchor.MiddleCenter, UIStyle.Gold);
+                Button rewardBtn = rewardBg.gameObject.AddComponent<Button>();
+                rewardBtn.targetGraphic = rewardBg;
+                rewardBtn.transition = Selectable.Transition.ColorTint;
+                rewardBtn.interactable = false;
+                missionRewardButtons[i] = rewardBtn;
+                int rewardIdx = i;
+                UIManager.BindButton(rewardBtn, () => _onClaimMission?.Invoke(missionIds[rewardIdx]), buttonClickSound);
+
+                Text rewardText = UIManager.CreateText("Reward", rewardBg.transform, font, 15, TextAnchor.MiddleCenter, Color.white);
                 rewardText.text = "+0 COIN";
+                rewardText.fontStyle = FontStyle.Bold;
+                rewardText.resizeTextForBestFit = true;
+                UIManager.SetScaledBestFit(rewardText, 12, 15, UIFontRole.Popup);
                 UIManager.Stretch(rewardText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                rewardText.raycastTarget = false;
                 missionRewardTexts[i] = rewardText;
 
-                Text statusText = UIManager.CreateText("Status", missionCard.transform, font, 9, TextAnchor.MiddleCenter, UIStyle.TextPrimary);
-                statusText.text = "IN PROGRESS";
-                statusText.rectTransform.anchorMin = new Vector2(0.45f, 0.06f);
-                statusText.rectTransform.anchorMax = new Vector2(0.96f, 0.31f);
+                Text statusText = UIManager.CreateText("Status", missionCard.transform, font, 16, TextAnchor.MiddleLeft, UIStyle.PopupTextDim);
+                statusText.text = "DEVAM";
+                statusText.resizeTextForBestFit = true;
+                UIManager.SetScaledBestFit(statusText, 13, 16, UIFontRole.Popup);
+                statusText.rectTransform.anchorMin = new Vector2(0.04f, 0.10f);
+                statusText.rectTransform.anchorMax = new Vector2(0.62f, 0.30f);
                 statusText.rectTransform.offsetMin = statusText.rectTransform.offsetMax = Vector2.zero;
                 missionStatusTexts[i] = statusText;
 
-                GameObject claimBtnGo = UIManager.CreateActionButton(missionCard.transform, "ClaimBtn", "CHECK CLAIM", font, UIStyle.Owned, UIStyle.Owned, 36, 0);
-                RectTransform claimBtnRt = claimBtnGo.GetComponent<RectTransform>();
-                claimBtnRt.anchorMin = new Vector2(0.45f, 0.06f);
-                claimBtnRt.anchorMax = new Vector2(0.96f, 0.31f);
+                Button claimBtn = UIManager.CreateButton("ClaimBtn", missionCard.transform, font, "CLAIM \u2713", Color.white, Color.white);
+                SetupCandyButton(claimBtn.targetGraphic as Image, "out_btn_orange", new Vector4(150f, 130f, 150f, 130f), 350f);
+                RectTransform claimBtnRt = (RectTransform)claimBtn.transform;
+                claimBtnRt.anchorMin = new Vector2(0.04f, 0.10f);
+                claimBtnRt.anchorMax = new Vector2(0.64f, 0.32f);
                 claimBtnRt.offsetMin = claimBtnRt.offsetMax = Vector2.zero;
-                UIManager.BindButton(claimBtnGo.GetComponent<Button>(), () => _onClaimMission?.Invoke(missionIds[idx]));
-                claimBtnGo.SetActive(false);
-                missionClaimBtns[i] = claimBtnGo;
+                UIManager.StyleButtonLabel(claimBtn, 16, TextAnchor.MiddleCenter, Vector2.zero, Vector2.zero);
+                UIManager.BindButton(claimBtn, () => _onClaimMission?.Invoke(missionIds[idx]), buttonClickSound);
+                claimBtn.gameObject.SetActive(false);
+                missionClaimBtns[i] = claimBtn.gameObject;
+                missionClaimButtonTexts[i] = claimBtn.GetComponentInChildren<Text>();
+                if (missionClaimButtonTexts[i] != null)
+                {
+                    missionClaimButtonTexts[i].resizeTextForBestFit = true;
+                    UIManager.SetScaledBestFit(missionClaimButtonTexts[i], 13, 16, UIFontRole.Button);
+                }
             }
 
-            overlay.SetActive(false);
+            missionsOverlay.SetActive(false);
+            UIManager.ApplyPopupTextRoles(missionsOverlay.transform);
+        }
+
+        private string TranslateText(string tr, string en, string es)
+        {
+            return UILanguage.Translate(tr, en, es);
+        }
+
+        private string FormatBestCaption(float bestScore)
+        {
+            return $"{TranslateText("En iyi", "Best", "Mejor")}: {bestScore:0}m";
+        }
+
+        private string GetDailyChallengeTitle()
+        {
+            return TranslateText("GUNLUK GOREV", "DAILY CHALLENGE", "DESAFIO DIARIO");
+        }
+
+        private string FormatDailyChallengeSubtitle()
+        {
+            if (cachedDailyChallengeStatus.seed == 0 || cachedDailyChallengeStatus.targetHeight <= 0)
+            {
+                return TranslateText("Hazirlaniyor...", "Preparing...", "Preparando...");
+            }
+
+            if (cachedDailyChallengeStatus.rewardClaimed)
+            {
+                float bestHeight = Mathf.Max(0f, cachedDailyChallengeStatus.bestHeight);
+                return TranslateText(
+                    $"En iyi {bestHeight:0.0}m\nOdul alindi",
+                    $"Best {bestHeight:0.0}m\nReward claimed",
+                    $"Mejor {bestHeight:0.0}m\nPremio cobrado");
+            }
+
+            return TranslateText(
+                $"Hedef {cachedDailyChallengeStatus.targetHeight}m\n+{cachedDailyChallengeStatus.firstClearReward} {GetCoinWord()}",
+                $"Target {cachedDailyChallengeStatus.targetHeight}m\n+{cachedDailyChallengeStatus.firstClearReward} {GetCoinWord()}",
+                $"Meta {cachedDailyChallengeStatus.targetHeight}m\n+{cachedDailyChallengeStatus.firstClearReward} {GetCoinWord()}");
+        }
+
+        private void RefreshDailyChallengeButton()
+        {
+            if (dailyChallengeButton == null || dailyChallengeButtonImage == null)
+            {
+                return;
+            }
+
+            bool isReady = cachedDailyChallengeStatus.seed != 0 && cachedDailyChallengeStatus.targetHeight > 0;
+            dailyChallengeButton.interactable = isReady;
+            dailyChallengeButtonImage.color = isReady
+                ? Color.white
+                : new Color(0.78f, 0.78f, 0.88f, 0.92f);
+
+            if (dailyChallengeTitleText != null)
+            {
+                dailyChallengeTitleText.text = GetDailyChallengeTitle();
+                dailyChallengeTitleText.color = isReady
+                    ? Color.white
+                    : new Color(1f, 1f, 1f, 0.70f);
+            }
+
+            RefreshDailyChallengePopup();
+        }
+
+        private void BuildDailyChallengePopup(Font font)
+        {
+            dailyChallengePopupOverlay = new GameObject("DailyChallengePopupOverlay");
+            dailyChallengePopupOverlay.transform.SetParent(transform, false);
+            RectTransform overlayRt = dailyChallengePopupOverlay.AddComponent<RectTransform>();
+            UIManager.Stretch(overlayRt, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            dailyChallengePopupOverlay.AddComponent<Image>().color = SheetOverlayTint;
+            dailyChallengePopupOverlay.AddComponent<CanvasGroup>().alpha = 1f;
+
+            GameObject card = new GameObject("DailyChallengeCard");
+            card.transform.SetParent(dailyChallengePopupOverlay.transform, false);
+            dailyChallengePopupSheet = card.AddComponent<RectTransform>();
+            dailyChallengePopupSheet.anchorMin = new Vector2(0.06f, 0.22f);
+            dailyChallengePopupSheet.anchorMax = new Vector2(0.94f, 0.78f);
+            dailyChallengePopupSheet.offsetMin = dailyChallengePopupSheet.offsetMax = Vector2.zero;
+            Image cardImage = card.AddComponent<Image>();
+            ApplyCandySheetPanel(cardImage);
+            card.AddComponent<CanvasGroup>().alpha = 0f;
+
+            CreateCandyTitleRibbon(card.transform, font, "DailyChallengeTitle",
+                "DAILY CHALLENGE", new Vector2(0.08f, 0.84f), new Vector2(0.92f, 0.97f), 22);
+
+            Button closeButton = UIManager.CreateCandyCloseButton("CloseBtn", card.transform, font, 16);
+            UIManager.BindButton(closeButton, () => StartCoroutine(CloseSheet(dailyChallengePopupSheet, dailyChallengePopupOverlay)), buttonClickSound);
+            RectTransform closeRt = (RectTransform)closeButton.transform;
+            closeRt.anchorMin = new Vector2(1f, 1f);
+            closeRt.anchorMax = new Vector2(1f, 1f);
+            closeRt.pivot = new Vector2(1f, 1f);
+            closeRt.anchoredPosition = new Vector2(-22f, -18f);
+            closeRt.sizeDelta = new Vector2(54f, 54f);
+            closeButton.transform.SetAsLastSibling();
+
+            // Target row
+            Image targetRow = UIManager.CreateImage("TargetRow", card.transform, Color.white);
+            ApplyCandySectionRow(targetRow, SheetSectionTint);
+            targetRow.rectTransform.anchorMin = new Vector2(0.08f, 0.71f);
+            targetRow.rectTransform.anchorMax = new Vector2(0.92f, 0.83f);
+            targetRow.rectTransform.offsetMin = targetRow.rectTransform.offsetMax = Vector2.zero;
+
+            dailyChallengePopupTargetText = UIManager.CreateText("TargetText", targetRow.transform, font, 17, TextAnchor.MiddleCenter, UIStyle.PopupText);
+            dailyChallengePopupTargetText.fontStyle = FontStyle.Bold;
+            dailyChallengePopupTargetText.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(dailyChallengePopupTargetText, 14, 17, UIFontRole.Popup);
+            UIManager.Stretch(dailyChallengePopupTargetText.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 0f), new Vector2(-12f, 0f));
+
+            // Reward row
+            Image rewardRow = UIManager.CreateImage("RewardRow", card.transform, Color.white);
+            ApplyCandySectionRow(rewardRow, UIStyle.MenuBg);
+            rewardRow.rectTransform.anchorMin = new Vector2(0.08f, 0.57f);
+            rewardRow.rectTransform.anchorMax = new Vector2(0.92f, 0.69f);
+            rewardRow.rectTransform.offsetMin = rewardRow.rectTransform.offsetMax = Vector2.zero;
+
+            dailyChallengePopupRewardText = UIManager.CreateText("RewardText", rewardRow.transform, font, 17, TextAnchor.MiddleCenter, Color.white);
+            dailyChallengePopupRewardText.fontStyle = FontStyle.Bold;
+            dailyChallengePopupRewardText.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(dailyChallengePopupRewardText, 14, 17, UIFontRole.Popup);
+            UIManager.Stretch(dailyChallengePopupRewardText.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 0f), new Vector2(-12f, 0f));
+
+            // Modifier row
+            Image modifierRow = UIManager.CreateImage("ModifierRow", card.transform, Color.white);
+            ApplyCandySectionRow(modifierRow, SheetSectionTint);
+            modifierRow.rectTransform.anchorMin = new Vector2(0.08f, 0.43f);
+            modifierRow.rectTransform.anchorMax = new Vector2(0.92f, 0.55f);
+            modifierRow.rectTransform.offsetMin = modifierRow.rectTransform.offsetMax = Vector2.zero;
+
+            dailyChallengePopupModifierText = UIManager.CreateText("ModifierText", modifierRow.transform, font, 15, TextAnchor.MiddleCenter, UIStyle.PopupText);
+            dailyChallengePopupModifierText.fontStyle = FontStyle.Bold;
+            dailyChallengePopupModifierText.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(dailyChallengePopupModifierText, 12, 15, UIFontRole.Popup);
+            UIManager.Stretch(dailyChallengePopupModifierText.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 0f), new Vector2(-12f, 0f));
+
+            // Status text
+            dailyChallengePopupStatusText = UIManager.CreateText("StatusText", card.transform, font, 14, TextAnchor.MiddleCenter, UIStyle.PopupTextDim);
+            dailyChallengePopupStatusText.fontStyle = FontStyle.Bold;
+            dailyChallengePopupStatusText.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(dailyChallengePopupStatusText, 11, 14, UIFontRole.Popup);
+            Shadow statusShadow = dailyChallengePopupStatusText.gameObject.AddComponent<Shadow>();
+            statusShadow.effectColor = new Color(0, 0, 0, 0.35f);
+            statusShadow.effectDistance = new Vector2(0, -1.5f);
+            Outline statusOutline = dailyChallengePopupStatusText.gameObject.AddComponent<Outline>();
+            statusOutline.effectColor = new Color(0, 0, 0, 0.25f);
+            statusOutline.effectDistance = new Vector2(0.5f, -0.5f);
+            dailyChallengePopupStatusText.rectTransform.anchorMin = new Vector2(0.08f, 0.30f);
+            dailyChallengePopupStatusText.rectTransform.anchorMax = new Vector2(0.92f, 0.42f);
+            dailyChallengePopupStatusText.rectTransform.offsetMin = dailyChallengePopupStatusText.rectTransform.offsetMax = Vector2.zero;
+
+            // Disclaimer text (does not affect best score / leaderboard)
+            dailyChallengePopupDisclaimerText = UIManager.CreateText("DisclaimerText", card.transform, font, 12, TextAnchor.MiddleCenter, UIStyle.PopupTextDim);
+            dailyChallengePopupDisclaimerText.fontStyle = FontStyle.Italic;
+            dailyChallengePopupDisclaimerText.resizeTextForBestFit = true;
+            dailyChallengePopupDisclaimerText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            UIManager.SetScaledBestFit(dailyChallengePopupDisclaimerText, 10, 12, UIFontRole.Popup);
+            dailyChallengePopupDisclaimerText.rectTransform.anchorMin = new Vector2(0.06f, 0.19f);
+            dailyChallengePopupDisclaimerText.rectTransform.anchorMax = new Vector2(0.94f, 0.28f);
+            dailyChallengePopupDisclaimerText.rectTransform.offsetMin = dailyChallengePopupDisclaimerText.rectTransform.offsetMax = Vector2.zero;
+
+            // Play button
+            GameObject playBtnGo = new GameObject("PlayBtn");
+            playBtnGo.transform.SetParent(card.transform, false);
+            RectTransform playRt = playBtnGo.AddComponent<RectTransform>();
+            playRt.anchorMin = new Vector2(0.15f, 0.06f);
+            playRt.anchorMax = new Vector2(0.85f, 0.18f);
+            playRt.offsetMin = playRt.offsetMax = Vector2.zero;
+            dailyChallengePopupPlayImage = playBtnGo.AddComponent<Image>();
+            SetupCandyButton(dailyChallengePopupPlayImage, "out_btn_orange", new Vector4(150f, 130f, 150f, 130f), 350f);
+            dailyChallengePopupPlayButton = playBtnGo.AddComponent<Button>();
+            dailyChallengePopupPlayButton.targetGraphic = dailyChallengePopupPlayImage;
+            UIManager.BindButton(dailyChallengePopupPlayButton, () =>
+            {
+                StartCoroutine(UIStyle.ButtonPress(playRt));
+                StartCoroutine(CloseSheet(dailyChallengePopupSheet, dailyChallengePopupOverlay));
+                storedOnPlayDailyChallenge?.Invoke();
+            }, buttonClickSound);
+
+            dailyChallengePopupPlayLabel = UIManager.CreateText("PlayLabel", playBtnGo.transform, font, 20, TextAnchor.MiddleCenter, Color.white);
+            dailyChallengePopupPlayLabel.fontStyle = FontStyle.Bold;
+            dailyChallengePopupPlayLabel.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(dailyChallengePopupPlayLabel, 16, 20, UIFontRole.Button);
+            UIManager.Stretch(dailyChallengePopupPlayLabel.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+
+            dailyChallengePopupOverlay.SetActive(false);
+            UIManager.ApplyPopupTextRoles(dailyChallengePopupOverlay.transform);
+        }
+
+        private void ShowDailyChallengePopup()
+        {
+            if (dailyChallengePopupOverlay == null || dailyChallengePopupSheet == null) return;
+            RefreshDailyChallengePopup();
+            dailyChallengePopupOverlay.SetActive(true);
+            dailyChallengePopupSheet.gameObject.SetActive(true);
+            float h = dailyChallengePopupSheet.rect.height > 1f ? dailyChallengePopupSheet.rect.height : 800f;
+            StartCoroutine(UIStyle.SlideUp(dailyChallengePopupSheet, h, 0.25f));
+        }
+
+        private void RefreshDailyChallengePopup()
+        {
+            bool played = economyManager != null && economyManager.HasPlayedDailyChallengeToday;
+            DailyChallengeStatus status = cachedDailyChallengeStatus;
+
+            if (dailyChallengePopupTargetText != null)
+            {
+                dailyChallengePopupTargetText.text = TranslateText(
+                    $"Hedef: {status.targetHeight}m",
+                    $"Target: {status.targetHeight}m",
+                    $"Meta: {status.targetHeight}m");
+            }
+
+            if (dailyChallengePopupRewardText != null)
+            {
+                dailyChallengePopupRewardText.text = $"+{status.firstClearReward} {GetCoinWord()}";
+            }
+
+            if (dailyChallengePopupModifierText != null)
+            {
+                string primary = FormatModifierName(status.primaryModifier);
+                string secondary = FormatModifierName(status.secondaryModifier);
+                if (!string.IsNullOrEmpty(primary) && !string.IsNullOrEmpty(secondary))
+                    dailyChallengePopupModifierText.text = $"{primary} + {secondary}";
+                else if (!string.IsNullOrEmpty(primary))
+                    dailyChallengePopupModifierText.text = primary;
+                else
+                    dailyChallengePopupModifierText.text = TranslateText("Standart", "Standard", "Estandar");
+            }
+
+            if (dailyChallengePopupStatusText != null)
+            {
+                dailyChallengePopupStatusText.gameObject.SetActive(false);
+            }
+
+            if (dailyChallengePopupPlayButton != null)
+            {
+                dailyChallengePopupPlayButton.interactable = !played;
+            }
+
+            if (dailyChallengePopupPlayImage != null)
+            {
+                dailyChallengePopupPlayImage.color = played ? new Color(0.6f, 0.6f, 0.6f, 0.8f) : Color.white;
+            }
+
+            if (dailyChallengePopupPlayLabel != null)
+            {
+                dailyChallengePopupPlayLabel.text = TranslateText("OYNA", "PLAY", "JUGAR");
+                dailyChallengePopupPlayLabel.color = played ? new Color(1f, 1f, 1f, 0.5f) : Color.white;
+            }
+
+            if (dailyChallengePopupDisclaimerText != null)
+            {
+                dailyChallengePopupDisclaimerText.text = GetDailyChallengeDisclaimer();
+            }
+        }
+
+        private static string FormatModifierName(RunModifierType modifier)
+        {
+            switch (modifier)
+            {
+                case RunModifierType.Slipstream: return "Slipstream";
+                case RunModifierType.HighStakes: return "High Stakes";
+                default: return string.Empty;
+            }
+        }
+
+        private string GetDailyChallengeDisclaimer()
+        {
+            return TranslateText(
+                "En iyi skoru ve liderlik tablosunu etkilemez",
+                "Does not affect best score or leaderboard",
+                "No afecta al mejor puntaje ni al ranking");
+        }
+
+        private string FormatLeaderboardSubtitle(float bestScore, string rankText)
+        {
+            string safeRank = string.IsNullOrWhiteSpace(rankText) ? "--" : rankText;
+            return $"{TranslateText("Sen", "You", "Tu")}: {bestScore:0}m - #{safeRank}";
+        }
+
+        private IEnumerator RowAlphaPulse(Image bg, Color normalColor, float minA, float maxA, float period)
+        {
+            float half = period / 2f;
+            while (bg != null)
+            {
+                float t = 0f;
+                while (t < half)
+                {
+                    if (bg == null) yield break;
+                    Color c = normalColor;
+                    c.a = Mathf.Lerp(minA, maxA, Mathf.SmoothStep(0, 1, t / half));
+                    bg.color = c;
+                    t += Time.deltaTime;
+                    yield return null;
+                }
+                t = 0f;
+                while (t < half)
+                {
+                    if (bg == null) yield break;
+                    Color c = normalColor;
+                    c.a = Mathf.Lerp(maxA, minA, Mathf.SmoothStep(0, 1, t / half));
+                    bg.color = c;
+                    t += Time.deltaTime;
+                    yield return null;
+                }
+            }
+        }
+
+        private void RefreshLeaderboardRows(bool resetPosition)
+        {
+            if (leaderboardContentRect == null)
+            {
+                return;
+            }
+
+            int targetRowCount = Mathf.Max(cachedLeaderboardEntries?.Count ?? 0, 4);
+            EnsureLeaderboardRowCount(targetRowCount);
+
+            string localPlayerName = PlayerPrefs.GetString("TowerMaze.Firebase.Nickname", PlayerPrefs.GetString("PlayerName", ""));
+            string ownRankText = "--";
+
+            if (ownRowPulseRoutine != null)
+            {
+                StopCoroutine(ownRowPulseRoutine);
+                ownRowPulseRoutine = null;
+            }
+
+            for (int index = 0; index < leaderboardRowBgs.Count; index++)
+            {
+                bool visible = index < targetRowCount;
+                leaderboardRowBgs[index].gameObject.SetActive(visible);
+                if (!visible)
+                {
+                    continue;
+                }
+
+                bool hasEntry = cachedLeaderboardEntries != null && index < cachedLeaderboardEntries.Count;
+                LeaderboardEntry entry = hasEntry ? cachedLeaderboardEntries[index] : default;
+                bool isOwnEntry = hasEntry &&
+                                  !string.IsNullOrEmpty(localPlayerName) &&
+                                  string.Equals(entry.label, localPlayerName, StringComparison.OrdinalIgnoreCase);
+                if (isOwnEntry)
+                {
+                    ownRankText = (index + 1).ToString();
+                }
+
+                if (isOwnEntry)
+                {
+                    ownRowPulseRoutine = StartCoroutine(RowAlphaPulse(leaderboardRowBgs[index], LogoCandyOwnRowTint, 0.4f, 1f, 1.5f));
+                }
+                else
+                {
+                    leaderboardRowBgs[index].color = LeaderboardRowTint;
+                }
+                leaderboardRankTexts[index].text = (index + 1).ToString();
+                leaderboardRankTexts[index].color = isOwnEntry ? Color.white : (index == 0 ? UIStyle.Gold : UIStyle.PopupTextDim);
+                leaderboardNameTexts[index].text = hasEntry
+                    ? (string.IsNullOrWhiteSpace(entry.label) ? GetLeaderboardPlaceholderName(index + 1) : entry.label)
+                    : "---";
+                leaderboardNameTexts[index].color = hasEntry ? (isOwnEntry ? Color.white : UIStyle.PopupText) : UIStyle.PopupTextDim;
+                leaderboardScoreTexts[index].text = hasEntry ? $"{entry.height:0}m" : "0m";
+                leaderboardScoreTexts[index].color = hasEntry
+                    ? (isOwnEntry ? new Color(1f, 0.95f, 0.75f, 1f) : LogoCandyAqua)
+                    : LogoCandyMint;
+                leaderboardRowOutlines[index].effectColor = isOwnEntry
+                    ? new Color(0.44f, 0.22f, 0.72f, 0.80f)
+                    : new Color(0f, 0f, 0f, 0f);
+            }
+
+            cachedOwnRankText = ownRankText;
+            if (leaderboardSubtitleText != null)
+            {
+                leaderboardSubtitleText.text = FormatLeaderboardSubtitle(cachedBestScoreValue, ownRankText);
+            }
+
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(leaderboardContentRect);
+            if (resetPosition && leaderboardScrollRect != null)
+            {
+                leaderboardScrollRect.verticalNormalizedPosition = 1f;
+            }
+        }
+
+        private void EnsureLeaderboardRowCount(int targetRowCount)
+        {
+            if (leaderboardContentRect == null || runtimeFont == null)
+            {
+                return;
+            }
+
+            while (leaderboardRowBgs.Count < targetRowCount)
+            {
+                int index = leaderboardRowBgs.Count;
+                Image row = UIManager.CreateCard($"Row{index}", leaderboardContentRect, Color.white, new Color(0f, 0f, 0f, 0f));
+                ApplyCandySectionRow(row, LeaderboardRowTint);
+                row.raycastTarget = false;
+                LayoutElement rowLayout = row.gameObject.AddComponent<LayoutElement>();
+                rowLayout.preferredHeight = 96f;
+
+                Outline ownOutline = row.gameObject.AddComponent<Outline>();
+                ownOutline.effectColor = new Color(0f, 0f, 0f, 0f);
+                ownOutline.effectDistance = new Vector2(2f, -2f);
+
+                Text rank = UIManager.CreateText("Rank", row.transform, runtimeFont, 15, TextAnchor.MiddleCenter, UIStyle.PopupText);
+                rank.fontStyle = FontStyle.Bold;
+                rank.rectTransform.anchorMin = new Vector2(0.04f, 0f);
+                rank.rectTransform.anchorMax = new Vector2(0.16f, 1f);
+                rank.rectTransform.offsetMin = rank.rectTransform.offsetMax = Vector2.zero;
+
+                Text nameText = UIManager.CreateText("Name", row.transform, runtimeFont, 14, TextAnchor.MiddleLeft, UIStyle.PopupText);
+                nameText.resizeTextForBestFit = true;
+                UIManager.SetScaledBestFit(nameText, 12, 14, UIFontRole.Popup);
+                nameText.rectTransform.anchorMin = new Vector2(0.20f, 0f);
+                nameText.rectTransform.anchorMax = new Vector2(0.68f, 1f);
+                nameText.rectTransform.offsetMin = nameText.rectTransform.offsetMax = Vector2.zero;
+
+                Text scoreText = UIManager.CreateText("Score", row.transform, runtimeFont, 14, TextAnchor.MiddleRight, UIStyle.Gold);
+                scoreText.fontStyle = FontStyle.Bold;
+                scoreText.rectTransform.anchorMin = new Vector2(0.70f, 0f);
+                scoreText.rectTransform.anchorMax = new Vector2(0.95f, 1f);
+                scoreText.rectTransform.offsetMin = scoreText.rectTransform.offsetMax = Vector2.zero;
+
+                leaderboardRowBgs.Add(row);
+                leaderboardRowOutlines.Add(ownOutline);
+                leaderboardRankTexts.Add(rank);
+                leaderboardNameTexts.Add(nameText);
+                leaderboardScoreTexts.Add(scoreText);
+            }
+        }
+
+        private string GetLeaderboardPlaceholderName(int rank)
+        {
+            return $"{TranslateText("Oyuncu", "Player", "Jugador")} {rank}";
+        }
+
+        private string GetMissionProgressSuffix()
+        {
+            return TranslateText("tamamlandi", "completed", "completado");
+        }
+
+        private void ApplyLocalizedTexts()
+        {
+            RefreshGraphicsQualityLabel();
+            if (startButtonLabelText != null)
+            {
+                startButtonLabelText.text = TranslateText("BASLA", "START", "INICIAR");
+            }
+
+            if (captionText != null)
+            {
+                captionText.text = FormatBestCaption(cachedBestScoreValue);
+            }
+
+            if (shopButtonText != null)
+            {
+                shopButtonText.text = TranslateText("MAGAZA", "SHOP", "TIENDA");
+            }
+
+            if (missionsButtonText != null)
+            {
+                missionsButtonText.text = TranslateText("GOREVLER", "MISSIONS", "MISIONES");
+            }
+
+            RefreshDailyChallengeButton();
+
+            if (settingsTitleText != null)
+            {
+                settingsTitleText.text = TranslateText("AYARLAR", "SETTINGS", "AJUSTES");
+            }
+
+            if (settingsAudioHeaderText != null)
+            {
+                settingsAudioHeaderText.text = TranslateText("SES", "AUDIO", "SONIDO");
+            }
+
+            if (settingsSoundLabelText != null)
+            {
+                settingsSoundLabelText.text = TranslateText("SES", "SOUND", "SONIDO");
+            }
+
+            if (settingsVibrationLabelText != null)
+            {
+                settingsVibrationLabelText.text = TranslateText("TITRESIM", "VIBRATION", "VIBRACION");
+            }
+
+            string onLabel = TranslateText("ACIK", "ON", "SI");
+            string offLabel = TranslateText("KAPALI", "OFF", "NO");
+            if (settingsSoundOnText != null) settingsSoundOnText.text = onLabel;
+            if (settingsSoundOffText != null) settingsSoundOffText.text = offLabel;
+            if (settingsVibOnText != null) settingsVibOnText.text = onLabel;
+            if (settingsVibOffText != null) settingsVibOffText.text = offLabel;
+
+            ApplySettingsToggleVisuals();
+
+            if (languageLabelText != null)
+            {
+                languageLabelText.text = TranslateText("DIL", "LANGUAGE", "IDIOMA");
+            }
+
+            if (privacyButtonText != null)
+            {
+                privacyButtonText.text = GetPrivacyPolicyButtonLabel();
+            }
+
+            if (missionsTitleText != null)
+            {
+                missionsTitleText.text = TranslateText("Gunluk Gorevler", "Daily Missions", "Misiones Diarias");
+            }
+
+            if (missionsSubtitleText != null)
+            {
+                missionsSubtitleText.text = TranslateText("Her gun sifirlanir", "Resets every day", "Se reinicia cada dia");
+            }
+
+            if (leaderboardTitleText != null)
+            {
+                leaderboardTitleText.text = TranslateText("En Iyi Kosular", "Top Runs", "Top Runs");
+            }
+
+            if (leaderboardCloseButtonText != null)
+            {
+                leaderboardCloseButtonText.text = TranslateText("Kapat", "Close", "Cerrar");
+            }
+
+            if (leaderboardSubtitleText != null)
+            {
+                leaderboardSubtitleText.text = FormatLeaderboardSubtitle(cachedBestScoreValue, cachedOwnRankText);
+            }
+
+            RefreshLeaderboardRows(resetPosition: false);
+
+            if (privacyTitleText != null)
+            {
+                privacyTitleText.text = GetPrivacyPolicyTitle();
+            }
+
+            if (privacySubtitleText != null)
+            {
+                privacySubtitleText.text = GetPrivacyPolicySubtitle();
+            }
+
+            if (privacyBodyText != null)
+            {
+                privacyBodyText.text = GetPrivacyPolicyBody();
+                RefreshPrivacyScrollLayout(resetPosition: false);
+            }
+
+            if (missionClaimButtonTexts != null)
+            {
+                for (int index = 0; index < missionClaimButtonTexts.Length; index++)
+                {
+                    if (missionClaimButtonTexts[index] != null)
+                    {
+                        missionClaimButtonTexts[index].text = TranslateText("AL \u2713", "CLAIM \u2713", "COBRAR \u2713");
+                    }
+                }
+            }
+
+            RefreshMissionCards();
+        }
+
+        private void RefreshMissionCards()
+        {
+            if (missionTitleTexts == null || missionProgressTexts == null || missionProgressFills == null || missionRewardTexts == null || missionStatusTexts == null)
+            {
+                return;
+            }
+
+            int missionCount = missionTitleTexts.Length;
+            for (int i = 0; i < missionCount; i++)
+            {
+                bool hasMission = cachedDailyMissions != null && i < cachedDailyMissions.Count;
+                if (!hasMission)
+                {
+                    missionIds[i] = string.Empty;
+                    missionTitleTexts[i].text = TranslateText("Gorev yok", "No mission", "Sin mision");
+                    missionProgressTexts[i].text = $"0/0 {GetMissionProgressSuffix()}";
+                    missionProgressFills[i].rectTransform.anchorMax = new Vector2(0f, 1f);
+                    missionRewardTexts[i].text = $"+0 {GetCoinWord()}";
+                    missionStatusTexts[i].text = TranslateText("PASIF", "INACTIVE", "INACTIVA");
+                    missionStatusTexts[i].color = UIStyle.PopupTextDim;
+                    missionStatusTexts[i].gameObject.SetActive(true);
+                    if (missionClaimBtns != null && i < missionClaimBtns.Length && missionClaimBtns[i] != null)
+                    {
+                        missionClaimBtns[i].SetActive(false);
+                    }
+
+                    continue;
+                }
+
+                DailyMissionState mission = cachedDailyMissions[i];
+                missionIds[i] = mission.id;
+                missionTitleTexts[i].text = FormatMissionDescription(mission);
+                int displayedProgress = mission.targetValue > 0
+                    ? Mathf.Clamp(mission.progressValue, 0, mission.targetValue)
+                    : Mathf.Max(0, mission.progressValue);
+                missionProgressTexts[i].text = $"{displayedProgress}/{mission.targetValue} {GetMissionProgressSuffix()}";
+                float progress = mission.targetValue > 0 ? Mathf.Clamp01((float)displayedProgress / mission.targetValue) : 0f;
+                missionProgressFills[i].rectTransform.anchorMax = new Vector2(progress, 1f);
+                missionRewardTexts[i].text = $"+{mission.rewardEmber} {GetCoinWord()}";
+
+                bool completedUnclaimed = mission.IsCompleted && !mission.claimed;
+                bool claimed = mission.claimed;
+                missionStatusTexts[i].text = claimed
+                    ? TranslateText("ALINDI", "CLAIMED", "RECLAMADA")
+                    : (completedUnclaimed ? TranslateText("HAZIR! TIKLA", "READY! TAP", "LISTA! TOCA") : TranslateText("DEVAM", "IN PROGRESS", "EN CURSO"));
+                missionStatusTexts[i].color = claimed ? UIStyle.PopupTextDim : (completedUnclaimed ? UIStyle.Owned : UIStyle.PopupTextDim);
+                missionStatusTexts[i].gameObject.SetActive(true);
+
+                // Hide the legacy separate claim button; we now use the orange reward
+                // pill itself as the claim button.
+                if (missionClaimBtns != null && i < missionClaimBtns.Length && missionClaimBtns[i] != null)
+                {
+                    missionClaimBtns[i].SetActive(false);
+                }
+
+                if (missionRewardButtons != null && i < missionRewardButtons.Length && missionRewardButtons[i] != null)
+                {
+                    bool canClaim = completedUnclaimed && _onClaimMission != null;
+                    missionRewardButtons[i].interactable = canClaim;
+                }
+                if (missionRewardBackgrounds != null && i < missionRewardBackgrounds.Length && missionRewardBackgrounds[i] != null)
+                {
+                    if (claimed)
+                    {
+                        missionRewardBackgrounds[i].color = new Color(0.6f, 0.6f, 0.6f, 0.55f);
+                    }
+                    else if (completedUnclaimed)
+                    {
+                        missionRewardBackgrounds[i].color = Color.white;
+                    }
+                    else
+                    {
+                        missionRewardBackgrounds[i].color = new Color(1f, 1f, 1f, 0.7f);
+                    }
+                }
+                if (missionRewardTexts[i] != null)
+                {
+                    missionRewardTexts[i].color = claimed ? new Color(1f, 1f, 1f, 0.5f) : Color.white;
+                }
+            }
+        }
+
+        private void ApplySettingsToggleVisuals()
+        {
+            Sprite toggleSprite = Resources.Load<Sprite>("TowerMaze/UITheme/jelly_btn_off");
+            Color onTint = new(0.62f, 1f, 0.34f, 1f);
+            Color offTint = Color.white;
+
+            if (settingsSoundToggleBg != null)
+            {
+                settingsSoundToggleBg.sprite = toggleSprite;
+                settingsSoundToggleBg.color = cachedSoundEnabled ? onTint : offTint;
+                settingsSoundToggleBg.rectTransform.localScale = Vector3.one;
+                if (settingsSoundToggleText != null)
+                {
+                    settingsSoundToggleText.text = cachedSoundEnabled ? TranslateText("ACIK", "ON", "ACTIVO") : TranslateText("KAPALI", "OFF", "INACTIVO");
+                    settingsSoundToggleText.color = cachedSoundEnabled ? Color.white : new Color(0.50f, 0.47f, 0.58f, 1f);
+                    settingsSoundToggleText.fontStyle = FontStyle.Bold;
+                }
+            }
+
+            if (settingsVibToggleBg != null)
+            {
+                settingsVibToggleBg.sprite = toggleSprite;
+                settingsVibToggleBg.color = cachedVibrationEnabled ? onTint : offTint;
+                settingsVibToggleBg.rectTransform.localScale = Vector3.one;
+                if (settingsVibToggleText != null)
+                {
+                    settingsVibToggleText.text = cachedVibrationEnabled ? TranslateText("ACIK", "ON", "ACTIVO") : TranslateText("KAPALI", "OFF", "INACTIVO");
+                    settingsVibToggleText.color = cachedVibrationEnabled ? Color.white : new Color(0.50f, 0.47f, 0.58f, 1f);
+                    settingsVibToggleText.fontStyle = FontStyle.Bold;
+                }
+            }
+        }
+
+        private string FormatMissionDescription(DailyMissionState mission)
+        {
+            return mission.type switch
+            {
+                DailyMissionType.ReachHeightInRun => TranslateText($"Tek kosuda {mission.targetValue}m'ye ulas", $"Reach {mission.targetValue}m in one run", $"Alcanza {mission.targetValue}m en una partida"),
+                DailyMissionType.ReachZoneInRun => TranslateText($"Bolge {mission.targetValue}'e ulas", $"Reach Zone {mission.targetValue}", $"Llega a la Zona {mission.targetValue}"),
+                DailyMissionType.CompleteRuns => TranslateText($"{mission.targetValue} kosu tamamla", $"Complete {mission.targetValue} runs", $"Completa {mission.targetValue} partidas"),
+                DailyMissionType.SurviveRushEvents => TranslateText($"{mission.targetValue} rush atlat", $"Survive {mission.targetValue} rushes", $"Sobrevive {mission.targetValue} rushes"),
+                DailyMissionType.FinishWithoutContinue => TranslateText($"{mission.secondaryTargetValue}m ustunde {mission.targetValue} kosuyu devamsiz bitir", $"Finish {mission.targetValue} runs above {mission.secondaryTargetValue}m without continue", $"Termina {mission.targetValue} partidas por encima de {mission.secondaryTargetValue}m sin continuar"),
+                DailyMissionType.StayNearLavaSeconds => TranslateText($"{mission.targetValue}s lavaya yakin kal", $"Stay near lava for {mission.targetValue}s", $"Permanece cerca de la lava durante {mission.targetValue}s"),
+                DailyMissionType.SetNewBest => TranslateText("Yeni en iyi skor yap", "Set a new best", "Consigue un nuevo record"),
+                DailyMissionType.PlayDailyChallenge => TranslateText("Gunluk meydan okumayi oyna", "Play the daily challenge", "Juega el desafio diario"),
+                DailyMissionType.ReachHeightInDailyChallenge => TranslateText($"Gunluk meydan okumada {mission.targetValue}m'ye ulas", $"Reach {mission.targetValue}m in daily challenge", $"Alcanza {mission.targetValue}m en el desafio diario"),
+                DailyMissionType.ReachHeightUnderTime => TranslateText($"{mission.secondaryTargetValue}s altinda {mission.targetValue}m'ye ulas", $"Reach {mission.targetValue}m under {mission.secondaryTargetValue}s", $"Alcanza {mission.targetValue}m en menos de {mission.secondaryTargetValue}s"),
+                DailyMissionType.CompleteRunsWithModifier => TranslateText(
+                    $"{EconomyManager.GetModifierDisplayName(ParseModifierType(mission.contextValue))} ile {mission.targetValue} kosu bitir",
+                    $"Finish {mission.targetValue} {EconomyManager.GetModifierDisplayName(ParseModifierType(mission.contextValue))} run{(mission.targetValue > 1 ? "s" : string.Empty)}",
+                    $"Completa {mission.targetValue} partida{(mission.targetValue > 1 ? "s" : string.Empty)} con {EconomyManager.GetModifierDisplayName(ParseModifierType(mission.contextValue))}"),
+                _ => string.IsNullOrWhiteSpace(mission.description) ? TranslateText("Gorev", "Mission", "Mision") : mission.description,
+            };
+        }
+
+        private static RunModifierType ParseModifierType(string value)
+        {
+            return Enum.TryParse(value, true, out RunModifierType parsed) ? parsed : RunModifierType.None;
+        }
+
+        private string GetCoinWord()
+        {
+            return TranslateText("COIN", "COIN", "MONEDA");
+        }
+
+        private string GetPrivacyPolicyTitle()
+        {
+            return TranslateText("Gizlilik Politikasi", "Privacy Policy", "Politica de Privacidad");
+        }
+
+        private string GetPrivacyPolicySubtitle()
+        {
+            return TranslateText("Son guncelleme: 28 Mart 2026", "Last updated: March 28, 2026", "Ultima actualizacion: 28 de marzo de 2026");
+        }
+
+        private string GetPrivacyPolicyButtonLabel()
+        {
+            return TranslateText("GIZLILIK POLITIKASI", "PRIVACY POLICY", "POLITICA DE PRIVACIDAD");
+        }
+
+        private string GetPrivacyPolicyBody()
+        {
+            return TranslateText(
+                "Tower Maze Gizlilik Politikasi\n\n" +
+                "Tower Maze, oyunun calismasi ve oyuncu deneyimini desteklemek icin sinirli veri isleyebilir.\n\n" +
+                "1. Toplanan veriler\n" +
+                "- Cihazinizda saklanan ilerleme, ayarlar, can durumu, skinler ve oyun ekonomisi.\n" +
+                "- Odullu reklamlar ve uygulama ici satin alimlar icin gerekli teknik islem bilgileri.\n" +
+                "- Liderlik tablosu ve bulut kaydi aciksa skor, oyuncu etiketi ve senkronizasyon verileri.\n\n" +
+                "2. Verilerin kullanim amaci\n" +
+                "- Oyunu kaydetmek ve geri yuklemek.\n" +
+                "- Reklam odullerini ve satin alimlari islemek.\n" +
+                "- Liderlik tablosu, bulut kaydi ve hesap senkronizasyonu saglamak.\n" +
+                "- Guvenlik, hata ayiklama ve hizmet surekliligini desteklemek.\n\n" +
+                "3. Ucuncu taraf servisler\n" +
+                "Oyun reklam, satin alma, platform servisleri ve bulut / leaderboard ozellikleri icin ucuncu taraf servisler kullanabilir. Bu servisler kendi gizlilik politikalarina tabi olabilir.\n\n" +
+                "4. Veri saklama\n" +
+                "Veriler cihazinizda ve ilgili servisler etkinse bulutta saklanabilir. Uygulamayi silmeniz, uygulama verilerini temizlemeniz veya bulut kaydini sifirlamaniz halinde bu veriler kaldirilabilir.\n\n" +
+                "5. Cocuklar ve ebeveynler\n" +
+                "Oyunun kullanimi yasadiginiz bolgedeki kurallara uygun olmalidir. Cocuk kullanicilar icin ebeveyn / veli gozetimi onerilir.\n\n" +
+                "6. Politika degisiklikleri\n" +
+                "Bu gizlilik politikasi zaman zaman guncellenebilir. Oyunda gorunen son surum gecerli kabul edilir.\n\n" +
+                "Iletisim\n" +
+                "Gizlilik ile ilgili sorular icin oyunun magaza sayfasindaki destek kanalini kullanin.",
+                "Privacy Policy\n\n" +
+                "Tower Maze may process limited data to run the game and support core player features.\n\n" +
+                "1. Data we may collect\n" +
+                "- Progress, settings, lives, skins, and economy data stored on your device.\n" +
+                "- Technical transaction data needed for rewarded ads and in app purchases.\n" +
+                "- Scores, player labels, and sync data when leaderboard or cloud save features are enabled.\n\n" +
+                "2. Why this data is used\n" +
+                "- To save and restore your game.\n" +
+                "- To process rewarded ads and purchases.\n" +
+                "- To provide leaderboard, cloud save, and account sync features.\n" +
+                "- To support security, debugging, and service reliability.\n\n" +
+                "3. Third party services\n" +
+                "The game may use third party services for ads, purchases, platform features, and cloud / leaderboard functions. Those services may handle data under their own privacy policies.\n\n" +
+                "4. Data storage\n" +
+                "Data may be stored on your device and, when enabled, in cloud services. Data may be removed if you delete the app, clear app data, or reset cloud save data.\n\n" +
+                "5. Children and parents\n" +
+                "Use of the game should follow the rules that apply in your region. Parent or guardian supervision is recommended for children.\n\n" +
+                "6. Changes to this policy\n" +
+                "This privacy policy may be updated from time to time. The latest version shown in the game is the active version.\n\n" +
+                "Contact\n" +
+                "For privacy questions, use the support contact listed on the game's store page.",
+                "Politica de Privacidad\n\n" +
+                "Tower Maze puede procesar datos limitados para hacer funcionar el juego y sus funciones principales.\n\n" +
+                "1. Datos que pueden recopilarse\n" +
+                "- Progreso, ajustes, vidas, aspectos y datos de economia guardados en tu dispositivo.\n" +
+                "- Datos tecnicos necesarios para anuncios con recompensa y compras dentro de la aplicacion.\n" +
+                "- Puntuaciones, nombre del jugador y datos de sincronizacion cuando se usan tablas de clasificacion o guardado en la nube.\n\n" +
+                "2. Para que se usan\n" +
+                "- Para guardar y restaurar tu partida.\n" +
+                "- Para procesar anuncios con recompensa y compras.\n" +
+                "- Para ofrecer tablas de clasificacion, guardado en la nube y sincronizacion.\n" +
+                "- Para seguridad, depuracion y estabilidad del servicio.\n\n" +
+                "3. Servicios de terceros\n" +
+                "El juego puede usar servicios de terceros para anuncios, compras, funciones de plataforma y servicios de nube / clasificacion. Esos servicios pueden tratar datos segun sus propias politicas.\n\n" +
+                "4. Almacenamiento de datos\n" +
+                "Los datos pueden guardarse en tu dispositivo y, si esta activo, en servicios en la nube. Pueden eliminarse al borrar la app, limpiar los datos o reiniciar el guardado en la nube.\n\n" +
+                "5. Menores y familias\n" +
+                "El uso del juego debe respetar las reglas aplicables en tu region. Se recomienda supervision de padres o tutores para menores.\n\n" +
+                "6. Cambios en esta politica\n" +
+                "Esta politica puede actualizarse ocasionalmente. La ultima version mostrada en el juego sera la version vigente.\n\n" +
+                "Contacto\n" +
+                "Para consultas de privacidad, usa el canal de soporte indicado en la pagina de la tienda del juego.");
+        }
+
+        private void ApplyPortraitLayout()
+        {
+            float aspect = Screen.height / Mathf.Max(1f, (float)Screen.width);
+            bool compactPortrait = aspect < 1.75f;
+            bool tallPortrait = aspect > 2.05f;
+            float topRowMinY = compactPortrait ? 0.895f : 0.905f;
+            float topRowMaxY = compactPortrait ? 0.98f : 0.985f;
+            float lifeBarMaxX = compactPortrait ? 0.34f : (tallPortrait ? 0.30f : 0.32f);
+            float leaderboardMinX = compactPortrait ? 0.70f : 0.73f;
+            float leaderboardMaxX = compactPortrait ? 0.86f : 0.875f;
+            float settingsMinX = compactPortrait ? 0.865f : 0.88f;
+            float settingsMaxX = compactPortrait ? 0.995f : 0.995f;
+
+            float dailyChallengeMinY = compactPortrait ? 0.832f : (tallPortrait ? 0.845f : 0.838f);
+            float dailyChallengeMaxY = compactPortrait ? 0.890f : (tallPortrait ? 0.899f : 0.892f);
+            float dcHeight = dailyChallengeMaxY - dailyChallengeMinY;
+            float endlessMaxY = dailyChallengeMinY - 0.005f;
+            float endlessMinY = endlessMaxY - dcHeight;
+            float logoMinY = compactPortrait ? 0.50f : (tallPortrait ? 0.52f : 0.51f);
+            float logoBaseMaxY = compactPortrait ? 0.83f : (tallPortrait ? 0.88f : 0.86f);
+            float logoMaxY = Mathf.Min(logoBaseMaxY, endlessMinY - (compactPortrait ? 0.012f : 0.014f));
+            float startMinY = compactPortrait ? 0.41f : (tallPortrait ? 0.45f : 0.44f);
+            float startMaxY = compactPortrait ? 0.50f : (tallPortrait ? 0.54f : 0.53f);
+            float captionMinY = compactPortrait ? 0.35f : (tallPortrait ? 0.39f : 0.385f);
+            float captionMaxY = compactPortrait ? 0.42f : (tallPortrait ? 0.46f : 0.445f);
+            float secondaryMinY = compactPortrait ? 0.27f : (tallPortrait ? 0.33f : 0.31f);
+            float secondaryMaxY = compactPortrait ? 0.33f : (tallPortrait ? 0.39f : 0.37f);
+            int logoFontSize = compactPortrait ? 116 : (tallPortrait ? 140 : 128);
+
+            if (startLifeBarRt != null)
+            {
+                startLifeBarRt.anchorMin = new Vector2(0.03f, topRowMinY);
+                startLifeBarRt.anchorMax = new Vector2(lifeBarMaxX, topRowMaxY);
+            }
+
+            if (dailyChallengeButtonRt != null)
+            {
+                dailyChallengeButtonRt.anchorMin = new Vector2(0.03f, dailyChallengeMinY);
+                dailyChallengeButtonRt.anchorMax = new Vector2(lifeBarMaxX, dailyChallengeMaxY);
+                dailyChallengeButtonRt.offsetMin = dailyChallengeButtonRt.offsetMax = Vector2.zero;
+            }
+
+            if (endlessButtonRt != null)
+            {
+                endlessButtonRt.anchorMin = new Vector2(0.03f, endlessMinY);
+                endlessButtonRt.anchorMax = new Vector2(lifeBarMaxX, endlessMaxY);
+                endlessButtonRt.offsetMin = endlessButtonRt.offsetMax = Vector2.zero;
+            }
+
+            if (leaderboardButtonRt != null)
+            {
+                leaderboardButtonRt.anchorMin = new Vector2(leaderboardMinX, topRowMinY);
+                leaderboardButtonRt.anchorMax = new Vector2(leaderboardMaxX, topRowMaxY);
+            }
+
+            if (settingsButtonRt != null)
+            {
+                settingsButtonRt.anchorMin = new Vector2(settingsMinX, topRowMinY);
+                settingsButtonRt.anchorMax = new Vector2(settingsMaxX, topRowMaxY);
+            }
+
+            if (logoRt != null)
+            {
+                logoRt.anchorMin = new Vector2(0.02f, logoMinY);
+                logoRt.anchorMax = new Vector2(0.98f, logoMaxY);
+            }
+
+            if (logoTextLayers.Count > 0)
+            {
+                for (int index = 0; index < logoTextLayers.Count; index++)
+                {
+                    if (logoTextLayers[index] != null)
+                    {
+                        UIManager.SetScaledFontSize(logoTextLayers[index], logoFontSize);
+                    }
+                }
+            }
+
+            if (startButtonRt != null)
+            {
+                startButtonRt.anchorMin = new Vector2(0.20f, startMinY);
+                startButtonRt.anchorMax = new Vector2(0.80f, startMaxY);
+            }
+
+            if (captionText != null)
+            {
+                captionText.rectTransform.anchorMin = new Vector2(0.18f, captionMinY);
+                captionText.rectTransform.anchorMax = new Vector2(0.82f, captionMaxY);
+            }
+
+            if (secondaryRowRt != null)
+            {
+                secondaryRowRt.anchorMin = new Vector2(0.20f, secondaryMinY);
+                secondaryRowRt.anchorMax = new Vector2(0.80f, secondaryMaxY);
+            }
+
+            if (settingsPanelRt != null)
+            {
+                settingsPanelRt.anchorMin = compactPortrait ? new Vector2(0.05f, 0.20f) : new Vector2(0.08f, 0.22f);
+                settingsPanelRt.anchorMax = compactPortrait ? new Vector2(0.95f, 0.88f) : new Vector2(0.92f, 0.86f);
+            }
+
+            if (leaderboardSheet != null)
+            {
+                leaderboardSheet.anchorMin = compactPortrait ? new Vector2(0.05f, 0.11f) : new Vector2(0.08f, 0.14f);
+                leaderboardSheet.anchorMax = compactPortrait ? new Vector2(0.95f, 0.87f) : new Vector2(0.92f, 0.85f);
+            }
+
+            if (missionsSheet != null)
+            {
+                missionsSheet.anchorMin = compactPortrait ? new Vector2(0.04f, 0.08f) : new Vector2(0.06f, 0.10f);
+                missionsSheet.anchorMax = compactPortrait ? new Vector2(0.96f, 0.90f) : new Vector2(0.94f, 0.88f);
+            }
+
+            if (privacySheet != null)
+            {
+                privacySheet.anchorMin = compactPortrait ? new Vector2(0.03f, 0.04f) : new Vector2(0.06f, 0.08f);
+                privacySheet.anchorMax = compactPortrait ? new Vector2(0.97f, 0.96f) : new Vector2(0.94f, 0.92f);
+            }
         }
 
         public void UpdateMissionCountdown(TimeSpan remaining)
         {
             if (missionCountdownText == null) return;
             missionCountdownText.text = $"{(int)remaining.TotalHours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
+        }
+
+        private void RefreshPrivacyScrollLayout(bool resetPosition)
+        {
+            if (privacyBodyText == null || privacyBodyRect == null || privacyScrollRect == null)
+            {
+                return;
+            }
+
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(privacyBodyRect);
+
+            float viewportHeight = privacyScrollRect.viewport != null ? privacyScrollRect.viewport.rect.height : 0f;
+            float contentHeight = Mathf.Max(privacyBodyText.preferredHeight + 24f, viewportHeight + 1f);
+            privacyBodyRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, contentHeight);
+
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(privacyBodyRect);
+
+            if (resetPosition)
+            {
+                privacyScrollRect.verticalNormalizedPosition = 1f;
+            }
+        }
+
+        private void EnsureMissionCountdownTicker()
+        {
+            if (!isActiveAndEnabled || missionCountdownRoutine != null)
+            {
+                return;
+            }
+
+            missionCountdownRoutine = StartCoroutine(MissionCountdownTicker());
+        }
+
+        private IEnumerator MissionCountdownTicker()
+        {
+            while (isActiveAndEnabled)
+            {
+                UpdateMissionCountdown(GetTimeUntilNextLocalDay());
+                yield return new WaitForSecondsRealtime(1f);
+            }
+
+            missionCountdownRoutine = null;
         }
 
         private static TimeSpan GetTimeUntilNextLocalDay()

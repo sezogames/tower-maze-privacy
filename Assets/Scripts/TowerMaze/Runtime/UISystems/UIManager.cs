@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -13,6 +12,102 @@ using UnityEngine.UI;
 
 namespace TowerMaze
 {
+    [Flags]
+    public enum UIFontRole
+    {
+        Default = 0,
+        Button = 1,
+        Popup = 2
+    }
+
+    internal sealed class ResponsiveTextSize : MonoBehaviour
+    {
+        private Text text;
+        private int baseFontSize;
+        private int bestFitMinSize = -1;
+        private int bestFitMaxSize = -1;
+        private UIFontRole role;
+
+        internal void SetFontSize(int size, UIFontRole textRole = UIFontRole.Default)
+        {
+            baseFontSize = Mathf.Max(1, size);
+            role = textRole;
+            Apply();
+        }
+
+        internal void SetBestFit(int minSize, int maxSize, UIFontRole textRole = UIFontRole.Default)
+        {
+            bestFitMinSize = Mathf.Max(1, minSize);
+            bestFitMaxSize = Mathf.Max(bestFitMinSize, maxSize);
+            role = textRole;
+            Apply();
+        }
+
+        internal void SetRole(UIFontRole textRole)
+        {
+            role = textRole;
+            Apply();
+        }
+
+        private void Awake()
+        {
+            text = GetComponent<Text>();
+        }
+
+        private void OnEnable()
+        {
+            Apply();
+        }
+
+        private void OnRectTransformDimensionsChange()
+        {
+            Apply();
+        }
+
+        internal void Apply()
+        {
+            if (text == null)
+            {
+                text = GetComponent<Text>();
+            }
+
+            if (text == null)
+            {
+                return;
+            }
+
+            if (baseFontSize <= 0)
+            {
+                baseFontSize = Mathf.Max(1, text.fontSize);
+            }
+
+            if (bestFitMinSize < 0 && text.resizeTextForBestFit)
+            {
+                bestFitMinSize = Mathf.Max(1, text.resizeTextMinSize);
+            }
+
+            if (bestFitMaxSize < 0 && text.resizeTextForBestFit)
+            {
+                bestFitMaxSize = Mathf.Max(1, text.resizeTextMaxSize);
+            }
+
+            if (baseFontSize > 0)
+            {
+                text.fontSize = UIManager.ScaleFontSize(text.transform, baseFontSize, role);
+            }
+
+            if (bestFitMinSize > 0)
+            {
+                text.resizeTextMinSize = UIManager.ScaleFontSize(text.transform, bestFitMinSize, role);
+            }
+
+            if (bestFitMaxSize > 0)
+            {
+                text.resizeTextMaxSize = UIManager.ScaleFontSize(text.transform, bestFitMaxSize, role);
+            }
+        }
+    }
+
     public class UIManager : MonoBehaviour
     {
         private ThemeDefinition theme;
@@ -27,15 +122,20 @@ namespace TowerMaze
         private CountdownController countdownController;
         private RushWarningController rushWarningController;
         private ControlFlipController controlFlipController;
-        private ShopScreenController shopScreenController;
+        private ShopUIController shopUIController;
         private IAPUpsellController iapUpsellController;
         private RewardToastController rewardToastController;
         private PauseScreenController pauseScreenController;
+        private ReviewPopupController reviewPopupController;
+        private ChapterCompleteScreenController chapterCompleteController;
+        private ChapterSelectScreenController chapterSelectController;
+        private bool chapterSelectBuilt;
         private Font runtimeFont;
         private EconomyManager economyManager;
         private RewardedAdManager rewardedAdManager;
         private CoinStoreManager coinStoreManager;
         private PlayerController playerController;
+        private BannerAdManager bannerAdManager;
         private float cachedBestScore;
         private IReadOnlyList<LeaderboardEntry> cachedLeaderboardEntries = Array.Empty<LeaderboardEntry>();
         private IReadOnlyList<DailyMissionState> cachedDailyMissions = Array.Empty<DailyMissionState>();
@@ -47,8 +147,20 @@ namespace TowerMaze
         private Action buttonClickSound;
         private bool splashComplete;
         private Action pendingShowStart;
+        private const float GlobalFontMultiplier = 1f;
+        private const float DefaultTextMultiplier = 1f;
+        private const float ButtonTextMultiplier = 1.16f;
+        private const float PopupTextMultiplier = 1.10f;
+        private const float TinyTextBoost = 1.60f;
+        private const float SmallTextBoost = 1.45f;
+        private const float RegularTextBoost = 1.28f;
+        private const float MediumTextBoost = 1.14f;
+        private const float LargeTextBoost = 1.06f;
+        private const float HugeTextBoost = 1.02f;
+        private const int ButtonBaseFontSizeOffset = 3;
+        private const string FailUpsellDeathCountKey = "FailUpsellDeathCount";
         private static readonly Dictionary<string, Sprite> themedSpriteCache = new();
-        public bool IsShopOpen => shopScreenController != null && shopScreenController.gameObject.activeSelf;
+        public bool IsShopOpen => shopUIController != null && shopUIController.gameObject.activeSelf;
 
 
         public void Initialize(
@@ -73,7 +185,13 @@ namespace TowerMaze
             Action onResume,
             Action onButtonClick = null,
             Sprite staticBackground = null,
-            ScoreManager scoreMgr = null)
+            ScoreManager scoreMgr = null,
+            BannerAdManager bannerAdsManager = null,
+            Action<string> onClaimMission = null,
+            Action onPlayChapter = null,
+            Action onPlayEndless = null,
+            Action onShowChapters = null,
+            ChapterManager chapterManager = null)
         {
             splashComplete = !splashActive;
             gameConfig = config;
@@ -81,6 +199,7 @@ namespace TowerMaze
             theme = definition;
             economyManager = economy;
             rewardedAdManager = rewardedAds;
+            bannerAdManager = bannerAdsManager;
             coinStoreManager = coinStore;
             playerController = player;
             buttonClickSound = onButtonClick;
@@ -110,13 +229,13 @@ namespace TowerMaze
             heatOverlay.raycastTarget = false;
 
             hudController = CreatePanel<UIHudController>("HUD", canvas.transform);
-            hudController.Initialize(runtimeFont, theme, onPause, buttonClickSound, gameConfig, scoreManager);
+            hudController.Initialize(runtimeFont, theme, onPause, playerController, buttonClickSound, gameConfig, scoreManager);
 
             startScreenController = CreatePanel<StartScreenController>("StartScreen", canvas.transform);
-            startScreenController.Initialize(runtimeFont, theme, economyManager, onPlay, onPlayDailyChallenge, ShowShop, HandleChestClaim, onToggleSound, onToggleVibration, HandleMissionReroll, buttonClickSound);
+            startScreenController.Initialize(runtimeFont, theme, economyManager, onPlay, onPlayDailyChallenge, ShowShop, HandleChestClaim, onToggleSound, onToggleVibration, HandleMissionReroll, buttonClickSound, onClaimMission, onPlayChapter, onPlayEndless, onShowChapters, chapterManager);
 
             failScreenController = CreatePanel<FailScreenController>("FailScreen", canvas.transform);
-            failScreenController.Initialize(runtimeFont, theme, economyManager, onRetry, onContinue, onReturnToMenu, onClaimDoubleReward, onWatchLifeRefillAd, onBuyLifeRefillWithCoins, buttonClickSound, gameConfig?.failToRetryDelay ?? 0.3f);
+            failScreenController.Initialize(runtimeFont, theme, economyManager, onRetry, onContinue, onReturnToMenu, onClaimDoubleReward, onWatchLifeRefillAd, onBuyLifeRefillWithCoins, buttonClickSound, gameConfig?.failToRetryDelay ?? 0.3f, gameConfig?.androidStoreUrl, gameConfig?.iosStoreUrl);
 
             countdownController = CreatePanel<CountdownController>("Countdown", canvas.transform);
             countdownController.Initialize(runtimeFont, theme);
@@ -127,9 +246,9 @@ namespace TowerMaze
             controlFlipController = CreatePanel<ControlFlipController>("ControlFlip", canvas.transform);
             controlFlipController.Initialize(runtimeFont, theme);
 
-            shopScreenController = CreatePanel<ShopScreenController>("ShopScreen", canvas.transform);
-            shopScreenController.Initialize(runtimeFont, theme, HideShop, HandleShopCoinBoost, HandleCoinStoreRestore, HandleShopAction, buttonClickSound);
-            shopScreenController.gameObject.SetActive(false);
+            shopUIController = CreatePanel<ShopUIController>("ShopScreen", canvas.transform);
+            shopUIController.Initialize(runtimeFont, theme, HideShop, HandleShopCoinBoost, HandleCoinStoreRestore, HandleShopAction, buttonClickSound);
+            shopUIController.gameObject.SetActive(false);
 
             rewardToastController = CreatePanel<RewardToastController>("RewardToast", canvas.transform);
             rewardToastController.Initialize(runtimeFont, theme);
@@ -145,6 +264,16 @@ namespace TowerMaze
             pauseScreenController.Initialize(runtimeFont, theme, onResume, onReturnToMenu, buttonClickSound);
             pauseScreenController.gameObject.SetActive(false);
 
+            reviewPopupController = CreatePanel<ReviewPopupController>("ReviewPopup", canvas.transform);
+            reviewPopupController.gameObject.SetActive(false);
+
+            chapterCompleteController = CreatePanel<ChapterCompleteScreenController>("ChapterCompleteScreen", canvas.transform);
+            chapterCompleteController.Initialize(runtimeFont, theme);
+            chapterCompleteController.gameObject.SetActive(false);
+
+            chapterSelectController = CreatePanel<ChapterSelectScreenController>("ChapterSelectScreen", canvas.transform);
+            chapterSelectController.gameObject.SetActive(false);
+
             if (splashActive)
             {
                 startScreenController.gameObject.SetActive(false);
@@ -156,7 +285,6 @@ namespace TowerMaze
             }
         }
 
-
         public void ShowStart(float bestScore, int emberBalance, IReadOnlyList<LeaderboardEntry> leaderboardEntries, IReadOnlyList<DailyMissionState> dailyMissions, DailyChestStatus chestStatus, DailyChallengeStatus challengeStatus, int missionRerollCost, bool soundEnabled, bool vibrationEnabled)
         {
             if (!splashComplete)
@@ -166,6 +294,7 @@ namespace TowerMaze
                 pendingShowStart = () => ShowStart(bestScore, emberBalance, leaderboardEntries, dailyMissions, chestStatus, challengeStatus, missionRerollCost, soundEnabled, vibrationEnabled);
                 return;
             }
+            AnalyticsManager.LogEvent("screen_viewed", new System.Collections.Generic.Dictionary<string, object> { { "screen", "start" } });
             cachedBestScore = bestScore;
             cachedLeaderboardEntries = leaderboardEntries ?? Array.Empty<LeaderboardEntry>();
             cachedDailyMissions = dailyMissions ?? Array.Empty<DailyMissionState>();
@@ -176,15 +305,35 @@ namespace TowerMaze
             cachedVibrationEnabled = vibrationEnabled;
             startScreenController.gameObject.SetActive(true);
             failScreenController.gameObject.SetActive(false);
+            HideFailUpsell();
             hudController.gameObject.SetActive(false);
             countdownController.gameObject.SetActive(false);
             rushWarningController.gameObject.SetActive(false);
             controlFlipController.gameObject.SetActive(false);
-            shopScreenController.gameObject.SetActive(false);
+            shopUIController.gameObject.SetActive(false);
             pauseScreenController?.gameObject.SetActive(false);
+            chapterCompleteController?.gameObject.SetActive(false);
+            chapterSelectController?.gameObject.SetActive(false);
             startScreenController.SetState(bestScore, emberBalance, cachedLeaderboardEntries, cachedDailyMissions, cachedChestStatus, cachedDailyChallengeStatus, cachedMissionRerollCost, soundEnabled, vibrationEnabled);
             SetHeat(0f);
             if (staticMenuBackground != null) staticMenuBackground.gameObject.SetActive(true);
+
+            if (bannerAdManager != null)
+            {
+                if (coinStoreManager != null && coinStoreManager.HasNoAds)
+                {
+                    bannerAdManager.HideBanner();
+                }
+                else
+                {
+                    bannerAdManager.ShowBanner();
+                }
+            }
+
+            if (economyManager != null && economyManager.ShouldShowReviewPrompt())
+            {
+                ShowReviewPopup();
+            }
         }
 
         public bool IsSplashComplete => splashComplete;
@@ -201,9 +350,27 @@ namespace TowerMaze
         {
             cachedBestScore = bestScore;
             cachedLeaderboardEntries = leaderboardEntries ?? Array.Empty<LeaderboardEntry>();
+
             if (startScreenController != null && startScreenController.gameObject.activeSelf)
             {
+                // Start screen is visible — push fresh data directly to the popup
+                // so the leaderboard refreshes even if it's already open.
+                startScreenController.UpdateLeaderboardData(cachedBestScore, cachedLeaderboardEntries);
                 RefreshStartScreenState();
+            }
+            else if (pendingShowStart != null)
+            {
+                // Splash is still showing. Replace the pending ShowStart so that when
+                // the splash ends the start screen will already have the Firebase data.
+                var freshLeaderboard = cachedLeaderboardEntries;
+                var freshBest = cachedBestScore;
+                var prev = pendingShowStart;
+                pendingShowStart = () =>
+                {
+                    cachedBestScore = freshBest;
+                    cachedLeaderboardEntries = freshLeaderboard;
+                    prev?.Invoke();
+                };
             }
         }
 
@@ -211,46 +378,123 @@ namespace TowerMaze
         {
             startScreenController.gameObject.SetActive(false);
             failScreenController.gameObject.SetActive(false);
+            HideFailUpsell();
             hudController.gameObject.SetActive(true);
             countdownController.gameObject.SetActive(false);
             rushWarningController.gameObject.SetActive(false);
-            shopScreenController.gameObject.SetActive(false);
+            shopUIController.gameObject.SetActive(false);
             pauseScreenController?.gameObject.SetActive(false);
             if (staticMenuBackground != null) staticMenuBackground.gameObject.SetActive(false);
+            bannerAdManager?.HideBanner();
         }
 
-        public void ShowFail(float score, float bestScore, float runTime, IReadOnlyList<LeaderboardEntry> leaderboardEntries, int emberBalance, int rewardValue, int claimedReward, bool canContinue, bool canClaimDoubleReward, string bestDeltaText, string nextTargetText, string modeSummaryText, int remainingLives, bool canWatchLifeRefillAd, bool canBuyLifeRefill, int lifeRefillCoinCost, bool hasContinueOption, int continueCoinCost, bool showUpsell = false)
+        public void ShowFail(float score, float bestScore, float runTime, IReadOnlyList<LeaderboardEntry> leaderboardEntries, int emberBalance, int rewardValue, int claimedReward, bool canContinue, bool canClaimDoubleReward, string bestDeltaText, string nextTargetText, string modeSummaryText, int remainingLives, bool canWatchLifeRefillAd, bool canBuyLifeRefill, int lifeRefillCoinCost, bool hasContinueOption, int continueCoinCost, bool showUpsell = false, bool isDailyChallenge = false)
         {
+            AnalyticsManager.LogEvent("screen_viewed", new System.Collections.Generic.Dictionary<string, object> { { "screen", "fail" } });
+            bool shouldShowUpsell = ShouldShowFailUpsell(showUpsell);
             failScreenController.gameObject.SetActive(true);
-            failScreenController.SetState(score, bestScore, runTime, leaderboardEntries, emberBalance, rewardValue, claimedReward, canContinue, canClaimDoubleReward, bestDeltaText, nextTargetText, modeSummaryText, remainingLives, canWatchLifeRefillAd, canBuyLifeRefill, lifeRefillCoinCost, hasContinueOption, continueCoinCost);
+            HideFailUpsell();
+            failScreenController.SetState(score, bestScore, runTime, leaderboardEntries, emberBalance, rewardValue, claimedReward, canContinue, canClaimDoubleReward, bestDeltaText, nextTargetText, modeSummaryText, remainingLives, canWatchLifeRefillAd, canBuyLifeRefill, lifeRefillCoinCost, hasContinueOption, continueCoinCost, isDailyChallenge);
             hudController.gameObject.SetActive(false);
             countdownController.gameObject.SetActive(false);
             rushWarningController.gameObject.SetActive(false);
             controlFlipController.gameObject.SetActive(false);
-            shopScreenController.gameObject.SetActive(false);
+            shopUIController.gameObject.SetActive(false);
             pauseScreenController?.gameObject.SetActive(false);
-            if (showUpsell) ShowFailIAPUpsell();
+            if (shouldShowUpsell) ShowFailIAPUpsell();
             if (staticMenuBackground != null) staticMenuBackground.gameObject.SetActive(false);
+            bannerAdManager?.HideBanner();
         }
 
-        public void ShowCountdown(string label, bool isGo, float score, float bestScore, float runTime, int zoneIndex, float lavaGap, float gapDangerNormalized, bool isNewBest, bool showControlsHint)
+        public void ShowChapterComplete(int chapterIndex, float reachedHeight, float targetHeight,
+            int coinsRewarded, bool nextUnlocked, bool isLastChapter,
+            System.Action onMenu, System.Action onNextChapter, System.Action onChapterSelect)
         {
             startScreenController.gameObject.SetActive(false);
             failScreenController.gameObject.SetActive(false);
+            hudController.gameObject.SetActive(false);
+            countdownController.gameObject.SetActive(false);
+            chapterSelectController?.gameObject.SetActive(false);
+            chapterCompleteController.gameObject.SetActive(true);
+            chapterCompleteController.SetState(chapterIndex, reachedHeight, targetHeight, coinsRewarded, nextUnlocked, isLastChapter, onMenu, onNextChapter, onChapterSelect);
+            SetHeat(0f);
+            if (staticMenuBackground != null) staticMenuBackground.gameObject.SetActive(true);
+            if (bannerAdManager != null)
+            {
+                if (coinStoreManager != null && coinStoreManager.HasNoAds) bannerAdManager.HideBanner();
+                else bannerAdManager.ShowBanner();
+            }
+        }
+
+        public void ShowChapterFail(int chapterIndex, float reachedHeight, float targetHeight, int coinsRewarded, System.Action onReturn)
+        {
+            startScreenController.gameObject.SetActive(false);
+            failScreenController.gameObject.SetActive(false);
+            hudController.gameObject.SetActive(false);
+            countdownController.gameObject.SetActive(false);
+            chapterSelectController?.gameObject.SetActive(false);
+            chapterCompleteController.gameObject.SetActive(true);
+            chapterCompleteController.SetFailState(chapterIndex, reachedHeight, targetHeight, coinsRewarded, onReturn);
+            SetHeat(0f);
+            if (staticMenuBackground != null) staticMenuBackground.gameObject.SetActive(true);
+            if (bannerAdManager != null)
+            {
+                if (coinStoreManager != null && coinStoreManager.HasNoAds) bannerAdManager.HideBanner();
+                else bannerAdManager.ShowBanner();
+            }
+        }
+
+        public void ShowChapterSelect(ChapterManager chapterManager, System.Action<int> onChapterSelected)
+        {
+            startScreenController.gameObject.SetActive(false);
+            failScreenController.gameObject.SetActive(false);
+            hudController.gameObject.SetActive(false);
+            chapterCompleteController?.gameObject.SetActive(false);
+            chapterSelectController.gameObject.SetActive(true);
+            if (!chapterSelectBuilt)
+            {
+                chapterSelectController.Initialize(runtimeFont, theme, chapterManager, onChapterSelected,
+                    () => ShowStart(cachedBestScore, economyManager?.EmberBalance ?? 0, cachedLeaderboardEntries,
+                        cachedDailyMissions, cachedChestStatus, cachedDailyChallengeStatus,
+                        cachedMissionRerollCost, cachedSoundEnabled, cachedVibrationEnabled));
+                chapterSelectBuilt = true;
+            }
+            else
+            {
+                chapterSelectController.Refresh(chapterManager);
+            }
+            SetHeat(0f);
+            if (staticMenuBackground != null) staticMenuBackground.gameObject.SetActive(true);
+        }
+
+        public void ShowCountdown(string label, bool isGo, float score, float bestScore, float runTime, int zoneIndex, float lavaGap, float gapDangerNormalized, bool isNewBest, bool showControlsHint, string bestLabel = null)
+        {
+            startScreenController.gameObject.SetActive(false);
+            failScreenController.gameObject.SetActive(false);
+            HideFailUpsell();
             hudController.gameObject.SetActive(true);
-            hudController.SetValues(score, bestScore, runTime, zoneIndex, lavaGap, gapDangerNormalized, isNewBest, showControlsHint);
+            hudController.SetValues(score, bestScore, runTime, zoneIndex, lavaGap, gapDangerNormalized, isNewBest, showControlsHint, bestLabel);
             countdownController.gameObject.SetActive(true);
             rushWarningController.gameObject.SetActive(false);
             controlFlipController.gameObject.SetActive(false);
-            shopScreenController.gameObject.SetActive(false);
+            shopUIController.gameObject.SetActive(false);
             pauseScreenController?.gameObject.SetActive(false);
             countdownController.SetValue(label, isGo);
             if (staticMenuBackground != null) staticMenuBackground.gameObject.SetActive(false);
+            bannerAdManager?.HideBanner();
         }
 
-        public void UpdateHud(float score, float bestScore, float runTime, int zoneIndex, float lavaGap, float gapDangerNormalized, bool isNewBest, bool showControlsHint)
+        public void UpdateHud(float score, float bestScore, float runTime, int zoneIndex, float lavaGap, float gapDangerNormalized, bool isNewBest, bool showControlsHint, string bestLabel = null)
         {
-            hudController.SetValues(score, bestScore, runTime, zoneIndex, lavaGap, gapDangerNormalized, isNewBest, showControlsHint);
+            hudController.SetValues(score, bestScore, runTime, zoneIndex, lavaGap, gapDangerNormalized, isNewBest, showControlsHint, bestLabel);
+        }
+
+        public void SpawnCoinFloat(int amount)
+        {
+            if (hudController != null)
+            {
+                hudController.SpawnCoinFloat(amount, this);
+            }
         }
 
         public void SetRushState(bool visible, bool rushActive, float pulse, float remainingNormalized)
@@ -289,7 +533,8 @@ namespace TowerMaze
             }
 
             Color color = theme.nearLavaOverlay;
-            color.a = Mathf.Lerp(0f, theme.nearLavaOverlay.a, intensity);
+            float overlayIntensity = Mathf.Pow(Mathf.Clamp01(intensity), 1.65f);
+            color.a = Mathf.Lerp(0f, theme.nearLavaOverlay.a, overlayIntensity);
             heatOverlay.color = color;
         }
 
@@ -297,15 +542,21 @@ namespace TowerMaze
         {
             if (pauseScreenController == null) return;
             pauseScreenController.gameObject.SetActive(true);
+            bannerAdManager?.HideBanner();
         }
 
         public void HidePause()
         {
             if (pauseScreenController == null) return;
             pauseScreenController.gameObject.SetActive(false);
+            if (startScreenController != null && startScreenController.gameObject.activeSelf)
+            {
+                if (coinStoreManager == null || !coinStoreManager.HasNoAds)
+                    bannerAdManager?.ShowBanner();
+            }
         }
 
-        public void ShowNicknamePopup(Action<string> onConfirm)
+        public void ShowNicknamePopup(Action<string, Action<bool, string>> onConfirm)
         {
             var go = new GameObject("NicknamePopup");
             go.transform.SetParent(transform, false);
@@ -318,8 +569,52 @@ namespace TowerMaze
             go.AddComponent<UnityEngine.UI.GraphicRaycaster>();
             var popup = go.AddComponent<NicknamePopupController>();
             popup.Initialize(runtimeFont, theme, onConfirm);
-
         }
+
+        public void ShowReviewPopup()
+        {
+            if (reviewPopupController == null) return;
+            
+            reviewPopupController.gameObject.SetActive(true);
+            reviewPopupController.transform.SetAsLastSibling();
+            reviewPopupController.Initialize(runtimeFont, theme, 
+                HandleReviewRate, 
+                HandleReviewLater, 
+                HandleReviewNever);
+        }
+
+        private void HandleReviewRate()
+        {
+            buttonClickSound?.Invoke();
+            reviewPopupController.gameObject.SetActive(false);
+            economyManager.SetReviewState(ReviewPromptState.Rated);
+            
+            string url = string.Empty;
+#if UNITY_ANDROID
+            url = gameConfig.androidStoreUrl;
+#elif UNITY_IOS
+            url = gameConfig.iosStoreUrl;
+#endif
+            if (!string.IsNullOrEmpty(url))
+            {
+                Application.OpenURL(url);
+            }
+        }
+
+        private void HandleReviewLater()
+        {
+            buttonClickSound?.Invoke();
+            reviewPopupController.gameObject.SetActive(false);
+            economyManager.SetReviewState(ReviewPromptState.Dismissed);
+        }
+
+        private void HandleReviewNever()
+        {
+            buttonClickSound?.Invoke();
+            reviewPopupController.gameObject.SetActive(false);
+            economyManager.SetReviewState(ReviewPromptState.Never);
+        }
+
         public void QueueRewardToast(string title, string subtitle, Color accentColor)
         {
             rewardToastController?.Enqueue(title, subtitle, accentColor);
@@ -327,20 +622,28 @@ namespace TowerMaze
 
         private void ShowShop()
         {
-            if (economyManager == null || shopScreenController == null)
+            if (economyManager == null || shopUIController == null)
             {
                 return;
             }
 
-            shopScreenController.gameObject.SetActive(true);
-            shopScreenController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+            shopUIController.gameObject.SetActive(true);
+            shopUIController.transform.SetAsLastSibling();
+            shopUIController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+            bannerAdManager?.HideBanner();
         }
 
         private void HideShop()
         {
-            if (shopScreenController != null)
+            if (shopUIController != null)
             {
-                shopScreenController.gameObject.SetActive(false);
+                shopUIController.gameObject.SetActive(false);
+            }
+
+            if (startScreenController != null && startScreenController.gameObject.activeSelf)
+            {
+                if (coinStoreManager == null || !coinStoreManager.HasNoAds)
+                    bannerAdManager?.ShowBanner();
             }
         }
 
@@ -371,7 +674,7 @@ namespace TowerMaze
                     int reward = economyManager.ClaimBonusDailyChest();
                     if (reward > 0)
                     {
-                        QueueRewardToast("BONUS CHEST", $"+{reward} COIN", new Color(1f, 0.72f, 0.34f, 1f));
+                        QueueRewardToast(GetBonusChestTitle(), FormatCoinReward(reward), new Color(1f, 0.72f, 0.34f, 1f));
                     }
                     RefreshStartScreenState();
                 });
@@ -381,7 +684,7 @@ namespace TowerMaze
             int freeReward = economyManager.ClaimFreeDailyChest();
             if (freeReward > 0)
             {
-                QueueRewardToast("DAILY CHEST", $"+{freeReward} COIN", new Color(1f, 0.68f, 0.28f, 1f));
+                QueueRewardToast(GetDailyChestTitle(), FormatCoinReward(freeReward), new Color(1f, 0.68f, 0.28f, 1f));
             }
             RefreshStartScreenState();
         }
@@ -423,7 +726,7 @@ namespace TowerMaze
             {
                 if (coinStoreManager == null)
                 {
-                    QueueRewardToast("STORE OFFLINE", "COIN PACKS UNAVAILABLE", new Color(1f, 0.64f, 0.3f, 1f));
+                    QueueRewardToast(GetStoreOfflineTitle(), GetCoinPacksUnavailableMessage(), new Color(1f, 0.64f, 0.3f, 1f));
                     return;
                 }
 
@@ -432,26 +735,26 @@ namespace TowerMaze
                 {
                     case CoinPackPurchaseStatus.Succeeded:
                         QueueRewardToast(
-                            purchaseResult.offer.displayName,
+                            GetLocalizedOfferToastTitle(purchaseResult.offer),
                             purchaseResult.message,
                             new Color(1f, 0.82f, 0.28f, 1f));
                         break;
 
                     case CoinPackPurchaseStatus.Unavailable:
-                        QueueRewardToast("PURCHASE UNAVAILABLE", purchaseResult.message, new Color(1f, 0.62f, 0.28f, 1f));
+                        QueueRewardToast(GetPurchaseUnavailableTitle(), purchaseResult.message, new Color(1f, 0.62f, 0.28f, 1f));
                         break;
 
                     case CoinPackPurchaseStatus.Pending:
-                        QueueRewardToast(purchaseResult.offer.displayName, purchaseResult.message, new Color(1f, 0.82f, 0.28f, 1f));
+                        QueueRewardToast(GetLocalizedOfferToastTitle(purchaseResult.offer), purchaseResult.message, new Color(1f, 0.82f, 0.28f, 1f));
                         break;
 
                     default:
-                        QueueRewardToast("PURCHASE FAILED", purchaseResult.message, new Color(1f, 0.56f, 0.3f, 1f));
+                        QueueRewardToast(GetPurchaseFailedTitle(), purchaseResult.message, new Color(1f, 0.56f, 0.3f, 1f));
                         break;
                 }
 
                 RefreshStartScreenState();
-                shopScreenController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager.Offers, economyManager);
+                shopUIController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager.Offers, economyManager);
                 return;
             }
 
@@ -467,10 +770,31 @@ namespace TowerMaze
                 RefreshStartScreenState();
             }
 
-            shopScreenController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+            shopUIController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
         }
 
         private static readonly string[] UpsellCandidateIds = { "welcome_pack", "no_ads_pack", "bundle_neon_rush", "bundle_frost_reign" };
+
+        private bool ShouldShowFailUpsell(bool requested)
+        {
+            if (!requested)
+            {
+                return false;
+            }
+
+            int deathCount = Mathf.Max(0, PlayerPrefs.GetInt(FailUpsellDeathCountKey, 0)) + 1;
+            PlayerPrefs.SetInt(FailUpsellDeathCountKey, deathCount);
+            PlayerPrefs.Save();
+            return deathCount % 2 == 0;
+        }
+
+        private void HideFailUpsell()
+        {
+            if (iapUpsellController != null)
+            {
+                iapUpsellController.gameObject.SetActive(false);
+            }
+        }
 
         private void ShowFailIAPUpsell()
         {
@@ -479,7 +803,82 @@ namespace TowerMaze
                 return;
             }
 
-            iapUpsellController.Show(coinStoreManager.Offers, UpsellCandidateIds);
+            string[] eligibleCandidateIds = GetEligibleFailUpsellCandidateIds();
+            if (eligibleCandidateIds.Length == 0)
+            {
+                HideFailUpsell();
+                return;
+            }
+
+            iapUpsellController.Show(coinStoreManager.Offers, eligibleCandidateIds);
+        }
+
+        private string[] GetEligibleFailUpsellCandidateIds()
+        {
+            var eligibleIds = new List<string>(UpsellCandidateIds.Length);
+            IReadOnlyList<CoinPackOffer> offers = coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>();
+
+            for (int candidateIndex = 0; candidateIndex < UpsellCandidateIds.Length; candidateIndex++)
+            {
+                string candidateId = UpsellCandidateIds[candidateIndex];
+                for (int offerIndex = 0; offerIndex < offers.Count; offerIndex++)
+                {
+                    CoinPackOffer offer = offers[offerIndex];
+                    if (!string.Equals(offer.id, candidateId, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    if (IsOfferEligibleForUpsell(offer))
+                    {
+                        eligibleIds.Add(candidateId);
+                    }
+
+                    break;
+                }
+            }
+
+            return eligibleIds.ToArray();
+        }
+
+        private bool IsOfferEligibleForUpsell(CoinPackOffer offer)
+        {
+            if (string.IsNullOrWhiteSpace(offer.id))
+            {
+                return false;
+            }
+
+            if (offer.productType != ProductType.Consumable && offer.owned)
+            {
+                return false;
+            }
+
+            if (offer.kind == StoreOfferKind.NoAds && coinStoreManager != null && coinStoreManager.HasNoAds)
+            {
+                return false;
+            }
+
+            if (economyManager == null)
+            {
+                return true;
+            }
+
+            bool hasLinkedRewards = false;
+            bool allLinkedRewardsOwned = true;
+
+            if (!string.IsNullOrWhiteSpace(offer.ballSkinId))
+            {
+                hasLinkedRewards = true;
+                allLinkedRewardsOwned &= economyManager.IsOwnedSkin(offer.ballSkinId);
+            }
+
+            if (!string.IsNullOrWhiteSpace(offer.towerSkinId))
+            {
+                hasLinkedRewards = true;
+                allLinkedRewardsOwned &= economyManager.IsOwnedTowerSkin(offer.towerSkinId);
+            }
+
+            return !hasLinkedRewards || !allLinkedRewardsOwned;
         }
 
         private void TriggerUpsellPurchase(string offerId)
@@ -493,13 +892,13 @@ namespace TowerMaze
             switch (purchaseResult.status)
             {
                 case CoinPackPurchaseStatus.Succeeded:
-                    QueueRewardToast(purchaseResult.offer.displayName, purchaseResult.message, new Color(1f, 0.82f, 0.28f, 1f));
+                    QueueRewardToast(GetLocalizedOfferToastTitle(purchaseResult.offer), purchaseResult.message, new Color(1f, 0.82f, 0.28f, 1f));
                     break;
                 case CoinPackPurchaseStatus.Pending:
-                    QueueRewardToast(purchaseResult.offer.displayName, purchaseResult.message, new Color(1f, 0.82f, 0.28f, 1f));
+                    QueueRewardToast(GetLocalizedOfferToastTitle(purchaseResult.offer), purchaseResult.message, new Color(1f, 0.82f, 0.28f, 1f));
                     break;
                 default:
-                    QueueRewardToast("PURCHASE FAILED", purchaseResult.message, new Color(1f, 0.56f, 0.3f, 1f));
+                    QueueRewardToast(GetPurchaseFailedTitle(), purchaseResult.message, new Color(1f, 0.56f, 0.3f, 1f));
                     break;
             }
         }
@@ -508,7 +907,7 @@ namespace TowerMaze
         {
             if (coinStoreManager == null)
             {
-                QueueRewardToast("STORE OFFLINE", "PURCHASE UNAVAILABLE", new Color(1f, 0.64f, 0.3f, 1f));
+                QueueRewardToast(GetStoreOfflineTitle(), GetPurchaseUnavailableMessage(), new Color(1f, 0.64f, 0.3f, 1f));
                 return;
             }
 
@@ -516,17 +915,17 @@ namespace TowerMaze
             switch (purchaseResult.status)
             {
                 case CoinPackPurchaseStatus.Succeeded:
-                    QueueRewardToast(purchaseResult.offer.displayName, purchaseResult.message, new Color(1f, 0.82f, 0.28f, 1f));
+                    QueueRewardToast(GetLocalizedOfferToastTitle(purchaseResult.offer), purchaseResult.message, new Color(1f, 0.82f, 0.28f, 1f));
                     break;
                 case CoinPackPurchaseStatus.Pending:
-                    QueueRewardToast(purchaseResult.offer.displayName, purchaseResult.message, new Color(1f, 0.82f, 0.28f, 1f));
+                    QueueRewardToast(GetLocalizedOfferToastTitle(purchaseResult.offer), purchaseResult.message, new Color(1f, 0.82f, 0.28f, 1f));
                     break;
                 default:
-                    QueueRewardToast("PURCHASE FAILED", purchaseResult.message, new Color(1f, 0.56f, 0.3f, 1f));
+                    QueueRewardToast(GetPurchaseFailedTitle(), purchaseResult.message, new Color(1f, 0.56f, 0.3f, 1f));
                     break;
             }
 
-            shopScreenController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+            shopUIController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
         }
 
         private void HandleMissionReroll()
@@ -538,12 +937,12 @@ namespace TowerMaze
 
             if (!economyManager.TryRerollDailyMissions(out int spentCoins))
             {
-                QueueRewardToast("NOT ENOUGH COIN", $"{economyManager.GetMissionRerollCost()} COIN NEEDED", new Color(1f, 0.62f, 0.28f, 1f));
+                QueueRewardToast(GetNotEnoughCoinTitle(), FormatCoinNeeded(economyManager.GetMissionRerollCost()), new Color(1f, 0.62f, 0.28f, 1f));
                 RefreshStartScreenState();
                 return;
             }
 
-            QueueRewardToast("MISSIONS REFRESHED", $"-{spentCoins} COIN", new Color(0.44f, 0.86f, 1f, 1f));
+            QueueRewardToast(GetMissionsRefreshedTitle(), FormatCoinSpend(spentCoins), new Color(0.44f, 0.86f, 1f, 1f));
             RefreshStartScreenState();
         }
 
@@ -558,9 +957,9 @@ namespace TowerMaze
             {
                 int directReward = economyManager.GetShopCoinBoostReward();
                 economyManager.ClaimShopCoinBoost();
-                QueueRewardToast("SHOP BOOST", $"+{directReward} COIN", new Color(0.34f, 0.86f, 0.68f, 1f));
+                QueueRewardToast(GetShopBoostTitle(), FormatCoinReward(directReward), new Color(0.34f, 0.86f, 0.68f, 1f));
                 RefreshStartScreenState();
-                shopScreenController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+                shopUIController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
                 return;
             }
 
@@ -573,9 +972,9 @@ namespace TowerMaze
 
                 int reward = economyManager.GetShopCoinBoostReward();
                 economyManager.ClaimShopCoinBoost();
-                QueueRewardToast("SHOP BOOST", $"+{reward} COIN", new Color(0.34f, 0.86f, 0.68f, 1f));
+                QueueRewardToast(GetShopBoostTitle(), FormatCoinReward(reward), new Color(0.34f, 0.86f, 0.68f, 1f));
                 RefreshStartScreenState();
-                shopScreenController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+                shopUIController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
             });
         }
 
@@ -583,7 +982,7 @@ namespace TowerMaze
         {
             if (coinStoreManager == null)
             {
-                QueueRewardToast("STORE OFFLINE", "RESTORE UNAVAILABLE", new Color(1f, 0.64f, 0.3f, 1f));
+                QueueRewardToast(GetStoreOfflineTitle(), GetRestoreUnavailableMessage(), new Color(1f, 0.64f, 0.3f, 1f));
                 return;
             }
 
@@ -599,14 +998,20 @@ namespace TowerMaze
             startScreenController?.SetState(cachedBestScore, economyManager != null ? economyManager.EmberBalance : 0, cachedLeaderboardEntries, cachedDailyMissions, cachedChestStatus, cachedDailyChallengeStatus, cachedMissionRerollCost, cachedSoundEnabled, cachedVibrationEnabled);
         }
 
+        public void RefreshDailyMissions(IReadOnlyList<DailyMissionState> missions)
+        {
+            cachedDailyMissions = missions ?? Array.Empty<DailyMissionState>();
+            startScreenController?.SetState(cachedBestScore, economyManager != null ? economyManager.EmberBalance : 0, cachedLeaderboardEntries, cachedDailyMissions, cachedChestStatus, cachedDailyChallengeStatus, cachedMissionRerollCost, cachedSoundEnabled, cachedVibrationEnabled);
+        }
+
         private void HandleCoinStoreOffersChanged()
         {
-            if (economyManager == null || shopScreenController == null || !shopScreenController.gameObject.activeSelf)
+            if (economyManager == null || shopUIController == null || !shopUIController.gameObject.activeSelf)
             {
                 return;
             }
 
-            shopScreenController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+            shopUIController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
         }
 
         private void HandleCoinStorePurchaseFinished(CoinPackPurchaseResult result)
@@ -619,32 +1024,129 @@ namespace TowerMaze
             switch (result.status)
             {
                 case CoinPackPurchaseStatus.Succeeded:
-                    QueueRewardToast(result.offer.displayName, result.message, new Color(1f, 0.82f, 0.28f, 1f));
+                    QueueRewardToast(GetLocalizedOfferToastTitle(result.offer), result.message, new Color(1f, 0.82f, 0.28f, 1f));
                     break;
 
                 case CoinPackPurchaseStatus.Unavailable:
-                    QueueRewardToast("PURCHASE DEFERRED", result.message, new Color(1f, 0.72f, 0.34f, 1f));
+                    QueueRewardToast(GetPurchaseDeferredTitle(), result.message, new Color(1f, 0.72f, 0.34f, 1f));
                     break;
 
                 default:
-                    QueueRewardToast("PURCHASE FAILED", result.message, new Color(1f, 0.56f, 0.3f, 1f));
+                    QueueRewardToast(GetPurchaseFailedTitle(), result.message, new Color(1f, 0.56f, 0.3f, 1f));
                     break;
             }
 
             RefreshStartScreenState();
-            if (shopScreenController != null && shopScreenController.gameObject.activeSelf && economyManager != null)
+            if (shopUIController != null && shopUIController.gameObject.activeSelf && economyManager != null)
             {
-                shopScreenController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+                shopUIController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
             }
         }
 
         private void HandleCoinStoreRestoreFinished(bool success, string message)
         {
-            QueueRewardToast(success ? "RESTORE COMPLETE" : "RESTORE", message, success ? new Color(0.42f, 0.86f, 1f, 1f) : new Color(1f, 0.68f, 0.3f, 1f));
-            if (shopScreenController != null && shopScreenController.gameObject.activeSelf && economyManager != null)
+            QueueRewardToast(GetRestoreTitle(success), message, success ? new Color(0.42f, 0.86f, 1f, 1f) : new Color(1f, 0.68f, 0.3f, 1f));
+            if (shopUIController != null && shopUIController.gameObject.activeSelf && economyManager != null)
             {
-                shopScreenController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+                shopUIController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
             }
+        }
+
+        private static string GetLocalizedOfferToastTitle(CoinPackOffer offer)
+        {
+            if (string.IsNullOrWhiteSpace(offer.id) && string.IsNullOrWhiteSpace(offer.productId))
+            {
+                return GetPurchaseUnavailableTitle();
+            }
+
+            return ShopUIController.GetLocalizedOfferTitle(offer);
+        }
+
+        private static string GetCoinWord()
+        {
+            return UILanguage.Translate("COIN", "COIN", "MONEDA");
+        }
+
+        private static string FormatCoinReward(int amount)
+        {
+            return $"+{Mathf.Max(0, amount)} {GetCoinWord()}";
+        }
+
+        private static string FormatCoinSpend(int amount)
+        {
+            return $"-{Mathf.Max(0, amount)} {GetCoinWord()}";
+        }
+
+        private static string FormatCoinNeeded(int amount)
+        {
+            return $"{Mathf.Max(0, amount)} {GetCoinWord()} {UILanguage.Translate("GEREKLI", "NEEDED", "NECESARIAS")}";
+        }
+
+        private static string GetBonusChestTitle()
+        {
+            return UILanguage.Translate("BONUS SANDIK", "BONUS CHEST", "COFRE BONUS");
+        }
+
+        private static string GetDailyChestTitle()
+        {
+            return UILanguage.Translate("GUNLUK SANDIK", "DAILY CHEST", "COFRE DIARIO");
+        }
+
+        private static string GetStoreOfflineTitle()
+        {
+            return UILanguage.Translate("MAGAZA KAPALI", "STORE OFFLINE", "TIENDA DESCONECTADA");
+        }
+
+        private static string GetCoinPacksUnavailableMessage()
+        {
+            return UILanguage.Translate("COIN paketleri kullanilamiyor", "COIN PACKS UNAVAILABLE", "LOS PAQUETES DE MONEDAS NO ESTAN DISPONIBLES");
+        }
+
+        private static string GetPurchaseUnavailableTitle()
+        {
+            return UILanguage.Translate("SATIN ALMA KULLANILAMIYOR", "PURCHASE UNAVAILABLE", "COMPRA NO DISPONIBLE");
+        }
+
+        private static string GetPurchaseUnavailableMessage()
+        {
+            return UILanguage.Translate("SATIN ALMA KULLANILAMIYOR", "PURCHASE UNAVAILABLE", "COMPRA NO DISPONIBLE");
+        }
+
+        private static string GetPurchaseFailedTitle()
+        {
+            return UILanguage.Translate("SATIN ALMA BASARISIZ", "PURCHASE FAILED", "COMPRA FALLIDA");
+        }
+
+        private static string GetPurchaseDeferredTitle()
+        {
+            return UILanguage.Translate("SATIN ALMA BEKLEMEDE", "PURCHASE DEFERRED", "COMPRA APLAZADA");
+        }
+
+        private static string GetNotEnoughCoinTitle()
+        {
+            return UILanguage.Translate("YETERSIZ COIN", "NOT ENOUGH COIN", "NO HAY SUFICIENTES MONEDAS");
+        }
+
+        private static string GetMissionsRefreshedTitle()
+        {
+            return UILanguage.Translate("GOREVLER YENILENDI", "MISSIONS REFRESHED", "MISIONES ACTUALIZADAS");
+        }
+
+        private static string GetShopBoostTitle()
+        {
+            return UILanguage.Translate("MAGAZA BONUSU", "SHOP BOOST", "BONO DE TIENDA");
+        }
+
+        private static string GetRestoreUnavailableMessage()
+        {
+            return UILanguage.Translate("GERI YUKLEME KULLANILAMIYOR", "RESTORE UNAVAILABLE", "RESTAURACION NO DISPONIBLE");
+        }
+
+        private static string GetRestoreTitle(bool success)
+        {
+            return success
+                ? UILanguage.Translate("GERI YUKLEME TAMAM", "RESTORE COMPLETE", "RESTAURACION COMPLETA")
+                : UILanguage.Translate("GERI YUKLE", "RESTORE", "RESTAURAR");
         }
 
         private void EnsureCanvas()
@@ -656,7 +1158,7 @@ namespace TowerMaze
                 canvasObject.transform.SetParent(transform, false);
                 canvas = canvasObject.AddComponent<Canvas>();
                 canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-                canvas.sortingOrder = 50;
+                canvas.sortingOrder = -1;
             }
 
             canvas.pixelPerfect = true;
@@ -675,7 +1177,7 @@ namespace TowerMaze
             {
                 scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
                 scaler.referenceResolution = new Vector2(1080f, 1920f);
-                scaler.matchWidthOrHeight = 0.5f; // Keep original if scaler already exists
+                scaler.matchWidthOrHeight = 0f; // Match Width for Portrait
                 scaler.referencePixelsPerUnit = 100f;
                 scaler.dynamicPixelsPerUnit = 2f;
             }
@@ -722,13 +1224,12 @@ namespace TowerMaze
             return panel.AddComponent<T>();
         }
 
-        internal static Text CreateText(string name, Transform parent, Font font, int fontSize, TextAnchor alignment, Color color)
+        internal static Text CreateText(string name, Transform parent, Font font, int fontSize, TextAnchor alignment, Color color, UIFontRole role = UIFontRole.Default)
         {
             GameObject textObject = new(name);
             textObject.transform.SetParent(parent, false);
             Text text = textObject.AddComponent<Text>();
             text.font = font;
-            text.fontSize = fontSize;
             text.alignment = alignment;
             text.color = color;
             text.alignByGeometry = true;
@@ -738,6 +1239,7 @@ namespace TowerMaze
             text.supportRichText = false;
             text.raycastTarget = false;
             text.lineSpacing = 0.92f;
+            SetScaledFontSize(text, fontSize, role);
             return text;
         }
 
@@ -771,17 +1273,47 @@ namespace TowerMaze
             outline.effectColor = new Color(0.88f, 0.94f, 1f, 0.76f);
             outline.effectDistance = new Vector2(2f, -2f);
 
-            Text text = CreateText($"{name}_Label", image.transform, font, 44, TextAnchor.MiddleCenter, textColor);
+            Text text = CreateText($"{name}_Label", image.transform, font, 44, TextAnchor.MiddleCenter, textColor, UIFontRole.Button);
             text.text = label;
             Stretch(text.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             StyleToyText(text, new Color(0.12f, 0.2f, 0.42f, 0.72f), new Vector2(1f, -1f), new Color(1f, 1f, 1f, 0.18f), new Vector2(0f, 1f));
             return button;
         }
 
+        internal static Button CreateCandyCloseButton(string name, Transform parent, Font font, int fontSize = 18)
+        {
+            Button button = CreateButton(name, parent, font, "X", Color.white, Color.white);
+            button.transition = Selectable.Transition.ColorTint;
+            button.navigation = new Navigation { mode = Navigation.Mode.None };
+
+            Image background = button.GetComponent<Image>();
+            if (background != null)
+            {
+                UICandySkin.ApplyCandyButton(background, "out_btn_purple", new Vector4(150f, 160f, 150f, 160f), 350f);
+                background.color = Color.white;
+                button.targetGraphic = background;
+            }
+
+            Text label = button.GetComponentInChildren<Text>();
+            if (label != null)
+            {
+                label.text = "X";
+                label.fontStyle = FontStyle.Bold;
+                label.color = Color.white;
+                label.resizeTextForBestFit = true;
+                SetScaledBestFit(label, Mathf.Max(14, fontSize - 4), fontSize, UIFontRole.Button);
+                Stretch(label.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            }
+
+            return button;
+        }
+
         internal static void BindButton(Button btn, Action action, Action soundCallback = null)
         {
+            var guard = btn.gameObject.GetComponent<ClickGuard>() ?? btn.gameObject.AddComponent<ClickGuard>();
             btn.onClick.AddListener(() =>
             {
+                if (!guard.IsValidClick()) return;
                 soundCallback?.Invoke();
                 action?.Invoke();
             });
@@ -827,13 +1359,13 @@ namespace TowerMaze
 
         private static Sprite GetThemeButtonSprite(Color targetColor)
         {
-            string key = "btn_flat_" + ColorUtility.ToHtmlStringRGB(targetColor);
+            string key = "btn_flat_" + ColorUtility.ToHtmlStringRGBA(targetColor);
             return CreateFlatSprite(key, 64, 32, targetColor);
         }
 
         private static Sprite GetThemePanelSprite(Color targetColor)
         {
-            string key = "panel_flat_" + ColorUtility.ToHtmlStringRGB(targetColor);
+            string key = "panel_flat_" + ColorUtility.ToHtmlStringRGBA(targetColor);
             return CreateFlatSprite(key, 64, 18, targetColor);
         }
 
@@ -1122,12 +1654,187 @@ namespace TowerMaze
                 return;
             }
 
-            text.fontSize = fontSize;
+            SetScaledFontSize(text, fontSize, UIFontRole.Button);
             text.fontStyle = FontStyle.Bold;
             text.alignment = alignment;
             text.raycastTarget = false;
             Stretch(text.rectTransform, Vector2.zero, Vector2.one, offsetMin, offsetMax);
             StyleToyText(text, new Color(0.12f, 0.2f, 0.42f, 0.72f), new Vector2(1f, -1f), new Color(1f, 1f, 1f, 0.18f), new Vector2(0f, 1f));
+        }
+
+        internal static int ScaleFontSize(Transform context, int baseFontSize, UIFontRole role = UIFontRole.Default)
+        {
+            float canvasScale = Mathf.Max(0.01f, GetCanvasScaleFactor(context));
+            int effectiveBaseFontSize = baseFontSize;
+            if ((role & UIFontRole.Button) != 0)
+            {
+                effectiveBaseFontSize = Mathf.Max(1, effectiveBaseFontSize + ButtonBaseFontSizeOffset);
+            }
+
+            float boost = GetResponsiveBoost(effectiveBaseFontSize);
+            float roleMultiplier = GetRoleMultiplier(role);
+            float mobileBoost = GetMobilePortraitReadingBoost();
+            float scaledSize = effectiveBaseFontSize * boost * GlobalFontMultiplier * roleMultiplier * mobileBoost;
+            return Mathf.Max(1, Mathf.RoundToInt(scaledSize / canvasScale));
+        }
+
+        internal static void SetScaledFontSize(Text text, int baseFontSize, UIFontRole role = UIFontRole.Default)
+        {
+            if (text == null)
+            {
+                return;
+            }
+
+            EnsureResponsiveTextSize(text).SetFontSize(baseFontSize, role);
+        }
+
+        internal static void SetScaledBestFit(Text text, int minSize, int maxSize, UIFontRole role = UIFontRole.Default)
+        {
+            if (text == null)
+            {
+                return;
+            }
+
+            EnsureResponsiveTextSize(text).SetBestFit(minSize, maxSize, role);
+        }
+
+        internal static void SetTextRole(Text text, UIFontRole role)
+        {
+            if (text == null)
+            {
+                return;
+            }
+
+            EnsureResponsiveTextSize(text).SetRole(role);
+        }
+
+        internal static void ApplyPopupTextRoles(Transform root)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            Text[] texts = root.GetComponentsInChildren<Text>(true);
+            for (int index = 0; index < texts.Length; index++)
+            {
+                UIFontRole role = UIFontRole.Popup;
+                if (texts[index].GetComponentInParent<Button>() != null)
+                {
+                    role |= UIFontRole.Button;
+                }
+
+                SetTextRole(texts[index], role);
+            }
+        }
+
+        private static ResponsiveTextSize EnsureResponsiveTextSize(Text text)
+        {
+            ResponsiveTextSize scaler = text.GetComponent<ResponsiveTextSize>();
+            if (scaler == null)
+            {
+                scaler = text.gameObject.AddComponent<ResponsiveTextSize>();
+            }
+
+            return scaler;
+        }
+
+        private static float GetResponsiveBoost(int baseFontSize)
+        {
+            if (baseFontSize <= 10)
+            {
+                return TinyTextBoost;
+            }
+
+            if (baseFontSize <= 12)
+            {
+                return SmallTextBoost;
+            }
+
+            if (baseFontSize <= 16)
+            {
+                return RegularTextBoost;
+            }
+
+            if (baseFontSize <= 20)
+            {
+                return MediumTextBoost;
+            }
+
+            if (baseFontSize <= 32)
+            {
+                return LargeTextBoost;
+            }
+
+            return HugeTextBoost;
+        }
+
+        private static float GetRoleMultiplier(UIFontRole role)
+        {
+            float multiplier = DefaultTextMultiplier;
+
+            if ((role & UIFontRole.Button) != 0)
+            {
+                multiplier *= ButtonTextMultiplier;
+            }
+
+            if ((role & UIFontRole.Popup) != 0)
+            {
+                multiplier *= PopupTextMultiplier;
+            }
+
+            return multiplier;
+        }
+
+        private static float GetMobilePortraitReadingBoost()
+        {
+            if (Screen.height <= Screen.width)
+            {
+                return 1f;
+            }
+
+            int shortEdge = Mathf.Max(1, Mathf.Min(Screen.width, Screen.height));
+            if (shortEdge <= 1080)
+            {
+                return 1.18f;
+            }
+
+            if (shortEdge <= 1284)
+            {
+                return 1.10f;
+            }
+
+            if (shortEdge <= 1440)
+            {
+                return 1.05f;
+            }
+
+            return 1f;
+        }
+
+        private static float GetCanvasScaleFactor(Transform context)
+        {
+            CanvasScaler scaler = context != null ? context.GetComponentInParent<CanvasScaler>() : null;
+            if (scaler == null || scaler.uiScaleMode != CanvasScaler.ScaleMode.ScaleWithScreenSize)
+            {
+                return 1f;
+            }
+
+            float widthScale = Screen.width / Mathf.Max(1f, scaler.referenceResolution.x);
+            float heightScale = Screen.height / Mathf.Max(1f, scaler.referenceResolution.y);
+
+            return scaler.screenMatchMode switch
+            {
+                CanvasScaler.ScreenMatchMode.MatchWidthOrHeight => Mathf.Pow(
+                    2f,
+                    Mathf.Lerp(
+                        Mathf.Log(Mathf.Max(0.01f, widthScale), 2f),
+                        Mathf.Log(Mathf.Max(0.01f, heightScale), 2f),
+                        scaler.matchWidthOrHeight)),
+                CanvasScaler.ScreenMatchMode.Expand => Mathf.Min(widthScale, heightScale),
+                CanvasScaler.ScreenMatchMode.Shrink => Mathf.Max(widthScale, heightScale),
+                _ => 1f,
+            };
         }
 
         internal static void Stretch(RectTransform rectTransform, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax)
@@ -1148,11 +1855,13 @@ namespace TowerMaze
 
         public static Text CreateText(Transform parent, string name, string text,
             int size, FontStyle style, Color color, Font font,
-            TextAnchor anchor = TextAnchor.MiddleCenter)
+            TextAnchor anchor = TextAnchor.MiddleCenter,
+            UIFontRole role = UIFontRole.Default)
         {
             var go = new GameObject(name); go.transform.SetParent(parent, false);
             var t = go.AddComponent<Text>(); t.text = text; t.font = font;
-            t.fontSize = size; t.fontStyle = style; t.color = color; t.alignment = anchor; return t;
+            SetScaledFontSize(t, size, role);
+            t.fontStyle = style; t.color = color; t.alignment = anchor; return t;
         }
 
         // Stretch with default params covers both Stretch(rt) and Stretch(rt, l, r, t, b) call sites.
@@ -1164,7 +1873,9 @@ namespace TowerMaze
 
         public static void BindButton(Button btn, System.Action onClick)
         {
-            btn.onClick.RemoveAllListeners(); btn.onClick.AddListener(() => onClick?.Invoke());
+            var guard = btn.gameObject.GetComponent<ClickGuard>() ?? btn.gameObject.AddComponent<ClickGuard>();
+            btn.onClick.RemoveAllListeners();
+            btn.onClick.AddListener(() => { if (guard.IsValidClick()) onClick?.Invoke(); });
         }
 
         /// <summary>Creates a 26x26px icon pill button (used for settings and medals in top bars).</summary>
@@ -1195,7 +1906,7 @@ namespace TowerMaze
             var rt = go.GetComponent<RectTransform>();
             rt.sizeDelta = new Vector2(0, height);
             var lbl = CreateText(go.transform, "Label", label,
-                15, FontStyle.Bold, Color.white, font, TextAnchor.MiddleCenter);
+                15, FontStyle.Bold, Color.white, font, TextAnchor.MiddleCenter, UIFontRole.Button);
             Stretch(lbl.rectTransform);
             BindButton(btn, () => { });
             return go;
@@ -1213,7 +1924,9 @@ namespace TowerMaze
             btn.targetGraphic = img;
             go.AddComponent<LayoutElement>().flexibleWidth = 1;
             var lbl = CreateText(go.transform, "Label", label,
-                10, FontStyle.Bold, new Color(1, 1, 1, 0.70f), font, TextAnchor.MiddleCenter);
+                14, FontStyle.Bold, new Color(1, 1, 1, 0.70f), font, TextAnchor.MiddleCenter, UIFontRole.Button);
+            lbl.resizeTextForBestFit = true;
+            SetScaledBestFit(lbl, 12, 14, UIFontRole.Button);
             Stretch(lbl.rectTransform);
             var rt = go.GetComponent<RectTransform>();
             rt.sizeDelta = new Vector2(0, 44);
@@ -1244,6 +1957,45 @@ namespace TowerMaze
         public static readonly Color HudCard     = new Color(1f, 1f, 1f, 0.08f);
         public static readonly Color HudBorder   = new Color(1f, 1f, 1f, 0.05f);
         public static readonly Color HudTextDim  = new Color(1f, 1f, 1f, 0.50f);
+    }
+
+    /// <summary>
+    /// Prevents accidental button clicks caused by Unity Editor Game View scale slider
+    /// dragging leaking pointer events into the game canvas.
+    /// Tracks pointer-down position and rejects clicks where the pointer moved too far.
+    /// </summary>
+    public sealed class ClickGuard : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
+    {
+        private const float MaxDragPixels = 20f;
+        private Vector2 pointerDownPos;
+        private Vector2 pointerUpPos;
+        private bool pointerWasDown;
+        private float pointerDownTime;
+
+        public void OnPointerDown(PointerEventData eventData)
+        {
+            pointerDownPos = eventData.position;
+            pointerDownTime = Time.unscaledTime;
+            pointerWasDown = true;
+        }
+
+        public void OnPointerUp(PointerEventData eventData)
+        {
+            pointerUpPos = eventData.position;
+        }
+
+        public bool IsValidClick()
+        {
+            if (!pointerWasDown)
+                return false;
+
+            float elapsed = Time.unscaledTime - pointerDownTime;
+            float distance = Vector2.Distance(pointerDownPos, pointerUpPos);
+            pointerWasDown = false;
+
+            // Reject if pointer was held too long (drag) or moved too far
+            return elapsed < 1f && distance < MaxDragPixels;
+        }
     }
 
     // ─── Shop catalog type (pre-redesign) ───────────────────────────────────────
