@@ -28,6 +28,9 @@ namespace TowerMaze
 
         public SegmentData CreateTutorialSegment(GameConfig config, ThemeDefinition theme, int segmentIndex, int entryColumn)
         {
+            config ??= ScriptableObject.CreateInstance<GameConfig>();
+            theme ??= ScriptableObject.CreateInstance<ThemeDefinition>();
+
             DifficultySettings tutorialSettings = new()
             {
                 pathTwistiness = 0.18f,
@@ -45,10 +48,40 @@ namespace TowerMaze
 
         public SegmentData Generate(GameConfig config, DifficultyProfile difficultyProfile, ThemeDefinition theme, int segmentIndex, int zoneIndex, int entryColumn, int seed)
         {
+            config ??= ScriptableObject.CreateInstance<GameConfig>();
+            difficultyProfile ??= ScriptableObject.CreateInstance<DifficultyProfile>();
+            theme ??= ScriptableObject.CreateInstance<ThemeDefinition>();
+
             float segmentHeight = segmentIndex * config.segmentHeight;
             DifficultySettings settings = ApplyZoneComplexity(config, difficultyProfile.Evaluate(segmentHeight), zoneIndex);
             int tier = difficultyProfile.GetBandIndex(segmentHeight);
 
+            return GenerateInternal(config, settings, theme, segmentIndex, entryColumn, seed, tier);
+        }
+
+        public SegmentData GenerateWithSettings(GameConfig config, MazeSettings mazeSettings, ThemeDefinition theme, int segmentIndex, int zoneIndex, int entryColumn, int seed)
+        {
+            config ??= ScriptableObject.CreateInstance<GameConfig>();
+            theme ??= ScriptableObject.CreateInstance<ThemeDefinition>();
+
+            DifficultySettings settings = new DifficultySettings
+            {
+                pathTwistiness = mazeSettings.pathTwistiness,
+                branchDensity = mazeSettings.branchDensity,
+                deadEndDensity = mazeSettings.deadEndDensity,
+                decisionDensity = mazeSettings.decisionDensity,
+                rotationSpeed = 0f,
+                sinkSpeed = 0f,
+                minimumDecisionPoints = mazeSettings.minDecisionPoints,
+                minimumDeadEnds = mazeSettings.minDeadEnds,
+            };
+
+            int tier = Mathf.Max(0, zoneIndex);
+            return GenerateInternal(config, settings, theme, segmentIndex, entryColumn, seed, tier);
+        }
+
+        private SegmentData GenerateInternal(GameConfig config, DifficultySettings settings, ThemeDefinition theme, int segmentIndex, int entryColumn, int seed, int tier)
+        {
             for (int attempt = 0; attempt < config.maxRegenerationAttempts; attempt++)
             {
                 SegmentData data = GenerateWrappedMaze(
@@ -82,7 +115,7 @@ namespace TowerMaze
         {
             SegmentData data = new()
             {
-                themeId = theme.themeId,
+                themeId = theme != null ? theme.themeId : string.Empty,
                 seed = seed,
                 segmentIndex = segmentIndex,
                 difficultyTier = tier,
