@@ -958,13 +958,31 @@ namespace TowerMaze
         private int highestSpawnedSegment = -1;
         private int lastExitColumn;
         private int baseSeed;
-        private float difficultyOffset;
-        private int zoneOffset;
+        private bool useChapterMazeSettings;
+        private MazeSettings chapterMazeSettings;
+        private bool useChapterSinkSpeed;
+        private float chapterSinkSpeedValue;
 
-        public void SetChapterDifficulty(float heightOffset, int zoneOff)
+        public void SetChapterMazeSettings(MazeSettings settings)
         {
-            difficultyOffset = heightOffset;
-            zoneOffset = zoneOff;
+            useChapterMazeSettings = true;
+            chapterMazeSettings = settings;
+        }
+
+        public void ClearChapterMazeSettings()
+        {
+            useChapterMazeSettings = false;
+        }
+
+        public void SetChapterSinkSpeed(float sinkSpeed)
+        {
+            useChapterSinkSpeed = true;
+            chapterSinkSpeedValue = Mathf.Max(0.01f, sinkSpeed);
+        }
+
+        public void ClearChapterSinkSpeed()
+        {
+            useChapterSinkSpeed = false;
         }
 
         public Transform TowerSpace => transform;
@@ -1072,10 +1090,13 @@ namespace TowerMaze
                 return;
             }
 
-            DifficultySettings settings = difficultyProfile.Evaluate(playerHeight + difficultyOffset);
+            DifficultySettings settings = difficultyProfile.Evaluate(playerHeight);
             debugDifficultyTier = difficultyProfile.GetBandIndex(playerHeight);
             rotationController.SetSpeed(settings.rotationSpeed);
-            sinkController.SetSpeed(settings.sinkSpeed, config.sinkAccelerationPerMinute);
+            float effectiveSinkSpeed = useChapterSinkSpeed
+                ? chapterSinkSpeedValue
+                : settings.sinkSpeed;
+            sinkController.SetSpeed(effectiveSinkSpeed, config.sinkAccelerationPerMinute);
         }
 
         public bool IsPathOpen(float angleDegrees, float towerHeight, float angleClearanceDegrees = 0f, float heightClearance = 0f)
@@ -1497,9 +1518,25 @@ namespace TowerMaze
 
             int zoneIndex = GetZoneIndexForSegment(segmentIndex);
             int segmentSeed = GetSegmentSeed(segmentIndex, zoneIndex);
-            SegmentData data = segmentIndex == 0
-                ? mazeGenerator.CreateTutorialSegment(config, theme, segmentIndex, lastExitColumn)
-                : mazeGenerator.Generate(
+            SegmentData data;
+            if (segmentIndex == 0)
+            {
+                data = mazeGenerator.CreateTutorialSegment(config, theme, segmentIndex, lastExitColumn);
+            }
+            else if (useChapterMazeSettings)
+            {
+                data = mazeGenerator.GenerateWithSettings(
+                    config,
+                    chapterMazeSettings,
+                    theme,
+                    segmentIndex,
+                    zoneIndex,
+                    lastExitColumn,
+                    segmentSeed);
+            }
+            else
+            {
+                data = mazeGenerator.Generate(
                     config,
                     difficultyProfile,
                     theme,
@@ -1507,6 +1544,7 @@ namespace TowerMaze
                     zoneIndex,
                     lastExitColumn,
                     segmentSeed);
+            }
 
             lastExitColumn = data.exitColumn;
             highestSpawnedSegment = Mathf.Max(highestSpawnedSegment, segmentIndex);
@@ -1541,7 +1579,7 @@ namespace TowerMaze
         private int GetZoneIndexForSegment(int segmentIndex)
         {
             int segmentsPerZone = Mathf.Max(1, config.segmentsPerZone);
-            return Mathf.Max(0, segmentIndex / segmentsPerZone) + zoneOffset;
+            return Mathf.Max(0, segmentIndex / segmentsPerZone);
         }
 
         private int GetSegmentSeed(int segmentIndex, int zoneIndex)
