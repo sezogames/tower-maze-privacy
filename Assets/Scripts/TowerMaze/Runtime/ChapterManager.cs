@@ -7,67 +7,73 @@ namespace TowerMaze
         public readonly struct ChapterDefinition
         {
             public readonly int Index;
+            public readonly int TierIndex;
+            public readonly float Complexity;
             public readonly float TargetHeight;
+            public readonly float SinkSpeed;
+            public readonly MazeSettings MazeSettings;
             public readonly int Seed;
             public readonly string DisplayName;
-            public readonly float DifficultyOffset;
-            public readonly int ZoneOffset;
 
-            public ChapterDefinition(int index, float targetHeight, int seed, float difficultyOffset, int zoneOffset)
+            public ChapterDefinition(
+                int index,
+                int tierIndex,
+                float complexity,
+                float targetHeight,
+                float sinkSpeed,
+                MazeSettings mazeSettings,
+                int seed)
             {
                 Index = index;
+                TierIndex = tierIndex;
+                Complexity = complexity;
                 TargetHeight = targetHeight;
+                SinkSpeed = sinkSpeed;
+                MazeSettings = mazeSettings;
                 Seed = seed;
                 DisplayName = $"LEVEL {index}";
-                DifficultyOffset = difficultyOffset;
-                ZoneOffset = zoneOffset;
             }
         }
 
-        public const int TotalChapters = 50;
-        private const float ZoneHeight = 24f;
+        public const int TotalChapters = 500;
+        public const int ChaptersPerTier = 50;
+        public const int TotalTiers = TotalChapters / ChaptersPerTier;
+        private const float HMin = 50f;
+        private const float HMax = 500f;
+        private const float LavaHeadStart = 8f;
+        private const float SafetyMarginCh1 = 1.30f;
+        private const float SafetyMarginCh500 = 1.05f;
+        private const float MazeEffMax = 0.95f;
+        private const float MazeEffMin = 0.50f;
+        private const float DefaultBallPlayerSpeed = 4f;
         private const string KeyUnlocked = "TowerMaze.UnlockedChapters";
         private const string KeyBestPrefix = "TowerMaze.ChapterBest.";
+        private const string KeySeedAttemptPrefix = "TowerMaze.ChapterSeedAttempt.";
 
         public int UnlockedUpTo { get; private set; }
         public int ActiveChapterIndex { get; private set; }
 
         private ChapterDefinition[] _chapters;
 
-        public void Initialize(int baseSeed)
+        public void Initialize(int baseSeed, float ballPlayerSpeed)
         {
             UnlockedUpTo = PlayerPrefs.GetInt(KeyUnlocked, 1);
             _chapters = new ChapterDefinition[TotalChapters];
             for (int i = 1; i <= TotalChapters; i++)
             {
+                int tier = ComputeTierIndex(i);
+                float complexity = ComputeComplexity(i);
                 float targetHeight = ComputeTargetHeight(i);
-                int seed = (baseSeed * 31) ^ (i * 7919);
-                float diffOffset = ComputeDifficultyOffset(i);
-                int zoneOff = ComputeZoneOffset(i);
-                _chapters[i - 1] = new ChapterDefinition(i, targetHeight, seed, diffOffset, zoneOff);
+                float sinkSpeed = ComputeSinkSpeed(i, ballPlayerSpeed);
+                MazeSettings mazeSettings = ComputeMazeSettings(i);
+                int attempt = PlayerPrefs.GetInt(KeySeedAttemptPrefix + i, 0);
+                int seed = ComputeSeed(baseSeed, i, attempt);
+                _chapters[i - 1] = new ChapterDefinition(i, tier, complexity, targetHeight, sinkSpeed, mazeSettings, seed);
             }
         }
 
-        private static float ComputeDifficultyOffset(int n)
-        {
-            if (n <= 10) return (n - 1) * 8f;
-            if (n <= 25) return 72f + (n - 11) * 12f;
-            return 252f + (n - 26) * 16f;
-        }
-
-        private static int ComputeZoneOffset(int n) => (n - 1) / 3;
-
-        private static float ComputeTargetHeight(int n)
-        {
-            float zones;
-            if (n <= 10)
-                zones = 2 + (n - 1);
-            else if (n <= 25)
-                zones = 12 + (n - 11) * 2;
-            else
-                zones = 44 + (n - 26) * 3;
-            return zones * ZoneHeight;
-        }
+        [System.Obsolete("Use Initialize(baseSeed, ballPlayerSpeed). Kept for compile compatibility during migration.")]
+        public void Initialize(int baseSeed) => Initialize(baseSeed, DefaultBallPlayerSpeed);
 
         public ChapterDefinition GetChapter(int index)
         {
@@ -114,6 +120,55 @@ namespace TowerMaze
                 PlayerPrefs.SetInt(KeyUnlocked, UnlockedUpTo);
                 PlayerPrefs.Save();
             }
+        }
+
+        internal static float Smoothstep(float t)
+        {
+            t = Mathf.Clamp01(t);
+            return t * t * t * (t * (t * 6f - 15f) + 10f);
+        }
+
+        internal static int ComputeTierIndex(int n) => ((n - 1) / ChaptersPerTier) + 1;
+
+        internal static float ComputeNormalizedT(int n) => (n - 1) / 499f;
+
+        internal static float ComputeComplexity(int n) => Smoothstep(ComputeNormalizedT(n));
+
+        internal static float ComputeTargetHeight(int n)
+        {
+            float s = Smoothstep(ComputeNormalizedT(n));
+            return Mathf.Lerp(HMin, HMax, s);
+        }
+
+        internal static float ComputeMazeEfficiency(float c) => Mathf.Lerp(MazeEffMax, MazeEffMin, c);
+
+        internal static float ComputeSafetyMargin(float c) => Mathf.Lerp(SafetyMarginCh1, SafetyMarginCh500, c);
+
+        internal static float ComputeSinkSpeed(int n, float ballPlayerSpeed)
+        {
+            float c = ComputeComplexity(n);
+            float h = ComputeTargetHeight(n);
+            float playerEff = ballPlayerSpeed * ComputeMazeEfficiency(c);
+            float expectedTime = h / Mathf.Max(0.01f, playerEff);
+            float safety = ComputeSafetyMargin(c);
+            return (h + LavaHeadStart) / Mathf.Max(0.01f, expectedTime * safety);
+        }
+
+        internal static MazeSettings ComputeMazeSettings(int n)
+        {
+            float c = ComputeComplexity(n);
+            return new MazeSettings(
+                pathTwistiness:    Mathf.Lerp(0.18f, 0.65f, c),
+                branchDensity:     Mathf.Lerp(0.30f, 0.78f, c),
+                deadEndDensity:    Mathf.Lerp(0.18f, 0.72f, c),
+                decisionDensity:   Mathf.Lerp(0.24f, 0.66f, c),
+                minDecisionPoints: Mathf.RoundToInt(Mathf.Lerp(2f, 6f, c)),
+                minDeadEnds:       Mathf.RoundToInt(Mathf.Lerp(1f, 7f, c)));
+        }
+
+        internal static int ComputeSeed(int baseSeed, int n, int attempt)
+        {
+            return (baseSeed * 31) ^ (n * 7919) ^ (attempt * 12911);
         }
     }
 }
