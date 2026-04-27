@@ -130,7 +130,7 @@ namespace TowerMaze
 
         internal static int ComputeTierIndex(int n) => ((n - 1) / ChaptersPerTier) + 1;
 
-        internal static float ComputeNormalizedT(int n) => (n - 1) / 499f;
+        internal static float ComputeNormalizedT(int n) => (n - 1) / (float)(TotalChapters - 1);
 
         internal static float ComputeComplexity(int n) => Smoothstep(ComputeNormalizedT(n));
 
