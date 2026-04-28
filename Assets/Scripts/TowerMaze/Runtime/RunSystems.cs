@@ -3512,11 +3512,13 @@ namespace TowerMaze
             if (activeRunMode == RunMode.Chapter && chapterManager != null)
             {
                 var ch = chapterManager.GetChapter(chapterManager.ActiveChapterIndex);
-                towerGenerator.SetChapterDifficulty(ch.DifficultyOffset, ch.ZoneOffset);
+                towerGenerator.SetChapterMazeSettings(ch.MazeSettings);
+                towerGenerator.SetChapterSinkSpeed(ch.SinkSpeed);
             }
             else
             {
-                towerGenerator.SetChapterDifficulty(0f, 0);
+                towerGenerator.ClearChapterMazeSettings();
+                towerGenerator.ClearChapterSinkSpeed();
             }
         }
 
