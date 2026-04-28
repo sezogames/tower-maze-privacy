@@ -6,12 +6,17 @@ namespace TowerMaze
 {
     public class ChapterSelectScreenController : MonoBehaviour
     {
-        private Image[] _cellImages = new Image[50];
-        private Text[] _labelTexts = new Text[50];
-        private Text[] _heightTexts = new Text[50];
-        private Button[] _buttons = new Button[50];
-        private GameObject[] _lockOverlays = new GameObject[50];
-        private Text[] _starTexts = new Text[50];
+        private const int Total = ChapterManager.TotalChapters;
+        private const int PerTier = ChapterManager.ChaptersPerTier;
+        private const int TotalTiers = ChapterManager.TotalTiers;
+
+        private Image[] _cellImages = new Image[Total];
+        private Text[] _labelTexts = new Text[Total];
+        private Text[] _heightTexts = new Text[Total];
+        private Button[] _buttons = new Button[Total];
+        private GameObject[] _lockOverlays = new GameObject[Total];
+        private Text[] _starTexts = new Text[Total];
+        private ScrollRect _scrollRect;
 
         public void Initialize(Font font, ThemeDefinition theme, ChapterManager chapterManager,
             Action<int> onChapterSelected, Action onBack)
@@ -41,10 +46,10 @@ namespace TowerMaze
             scrollGo.transform.SetParent(transform, false);
             var scrollRt = scrollGo.AddComponent<RectTransform>();
             UIManager.Stretch(scrollRt, new Vector2(0f, 0f), new Vector2(1f, 0.90f), Vector2.zero, Vector2.zero);
-            var scrollRect = scrollGo.AddComponent<ScrollRect>();
-            scrollRect.horizontal = false;
-            scrollRect.vertical = true;
-            scrollRect.scrollSensitivity = 30f;
+            _scrollRect = scrollGo.AddComponent<ScrollRect>();
+            _scrollRect.horizontal = false;
+            _scrollRect.vertical = true;
+            _scrollRect.scrollSensitivity = 30f;
 
             var viewportGo = new GameObject("Viewport");
             viewportGo.transform.SetParent(scrollGo.transform, false);
@@ -52,7 +57,7 @@ namespace TowerMaze
             UIManager.Stretch(viewportRt, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             viewportGo.AddComponent<Mask>().showMaskGraphic = false;
             viewportGo.AddComponent<Image>().color = Color.clear;
-            scrollRect.viewport = viewportRt;
+            _scrollRect.viewport = viewportRt;
 
             var contentGo = new GameObject("Content");
             contentGo.transform.SetParent(viewportGo.transform, false);
@@ -61,69 +66,120 @@ namespace TowerMaze
             contentRt.anchorMax = new Vector2(1f, 1f);
             contentRt.pivot = new Vector2(0.5f, 1f);
             contentRt.offsetMin = contentRt.offsetMax = Vector2.zero;
-            var csf = contentGo.AddComponent<ContentSizeFitter>();
-            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            var grid = contentGo.AddComponent<GridLayoutGroup>();
-            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = 5;
+            var contentVlg = contentGo.AddComponent<VerticalLayoutGroup>();
+            contentVlg.childControlWidth = true;
+            contentVlg.childControlHeight = true;
+            contentVlg.childForceExpandWidth = true;
+            contentVlg.childForceExpandHeight = false;
+            contentVlg.spacing = 14f;
+            contentVlg.padding = new RectOffset(8, 8, 8, 16);
+            var contentCsf = contentGo.AddComponent<ContentSizeFitter>();
+            contentCsf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            _scrollRect.content = contentRt;
+
             float cellWidth = (Screen.width - 60f) / 5f;
-            grid.cellSize = new Vector2(cellWidth, cellWidth);
-            grid.spacing = new Vector2(6f, 6f);
-            grid.padding = new RectOffset(8, 8, 8, 8);
-            scrollRect.content = contentRt;
 
-            for (int i = 0; i < 50; i++)
+            for (int tier = 1; tier <= TotalTiers; tier++)
             {
-                int capturedIndex = i + 1;
+                CreateTierHeader(contentGo.transform, font, tier);
 
-                var cellGo = new GameObject($"Chapter_{capturedIndex}");
-                cellGo.transform.SetParent(contentGo.transform, false);
-                var cellImg = cellGo.AddComponent<Image>();
-                var cellBtn = cellGo.AddComponent<Button>();
-                cellBtn.targetGraphic = cellImg;
-                UIManager.BindButton(cellBtn, () => { onChapterSelected(capturedIndex); }, null);
+                var tierGridGo = new GameObject($"TierGrid_{tier}");
+                tierGridGo.transform.SetParent(contentGo.transform, false);
+                tierGridGo.AddComponent<RectTransform>();
+                var tierGrid = tierGridGo.AddComponent<GridLayoutGroup>();
+                tierGrid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+                tierGrid.constraintCount = 5;
+                tierGrid.cellSize = new Vector2(cellWidth, cellWidth);
+                tierGrid.spacing = new Vector2(6f, 6f);
+                tierGrid.padding = new RectOffset(0, 0, 0, 0);
+                var tierGridCsf = tierGridGo.AddComponent<ContentSizeFitter>();
+                tierGridCsf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-                var labelTxt = UIManager.CreateText("Label", cellGo.transform, font, 12, TextAnchor.UpperCenter, Color.white, UIFontRole.Button);
-                labelTxt.fontStyle = FontStyle.Bold;
-                UIManager.SetScaledBestFit(labelTxt, 8, 12, UIFontRole.Button);
-                labelTxt.rectTransform.anchorMin = new Vector2(0.05f, 0.45f);
-                labelTxt.rectTransform.anchorMax = new Vector2(0.95f, 0.85f);
-                labelTxt.rectTransform.offsetMin = labelTxt.rectTransform.offsetMax = Vector2.zero;
+                for (int k = 1; k <= PerTier; k++)
+                {
+                    int chapterIndex = (tier - 1) * PerTier + k;
+                    int capturedIndex = chapterIndex;
+                    int slot = chapterIndex - 1;
 
-                var heightTxt = UIManager.CreateText("Height", cellGo.transform, font, 9, TextAnchor.LowerCenter, UIStyle.TextDim);
-                heightTxt.rectTransform.anchorMin = new Vector2(0.05f, 0.10f);
-                heightTxt.rectTransform.anchorMax = new Vector2(0.95f, 0.45f);
-                heightTxt.rectTransform.offsetMin = heightTxt.rectTransform.offsetMax = Vector2.zero;
+                    var cellGo = new GameObject($"Chapter_{chapterIndex}");
+                    cellGo.transform.SetParent(tierGridGo.transform, false);
+                    var cellImg = cellGo.AddComponent<Image>();
+                    var cellBtn = cellGo.AddComponent<Button>();
+                    cellBtn.targetGraphic = cellImg;
+                    UIManager.BindButton(cellBtn, () => { onChapterSelected(capturedIndex); }, null);
 
-                var lockGo = new GameObject("Lock");
-                lockGo.transform.SetParent(cellGo.transform, false);
-                var lockImg = lockGo.AddComponent<Image>();
-                lockImg.color = new Color(0f, 0f, 0f, 0.6f);
-                UIManager.Stretch(lockImg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-                var lockTxt = UIManager.CreateText("LockIcon", lockGo.transform, font, 16, TextAnchor.MiddleCenter, Color.white);
-                lockTxt.text = "🔒";
-                UIManager.Stretch(lockTxt.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                    var labelTxt = UIManager.CreateText("Label", cellGo.transform, font, 12, TextAnchor.UpperCenter, Color.white, UIFontRole.Button);
+                    labelTxt.fontStyle = FontStyle.Bold;
+                    UIManager.SetScaledBestFit(labelTxt, 8, 12, UIFontRole.Button);
+                    labelTxt.rectTransform.anchorMin = new Vector2(0.05f, 0.45f);
+                    labelTxt.rectTransform.anchorMax = new Vector2(0.95f, 0.85f);
+                    labelTxt.rectTransform.offsetMin = labelTxt.rectTransform.offsetMax = Vector2.zero;
 
-                var starTxt = UIManager.CreateText("Star", cellGo.transform, font, 12, TextAnchor.UpperRight, UIStyle.Gold);
-                starTxt.text = "★";
-                starTxt.rectTransform.anchorMin = new Vector2(0.6f, 0.65f);
-                starTxt.rectTransform.anchorMax = new Vector2(0.98f, 0.98f);
-                starTxt.rectTransform.offsetMin = starTxt.rectTransform.offsetMax = Vector2.zero;
+                    var heightTxt = UIManager.CreateText("Height", cellGo.transform, font, 9, TextAnchor.LowerCenter, UIStyle.TextDim);
+                    heightTxt.rectTransform.anchorMin = new Vector2(0.05f, 0.10f);
+                    heightTxt.rectTransform.anchorMax = new Vector2(0.95f, 0.45f);
+                    heightTxt.rectTransform.offsetMin = heightTxt.rectTransform.offsetMax = Vector2.zero;
 
-                _cellImages[i] = cellImg;
-                _labelTexts[i] = labelTxt;
-                _heightTexts[i] = heightTxt;
-                _buttons[i] = cellBtn;
-                _lockOverlays[i] = lockGo;
-                _starTexts[i] = starTxt;
+                    var lockGo = new GameObject("Lock");
+                    lockGo.transform.SetParent(cellGo.transform, false);
+                    var lockImg = lockGo.AddComponent<Image>();
+                    lockImg.color = new Color(0f, 0f, 0f, 0.6f);
+                    UIManager.Stretch(lockImg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                    var lockTxt = UIManager.CreateText("LockIcon", lockGo.transform, font, 16, TextAnchor.MiddleCenter, Color.white);
+                    lockTxt.text = "🔒";
+                    UIManager.Stretch(lockTxt.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+
+                    var starTxt = UIManager.CreateText("Star", cellGo.transform, font, 12, TextAnchor.UpperRight, UIStyle.Gold);
+                    starTxt.text = "★";
+                    starTxt.rectTransform.anchorMin = new Vector2(0.6f, 0.65f);
+                    starTxt.rectTransform.anchorMax = new Vector2(0.98f, 0.98f);
+                    starTxt.rectTransform.offsetMin = starTxt.rectTransform.offsetMax = Vector2.zero;
+
+                    _cellImages[slot] = cellImg;
+                    _labelTexts[slot] = labelTxt;
+                    _heightTexts[slot] = heightTxt;
+                    _buttons[slot] = cellBtn;
+                    _lockOverlays[slot] = lockGo;
+                    _starTexts[slot] = starTxt;
+                }
             }
 
             Refresh(chapterManager);
         }
 
+        private static void CreateTierHeader(Transform parent, Font font, int tier)
+        {
+            var headerGo = new GameObject($"TierHeader_{tier}");
+            headerGo.transform.SetParent(parent, false);
+            var headerLe = headerGo.AddComponent<LayoutElement>();
+            headerLe.preferredHeight = 56f;
+            var headerImg = headerGo.AddComponent<Image>();
+            Color tierColor = Color.HSVToRGB(Mathf.Repeat(tier / 10f, 1f), 0.55f, 0.32f);
+            tierColor.a = 0.85f;
+            headerImg.color = tierColor;
+
+            var labelTxt = UIManager.CreateText("Label", headerGo.transform, font, 22, TextAnchor.MiddleCenter, UIStyle.Gold, UIFontRole.Default);
+            labelTxt.fontStyle = FontStyle.Bold;
+            labelTxt.text = $"TIER {tier} — {GetTierName(tier)}";
+            UIManager.Stretch(labelTxt.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            UIManager.SetScaledBestFit(labelTxt, 14, 22, UIFontRole.Default);
+        }
+
+        private static string GetTierName(int tier)
+        {
+            string[] tr = { "ACEMI", "OGRENCI", "YETENEKLI", "USTA", "SAMPIYON",
+                            "DEHA", "LORD", "EFSANE", "TANRI", "OLUMSUZ" };
+            string[] en = { "ROOKIE", "STUDENT", "ADEPT", "MASTER", "CHAMPION",
+                            "GENIUS", "LORD", "LEGEND", "GOD", "IMMORTAL" };
+            string[] es = { "NOVATO", "ESTUDIANTE", "EXPERTO", "MAESTRO", "CAMPEON",
+                            "GENIO", "SENOR", "LEYENDA", "DIOS", "INMORTAL" };
+            int i = Mathf.Clamp(tier - 1, 0, 9);
+            return UILanguage.Translate(tr[i], en[i], es[i]);
+        }
+
         public void Refresh(ChapterManager chapterManager)
         {
-            for (int i = 0; i < 50; i++)
+            for (int i = 0; i < Total; i++)
             {
                 int chapterIndex = i + 1;
                 var chapter = chapterManager.GetChapter(chapterIndex);
@@ -156,6 +212,16 @@ namespace TowerMaze
                     _buttons[i].interactable = true;
                 }
             }
+
+            ScrollToChapter(chapterManager.UnlockedUpTo);
+        }
+
+        private void ScrollToChapter(int chapterIndex)
+        {
+            if (_scrollRect == null) return;
+            int tier = (Mathf.Clamp(chapterIndex, 1, Total) - 1) / PerTier;
+            float normalizedY = 1f - (tier / (float)TotalTiers);
+            _scrollRect.verticalNormalizedPosition = Mathf.Clamp01(normalizedY);
         }
     }
 }
