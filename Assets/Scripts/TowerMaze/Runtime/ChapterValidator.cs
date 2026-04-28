@@ -74,7 +74,11 @@ namespace TowerMaze
             for (int seg = 0; seg < targetSegments; seg++)
             {
                 int zoneIndex = seg / Mathf.Max(1, config.segmentsPerZone);
-                int segmentSeed = seed ^ (seg * 31);
+                // Mirror TowerGenerator.GetSegmentSeed exactly so the previewed maze is
+                // bit-identical to what the player will actually traverse. Diverging here
+                // means we validate a different maze than what gets played, which produced
+                // false "unreachable" reports and broken sinkSpeed bakes.
+                int segmentSeed = HashSeed(HashSeed(seed, zoneIndex + 1), seg + 1);
                 SegmentData data = seg == 0
                     ? mazeGenerator.CreateTutorialSegment(config, theme, seg, entryColumn)
                     : mazeGenerator.GenerateWithSettings(config, mazeSettings, theme, seg, zoneIndex, entryColumn, segmentSeed);
@@ -183,6 +187,22 @@ namespace TowerMaze
 
         private const int MaxAttempts = 16;
         private const float LavaHeadStart = 8f;
+
+        // Copy of TowerGenerator.HashSeed — kept private here on purpose so the validator
+        // does not depend on TowerGenerator's internals beyond the SegmentData contract.
+        private static int HashSeed(int a, int b)
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = (hash * 31) + a;
+                hash = (hash * 31) + b;
+                hash ^= (hash << 13);
+                hash ^= (hash >> 17);
+                hash ^= (hash << 5);
+                return Mathf.Abs(hash == int.MinValue ? int.MaxValue : hash);
+            }
+        }
         private const string KeyValidatedFlag = "TowerMaze.ChaptersValidated.v1";
         private const string KeySeedAttemptPrefix = "TowerMaze.ChapterSeedAttempt.";
 
