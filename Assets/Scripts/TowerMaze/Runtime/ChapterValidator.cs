@@ -1,3 +1,5 @@
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -166,6 +168,46 @@ namespace TowerMaze
 
         private const int MaxAttempts = 16;
         private const float LavaHeadStart = 8f;
+        private const string KeyValidatedFlag = "TowerMaze.ChaptersValidated.v1";
+        private const string KeySeedAttemptPrefix = "TowerMaze.ChapterSeedAttempt.";
+
+        /// <summary>
+        /// Validates every chapter once, persisting the accepted attempt index per chapter
+        /// to PlayerPrefs so subsequent boots reproduce the same vetted seed. Yields once
+        /// per 10 chapters to keep the splash overlay responsive. Idempotent: a flagged
+        /// run short-circuits immediately.
+        /// </summary>
+        public IEnumerator ValidateAll(int baseSeed, float ballPlayerSpeed, Action<float> progressCallback)
+        {
+            if (PlayerPrefs.GetInt(KeyValidatedFlag, 0) == 1)
+            {
+                progressCallback?.Invoke(1f);
+                yield break;
+            }
+
+            for (int n = 1; n <= ChapterManager.TotalChapters; n++)
+            {
+                float c = ChapterManager.ComputeComplexity(n);
+                float targetHeight = ChapterManager.ComputeTargetHeight(n);
+                float sinkSpeed = ChapterManager.ComputeSinkSpeed(n, ballPlayerSpeed);
+                float safetyMargin = ChapterManager.ComputeSafetyMargin(c);
+                MazeSettings settings = ChapterManager.ComputeMazeSettings(n);
+
+                TryValidateChapter(n, baseSeed, targetHeight, settings, sinkSpeed, safetyMargin, ballPlayerSpeed, out int attempt);
+                PlayerPrefs.SetInt(KeySeedAttemptPrefix + n, attempt);
+
+                if (n % 10 == 0)
+                {
+                    PlayerPrefs.Save();
+                    progressCallback?.Invoke(n / (float)ChapterManager.TotalChapters);
+                    yield return null;
+                }
+            }
+
+            PlayerPrefs.SetInt(KeyValidatedFlag, 1);
+            PlayerPrefs.Save();
+            progressCallback?.Invoke(1f);
+        }
 
         /// <summary>
         /// Re-rolls the chapter seed up to <see cref="MaxAttempts"/> times until the

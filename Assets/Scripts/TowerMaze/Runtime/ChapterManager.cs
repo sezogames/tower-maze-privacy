@@ -1,3 +1,5 @@
+using System;
+using System.Collections;
 using UnityEngine;
 
 namespace TowerMaze
@@ -74,6 +76,24 @@ namespace TowerMaze
 
         [System.Obsolete("Use Initialize(baseSeed, ballPlayerSpeed). Kept for compile compatibility during migration.")]
         public void Initialize(int baseSeed) => Initialize(baseSeed, DefaultBallPlayerSpeed);
+
+        /// <summary>
+        /// Runs the chapter validator (one-shot, cached via PlayerPrefs flag) and then
+        /// builds the chapter table from the validated seed attempts. Use this on first
+        /// boot so the splash overlay can drive a progress bar while seeds bake.
+        /// </summary>
+        public IEnumerator InitializeAsync(
+            int baseSeed,
+            float ballPlayerSpeed,
+            GameConfig config,
+            DifficultyProfile difficultyProfile,
+            ThemeDefinition theme,
+            Action<float> progressCallback)
+        {
+            var validator = new ChapterValidator(config, difficultyProfile, theme);
+            yield return validator.ValidateAll(baseSeed, ballPlayerSpeed, progressCallback);
+            Initialize(baseSeed, ballPlayerSpeed);
+        }
 
         public ChapterDefinition GetChapter(int index)
         {
