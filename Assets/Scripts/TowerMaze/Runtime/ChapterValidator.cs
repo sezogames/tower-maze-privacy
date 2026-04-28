@@ -166,6 +166,21 @@ namespace TowerMaze
                 w: !(selfOpen && westOpen));
         }
 
+        /// <summary>
+        /// Runs A* on the previewed maze for a single seed and returns the optimal
+        /// traversal time. <see cref="float.PositiveInfinity"/> means the goal is unreachable.
+        /// Use this when you want to derive sinkSpeed from the actual maze rather than rely
+        /// on the formula's mazeEfficiency estimate.
+        /// </summary>
+        public float MeasureOptimalTime(int seed, MazeSettings mazeSettings, float targetHeight, float ballPlayerSpeed)
+        {
+            float cellHeight = config.CellHeight;
+            float edgeCost = cellHeight / Mathf.Max(0.01f, ballPlayerSpeed);
+            CellWalls[,] grid = BuildPreviewGrid(seed, mazeSettings, targetHeight, out int rows, out int cols);
+            int targetRow = Mathf.Min(rows - 1, Mathf.CeilToInt(targetHeight / Mathf.Max(0.0001f, cellHeight)));
+            return AStarMinTime(grid, rows, cols, targetRow, edgeCost);
+        }
+
         private const int MaxAttempts = 16;
         private const float LavaHeadStart = 8f;
         private const string KeyValidatedFlag = "TowerMaze.ChaptersValidated.v1";
@@ -225,6 +240,27 @@ namespace TowerMaze
             float ballPlayerSpeed,
             out int validatedAttempt)
         {
+            return TryValidateChapter(chapterIndex, baseSeed, targetHeight, mazeSettings, sinkSpeed,
+                safetyMargin, ballPlayerSpeed, out validatedAttempt, out _);
+        }
+
+        /// <summary>
+        /// Same as <see cref="TryValidateChapter"/> but also reports the A* optimal traversal
+        /// time of the validated seed. Pre-bake tooling uses this to derive a sinkSpeed that
+        /// matches the actual maze (sinkSpeed = (targetHeight+headStart) / (optimalTime*safety))
+        /// instead of the formula-estimated value.
+        /// </summary>
+        public bool TryValidateChapter(
+            int chapterIndex,
+            int baseSeed,
+            float targetHeight,
+            MazeSettings mazeSettings,
+            float sinkSpeed,
+            float safetyMargin,
+            float ballPlayerSpeed,
+            out int validatedAttempt,
+            out float validatedOptimalTime)
+        {
             float cellHeight = config.CellHeight;
             float edgeCost = cellHeight / Mathf.Max(0.01f, ballPlayerSpeed);
             float lavaBudget = (targetHeight + LavaHeadStart) / Mathf.Max(0.01f, sinkSpeed);
@@ -241,12 +277,14 @@ namespace TowerMaze
                 if (optimalTime * safetyMargin <= lavaBudget)
                 {
                     validatedAttempt = attempt;
+                    validatedOptimalTime = optimalTime;
                     return true;
                 }
             }
 
             Debug.LogError($"[ChapterValidator] Chapter {chapterIndex} failed validation after {MaxAttempts} attempts");
             validatedAttempt = MaxAttempts - 1;
+            validatedOptimalTime = float.PositiveInfinity;
             return false;
         }
 

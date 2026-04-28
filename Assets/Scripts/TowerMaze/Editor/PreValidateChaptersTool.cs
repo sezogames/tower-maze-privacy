@@ -43,6 +43,10 @@ namespace TowerMaze.EditorTools
                 ?? CreateAssetAt<ChapterSeedTable>(AssetPath);
             table.EnsureSize();
 
+            const int MaxAttempts = 16;
+            const float LavaHeadStart = 8f;
+            int unreachableCount = 0;
+
             try
             {
                 for (int n = 1; n <= ChapterManager.TotalChapters; n++)
@@ -58,11 +62,39 @@ namespace TowerMaze.EditorTools
 
                     float c = ChapterManager.ComputeComplexity(n);
                     float h = ChapterManager.ComputeTargetHeight(n);
-                    float s = ChapterManager.ComputeSinkSpeed(n, ballPlayerSpeed);
                     float sm = ChapterManager.ComputeSafetyMargin(c);
                     MazeSettings ms = ChapterManager.ComputeMazeSettings(n);
-                    validator.TryValidateChapter(n, baseSeed, h, ms, s, sm, ballPlayerSpeed, out int attempt);
-                    table.SetAttempt(n, attempt);
+
+                    // Pick the first reachable seed (re-roll if A* says unreachable),
+                    // then derive sinkSpeed from its actual optimal time. This grounds
+                    // the lava budget in the real maze instead of formula heuristics.
+                    int chosenAttempt = 0;
+                    float chosenOptimalTime = float.PositiveInfinity;
+                    for (int attempt = 0; attempt < MaxAttempts; attempt++)
+                    {
+                        int seed = (baseSeed * 31) ^ (n * 7919) ^ (attempt * 12911);
+                        float optimalTime = validator.MeasureOptimalTime(seed, ms, h, ballPlayerSpeed);
+                        if (!float.IsPositiveInfinity(optimalTime))
+                        {
+                            chosenAttempt = attempt;
+                            chosenOptimalTime = optimalTime;
+                            break;
+                        }
+                    }
+
+                    if (float.IsPositiveInfinity(chosenOptimalTime))
+                    {
+                        unreachableCount++;
+                        Debug.LogError($"[PreValidateChaptersTool] Chapter {n} unreachable on all {MaxAttempts} attempts");
+                        // Fall back to formula sinkSpeed so the runtime still has a value.
+                        table.SetAttempt(n, 0);
+                        table.SetSinkSpeed(n, ChapterManager.ComputeSinkSpeed(n, ballPlayerSpeed));
+                        continue;
+                    }
+
+                    float derivedSinkSpeed = (h + LavaHeadStart) / Mathf.Max(0.01f, chosenOptimalTime * sm);
+                    table.SetAttempt(n, chosenAttempt);
+                    table.SetSinkSpeed(n, derivedSinkSpeed);
                 }
             }
             finally
@@ -73,7 +105,7 @@ namespace TowerMaze.EditorTools
             EditorUtility.SetDirty(table);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[PreValidateChaptersTool] Done. Asset: " + AssetPath);
+            Debug.Log($"[PreValidateChaptersTool] Done. Asset: {AssetPath}. Unreachable chapters: {unreachableCount}");
         }
 
         private static T CreateAssetAt<T>(string path) where T : ScriptableObject

@@ -43,8 +43,11 @@ namespace TowerMaze
         private const float HMin = 50f;
         private const float HMax = 500f;
         private const float LavaHeadStart = 8f;
-        private const float SafetyMarginCh1 = 1.30f;
-        private const float SafetyMarginCh500 = 1.05f;
+        // Safety margin = how much slower than the optimal solver path the player is allowed
+        // to be before the lava catches them. 2.5x at chapter 1 gives beginners ~150% extra
+        // time to reach the goal; 1.15x at chapter 500 keeps experts on edge.
+        private const float SafetyMarginCh1 = 2.50f;
+        private const float SafetyMarginCh500 = 1.15f;
         // Calibrated from in-game measurement: player vertical progress through a maze
         // with circumferential detours averages ~55% of climbSpeed at low complexity and
         // ~30% at high complexity. The 0.95/0.50 range from the spec was over-optimistic
@@ -69,12 +72,17 @@ namespace TowerMaze
                 int tier = ComputeTierIndex(i);
                 float complexity = ComputeComplexity(i);
                 float targetHeight = ComputeTargetHeight(i);
-                float sinkSpeed = ComputeSinkSpeed(i, ballPlayerSpeed);
                 MazeSettings mazeSettings = ComputeMazeSettings(i);
                 int attempt = preValidatedTable != null
                     ? preValidatedTable.GetAttempt(i)
                     : PlayerPrefs.GetInt(KeySeedAttemptPrefix + i, 0);
                 int seed = ComputeSeed(baseSeed, i, attempt);
+
+                // Prefer the solver-derived sinkSpeed baked by PreValidateChaptersTool;
+                // fall back to the formula estimate when no table or no baked value exists.
+                float bakedSink = preValidatedTable != null ? preValidatedTable.GetSinkSpeed(i) : 0f;
+                float sinkSpeed = bakedSink > 0f ? bakedSink : ComputeSinkSpeed(i, ballPlayerSpeed);
+
                 _chapters[i - 1] = new ChapterDefinition(i, tier, complexity, targetHeight, sinkSpeed, mazeSettings, seed);
             }
         }
