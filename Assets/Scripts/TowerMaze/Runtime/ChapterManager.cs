@@ -45,8 +45,12 @@ namespace TowerMaze
         private const float LavaHeadStart = 8f;
         private const float SafetyMarginCh1 = 1.30f;
         private const float SafetyMarginCh500 = 1.05f;
-        private const float MazeEffMax = 0.95f;
-        private const float MazeEffMin = 0.50f;
+        // Calibrated from in-game measurement: player vertical progress through a maze
+        // with circumferential detours averages ~55% of climbSpeed at low complexity and
+        // ~30% at high complexity. The 0.95/0.50 range from the spec was over-optimistic
+        // and produced sinkSpeeds that were unbeatable even with optimal play.
+        private const float MazeEffMax = 0.55f;
+        private const float MazeEffMin = 0.30f;
         private const string KeyUnlocked = "TowerMaze.UnlockedChapters";
         private const string KeyBestPrefix = "TowerMaze.ChapterBest.";
         private const string KeySeedAttemptPrefix = "TowerMaze.ChapterSeedAttempt.";
