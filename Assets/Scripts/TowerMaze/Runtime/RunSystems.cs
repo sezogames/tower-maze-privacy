@@ -747,7 +747,6 @@ namespace TowerMaze
         public DailyMissionRewardResult RegisterCompletedRun(RunSummary summary)
         {
             RefreshDailyContentIfNeeded();
-            int grantedReward = 0;
             int completedMissionCount = 0;
 
             for (int index = 0; index < dailyMissions.Count; index++)

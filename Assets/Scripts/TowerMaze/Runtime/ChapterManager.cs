@@ -140,29 +140,29 @@ namespace TowerMaze
             }
         }
 
-        internal static float Smoothstep(float t)
+        public static float Smoothstep(float t)
         {
             t = Mathf.Clamp01(t);
             return t * t * t * (t * (t * 6f - 15f) + 10f);
         }
 
-        internal static int ComputeTierIndex(int n) => ((n - 1) / ChaptersPerTier) + 1;
+        public static int ComputeTierIndex(int n) => ((n - 1) / ChaptersPerTier) + 1;
 
-        internal static float ComputeNormalizedT(int n) => (n - 1) / (float)(TotalChapters - 1);
+        public static float ComputeNormalizedT(int n) => (n - 1) / (float)(TotalChapters - 1);
 
-        internal static float ComputeComplexity(int n) => Smoothstep(ComputeNormalizedT(n));
+        public static float ComputeComplexity(int n) => Smoothstep(ComputeNormalizedT(n));
 
-        internal static float ComputeTargetHeight(int n)
+        public static float ComputeTargetHeight(int n)
         {
             float s = Smoothstep(ComputeNormalizedT(n));
             return Mathf.Lerp(HMin, HMax, s);
         }
 
-        internal static float ComputeMazeEfficiency(float c) => Mathf.Lerp(MazeEffMax, MazeEffMin, c);
+        public static float ComputeMazeEfficiency(float c) => Mathf.Lerp(MazeEffMax, MazeEffMin, c);
 
-        internal static float ComputeSafetyMargin(float c) => Mathf.Lerp(SafetyMarginCh1, SafetyMarginCh500, c);
+        public static float ComputeSafetyMargin(float c) => Mathf.Lerp(SafetyMarginCh1, SafetyMarginCh500, c);
 
-        internal static float ComputeSinkSpeed(int n, float ballPlayerSpeed)
+        public static float ComputeSinkSpeed(int n, float ballPlayerSpeed)
         {
             float c = ComputeComplexity(n);
             float h = ComputeTargetHeight(n);
@@ -172,7 +172,7 @@ namespace TowerMaze
             return (h + LavaHeadStart) / Mathf.Max(0.01f, expectedTime * safety);
         }
 
-        internal static MazeSettings ComputeMazeSettings(int n)
+        public static MazeSettings ComputeMazeSettings(int n)
         {
             float c = ComputeComplexity(n);
             return new MazeSettings(
@@ -184,7 +184,7 @@ namespace TowerMaze
                 minDeadEnds:       Mathf.RoundToInt(Mathf.Lerp(1f, 7f, c)));
         }
 
-        internal static int ComputeSeed(int baseSeed, int n, int attempt)
+        public static int ComputeSeed(int baseSeed, int n, int attempt)
         {
             return (baseSeed * 31) ^ (n * 7919) ^ (attempt * 12911);
         }
