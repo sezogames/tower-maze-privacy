@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace TowerMaze
@@ -161,6 +162,172 @@ namespace TowerMaze
                 s: !(selfOpen && southOpen),
                 e: !(selfOpen && eastOpen),
                 w: !(selfOpen && westOpen));
+        }
+
+        private const int MaxAttempts = 16;
+        private const float LavaHeadStart = 8f;
+
+        /// <summary>
+        /// Re-rolls the chapter seed up to <see cref="MaxAttempts"/> times until the
+        /// optimal traversal time (A* on the flattened cell-wall grid) fits inside the
+        /// lava budget multiplied by <paramref name="safetyMargin"/>. The accepted attempt
+        /// index is returned so callers can persist it and reproduce the validated seed.
+        /// </summary>
+        public bool TryValidateChapter(
+            int chapterIndex,
+            int baseSeed,
+            float targetHeight,
+            MazeSettings mazeSettings,
+            float sinkSpeed,
+            float safetyMargin,
+            float ballPlayerSpeed,
+            out int validatedAttempt)
+        {
+            float cellHeight = config.CellHeight;
+            float edgeCost = cellHeight / Mathf.Max(0.01f, ballPlayerSpeed);
+            float lavaBudget = (targetHeight + LavaHeadStart) / Mathf.Max(0.01f, sinkSpeed);
+
+            for (int attempt = 0; attempt < MaxAttempts; attempt++)
+            {
+                int seed = (baseSeed * 31) ^ (chapterIndex * 7919) ^ (attempt * 12911);
+                CellWalls[,] grid = BuildPreviewGrid(seed, mazeSettings, targetHeight, out int rows, out int cols);
+
+                int targetRow = Mathf.Min(rows - 1, Mathf.CeilToInt(targetHeight / Mathf.Max(0.0001f, cellHeight)));
+                float optimalTime = AStarMinTime(grid, rows, cols, targetRow, edgeCost);
+                if (float.IsPositiveInfinity(optimalTime)) continue;
+
+                if (optimalTime * safetyMargin <= lavaBudget)
+                {
+                    validatedAttempt = attempt;
+                    return true;
+                }
+            }
+
+            Debug.LogError($"[ChapterValidator] Chapter {chapterIndex} failed validation after {MaxAttempts} attempts");
+            validatedAttempt = MaxAttempts - 1;
+            return false;
+        }
+
+        /// <summary>
+        /// A* on the cell grid with admissible heuristic <c>(targetRow - row) * edgeCost</c>.
+        /// Start frontier: the entire bottom row (player x-position is unconstrained at spawn).
+        /// Goal: any cell whose row index is &gt;= <paramref name="targetRow"/>. Edge cost is
+        /// uniform; obstacle is the wall flag on the side of travel. East/west wrap modulo cols.
+        /// </summary>
+        private static float AStarMinTime(CellWalls[,] grid, int rows, int cols, int targetRow, float edgeCost)
+        {
+            float[,] cost = new float[rows, cols];
+            for (int r = 0; r < rows; r++)
+                for (int c = 0; c < cols; c++)
+                    cost[r, c] = float.PositiveInfinity;
+
+            var open = new MinHeap();
+            for (int c = 0; c < cols; c++)
+            {
+                cost[0, c] = 0f;
+                open.Push(targetRow * edgeCost, 0, c);
+            }
+
+            while (open.Count > 0)
+            {
+                open.Pop(out int row, out int col, out float priority);
+                float baseCost = cost[row, col];
+                // Stale entry — a cheaper path was found after this one was queued.
+                if (priority > baseCost + Mathf.Max(0, targetRow - row) * edgeCost + 1e-5f) continue;
+
+                if (row >= targetRow) return baseCost;
+
+                CellWalls walls = grid[row, col];
+
+                if (!walls.wallN && row + 1 < rows)
+                    Relax(grid, cost, open, row + 1, col, baseCost + edgeCost, targetRow, edgeCost);
+                if (!walls.wallS && row - 1 >= 0)
+                    Relax(grid, cost, open, row - 1, col, baseCost + edgeCost, targetRow, edgeCost);
+                if (!walls.wallE)
+                {
+                    int eastCol = (col + 1) % cols;
+                    Relax(grid, cost, open, row, eastCol, baseCost + edgeCost, targetRow, edgeCost);
+                }
+                if (!walls.wallW)
+                {
+                    int westCol = ((col - 1) % cols + cols) % cols;
+                    Relax(grid, cost, open, row, westCol, baseCost + edgeCost, targetRow, edgeCost);
+                }
+            }
+
+            return float.PositiveInfinity;
+        }
+
+        private static void Relax(CellWalls[,] grid, float[,] cost, MinHeap open,
+            int toRow, int toCol, float newCost, int targetRow, float edgeCost)
+        {
+            if (newCost >= cost[toRow, toCol]) return;
+            cost[toRow, toCol] = newCost;
+            float h = Mathf.Max(0, targetRow - toRow) * edgeCost;
+            open.Push(newCost + h, toRow, toCol);
+        }
+
+        /// <summary>
+        /// Min-heap keyed on f = g + h. Stores (row, col) payload directly to avoid tuple
+        /// allocations. Stale entries are filtered at pop time via cost-table re-check.
+        /// </summary>
+        private sealed class MinHeap
+        {
+            private readonly List<Entry> heap = new List<Entry>(256);
+
+            public int Count => heap.Count;
+
+            public void Push(float priority, int row, int col)
+            {
+                heap.Add(new Entry { priority = priority, row = row, col = col });
+                SiftUp(heap.Count - 1);
+            }
+
+            public void Pop(out int row, out int col, out float priority)
+            {
+                Entry root = heap[0];
+                row = root.row;
+                col = root.col;
+                priority = root.priority;
+                int last = heap.Count - 1;
+                heap[0] = heap[last];
+                heap.RemoveAt(last);
+                if (heap.Count > 0) SiftDown(0);
+            }
+
+            private void SiftUp(int i)
+            {
+                while (i > 0)
+                {
+                    int parent = (i - 1) >> 1;
+                    if (heap[parent].priority <= heap[i].priority) break;
+                    (heap[parent], heap[i]) = (heap[i], heap[parent]);
+                    i = parent;
+                }
+            }
+
+            private void SiftDown(int i)
+            {
+                int n = heap.Count;
+                while (true)
+                {
+                    int left = (i << 1) + 1;
+                    int right = left + 1;
+                    int smallest = i;
+                    if (left < n && heap[left].priority < heap[smallest].priority) smallest = left;
+                    if (right < n && heap[right].priority < heap[smallest].priority) smallest = right;
+                    if (smallest == i) break;
+                    (heap[smallest], heap[i]) = (heap[i], heap[smallest]);
+                    i = smallest;
+                }
+            }
+
+            private struct Entry
+            {
+                public float priority;
+                public int row;
+                public int col;
+            }
         }
     }
 }
