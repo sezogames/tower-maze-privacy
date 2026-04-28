@@ -47,7 +47,6 @@ namespace TowerMaze
         private const float SafetyMarginCh500 = 1.05f;
         private const float MazeEffMax = 0.95f;
         private const float MazeEffMin = 0.50f;
-        private const float DefaultBallPlayerSpeed = 4f;
         private const string KeyUnlocked = "TowerMaze.UnlockedChapters";
         private const string KeyBestPrefix = "TowerMaze.ChapterBest.";
         private const string KeySeedAttemptPrefix = "TowerMaze.ChapterSeedAttempt.";
@@ -57,7 +56,7 @@ namespace TowerMaze
 
         private ChapterDefinition[] _chapters;
 
-        public void Initialize(int baseSeed, float ballPlayerSpeed)
+        public void Initialize(int baseSeed, float ballPlayerSpeed, ChapterSeedTable preValidatedTable = null)
         {
             UnlockedUpTo = PlayerPrefs.GetInt(KeyUnlocked, 1);
             _chapters = new ChapterDefinition[TotalChapters];
@@ -68,14 +67,13 @@ namespace TowerMaze
                 float targetHeight = ComputeTargetHeight(i);
                 float sinkSpeed = ComputeSinkSpeed(i, ballPlayerSpeed);
                 MazeSettings mazeSettings = ComputeMazeSettings(i);
-                int attempt = PlayerPrefs.GetInt(KeySeedAttemptPrefix + i, 0);
+                int attempt = preValidatedTable != null
+                    ? preValidatedTable.GetAttempt(i)
+                    : PlayerPrefs.GetInt(KeySeedAttemptPrefix + i, 0);
                 int seed = ComputeSeed(baseSeed, i, attempt);
                 _chapters[i - 1] = new ChapterDefinition(i, tier, complexity, targetHeight, sinkSpeed, mazeSettings, seed);
             }
         }
-
-        [System.Obsolete("Use Initialize(baseSeed, ballPlayerSpeed). Kept for compile compatibility during migration.")]
-        public void Initialize(int baseSeed) => Initialize(baseSeed, DefaultBallPlayerSpeed);
 
         /// <summary>
         /// Runs the chapter validator (one-shot, cached via PlayerPrefs flag) and then

@@ -149,7 +149,14 @@ namespace TowerMaze
                 playerController.Initialize(gameConfig, towerGenerator, towerRoot, themeDefinition, audioManager, cameraFollow);
                 scoreManager.Initialize(gameConfig);
                 economyManager.Initialize();
-                chapterManager.Initialize(gameConfig != null ? gameConfig.seed : 1347);
+                int chapterBaseSeed = gameConfig != null ? gameConfig.seed : 1347;
+                float chapterBallSpeed = gameConfig != null ? gameConfig.climbSpeed : 2.65f;
+                ChapterSeedTable preBakedSeeds = Resources.Load<ChapterSeedTable>("TowerMaze/ChapterSeedTable");
+                if (preBakedSeeds == null)
+                {
+                    LogVerbose("[Bootstrapper] No pre-baked ChapterSeedTable in Resources/TowerMaze. Run 'Tools → TowerMaze → Pre-Validate Chapters' to bake one. Booting with attempt=0 fallback.");
+                }
+                chapterManager.Initialize(chapterBaseSeed, chapterBallSpeed, preBakedSeeds);
                 coinStoreManager.Initialize(economyManager);
                 
                 System.Action applyTowerVisuals = () => {
