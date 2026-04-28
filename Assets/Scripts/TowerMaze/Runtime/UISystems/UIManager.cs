@@ -406,6 +406,13 @@ namespace TowerMaze
             bannerAdManager?.HideBanner();
         }
 
+        // Stub — replaced by TierCelebrationScreen in Chunk 5. Logs and invokes onContinue.
+        public void ShowTierCelebration(int tierIndex, int bonusEmber, bool isLastChapter, System.Action onContinue)
+        {
+            Debug.Log($"[UIManager] TIER {tierIndex} cleared, bonus={bonusEmber}, last={isLastChapter}");
+            onContinue?.Invoke();
+        }
+
         public void ShowChapterComplete(int chapterIndex, float reachedHeight, float targetHeight,
             int coinsRewarded, bool nextUnlocked, bool isLastChapter,
             System.Action onMenu, System.Action onNextChapter, System.Action onChapterSelect)

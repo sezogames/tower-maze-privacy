@@ -3622,6 +3622,20 @@ namespace TowerMaze
 
             bool nextUnlocked = chapterManager.IsUnlocked(idx + 1);
             bool isLastChapter = idx >= ChapterManager.TotalChapters;
+            bool isTierMilestone = (idx % ChapterManager.ChaptersPerTier) == 0;
+
+            if (isTierMilestone)
+            {
+                int tierIndex = idx / ChapterManager.ChaptersPerTier;
+                int tierBonus = tierIndex * 500;
+                economyManager.GrantEmber(tierBonus);
+                uiManager.ShowTierCelebration(
+                    tierIndex,
+                    tierBonus,
+                    isLastChapter,
+                    () => { if (!isLastChapter) ReturnToMainMenu(); else ReturnToMainMenu(); });
+                return;
+            }
 
             uiManager.ShowChapterComplete(
                 idx,
