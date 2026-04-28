@@ -128,6 +128,7 @@ namespace TowerMaze
         private PauseScreenController pauseScreenController;
         private ReviewPopupController reviewPopupController;
         private ChapterCompleteScreenController chapterCompleteController;
+        private TierCelebrationScreenController tierCelebrationController;
         private ChapterSelectScreenController chapterSelectController;
         private bool chapterSelectBuilt;
         private Font runtimeFont;
@@ -271,6 +272,10 @@ namespace TowerMaze
             chapterCompleteController.Initialize(runtimeFont, theme);
             chapterCompleteController.gameObject.SetActive(false);
 
+            tierCelebrationController = CreatePanel<TierCelebrationScreenController>("TierCelebrationScreen", canvas.transform);
+            tierCelebrationController.Initialize(runtimeFont, theme);
+            tierCelebrationController.gameObject.SetActive(false);
+
             chapterSelectController = CreatePanel<ChapterSelectScreenController>("ChapterSelectScreen", canvas.transform);
             chapterSelectController.gameObject.SetActive(false);
 
@@ -313,6 +318,7 @@ namespace TowerMaze
             shopUIController.gameObject.SetActive(false);
             pauseScreenController?.gameObject.SetActive(false);
             chapterCompleteController?.gameObject.SetActive(false);
+            tierCelebrationController?.gameObject.SetActive(false);
             chapterSelectController?.gameObject.SetActive(false);
             startScreenController.SetState(bestScore, emberBalance, cachedLeaderboardEntries, cachedDailyMissions, cachedChestStatus, cachedDailyChallengeStatus, cachedMissionRerollCost, soundEnabled, vibrationEnabled);
             SetHeat(0f);
@@ -406,11 +412,25 @@ namespace TowerMaze
             bannerAdManager?.HideBanner();
         }
 
-        // Stub — replaced by TierCelebrationScreen in Chunk 5. Logs and invokes onContinue.
         public void ShowTierCelebration(int tierIndex, int bonusEmber, bool isLastChapter, System.Action onContinue)
         {
-            Debug.Log($"[UIManager] TIER {tierIndex} cleared, bonus={bonusEmber}, last={isLastChapter}");
-            onContinue?.Invoke();
+            startScreenController.gameObject.SetActive(false);
+            failScreenController.gameObject.SetActive(false);
+            HideFailUpsell();
+            hudController.gameObject.SetActive(false);
+            countdownController.gameObject.SetActive(false);
+            chapterSelectController?.gameObject.SetActive(false);
+            chapterCompleteController?.gameObject.SetActive(false);
+            tierCelebrationController?.gameObject.SetActive(false);
+            tierCelebrationController.gameObject.SetActive(true);
+            tierCelebrationController.SetState(tierIndex, bonusEmber, isLastChapter, onContinue);
+            SetHeat(0f);
+            if (staticMenuBackground != null) staticMenuBackground.gameObject.SetActive(true);
+            if (bannerAdManager != null)
+            {
+                if (coinStoreManager != null && coinStoreManager.HasNoAds) bannerAdManager.HideBanner();
+                else bannerAdManager.ShowBanner();
+            }
         }
 
         public void ShowChapterComplete(int chapterIndex, float reachedHeight, float targetHeight,
@@ -457,6 +477,7 @@ namespace TowerMaze
             failScreenController.gameObject.SetActive(false);
             hudController.gameObject.SetActive(false);
             chapterCompleteController?.gameObject.SetActive(false);
+            tierCelebrationController?.gameObject.SetActive(false);
             chapterSelectController.gameObject.SetActive(true);
             if (!chapterSelectBuilt)
             {
