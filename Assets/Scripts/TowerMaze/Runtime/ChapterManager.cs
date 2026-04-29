@@ -14,6 +14,7 @@ namespace TowerMaze
             public readonly float TargetHeight;
             public readonly float SinkSpeed;
             public readonly MazeSettings MazeSettings;
+            public readonly FlipSettings FlipSettings;
             public readonly int Seed;
             public readonly string DisplayName;
 
@@ -24,6 +25,7 @@ namespace TowerMaze
                 float targetHeight,
                 float sinkSpeed,
                 MazeSettings mazeSettings,
+                FlipSettings flipSettings,
                 int seed)
             {
                 Index = index;
@@ -32,6 +34,7 @@ namespace TowerMaze
                 TargetHeight = targetHeight;
                 SinkSpeed = sinkSpeed;
                 MazeSettings = mazeSettings;
+                FlipSettings = flipSettings;
                 Seed = seed;
                 DisplayName = $"LEVEL {index}";
             }
@@ -54,6 +57,21 @@ namespace TowerMaze
         // and produced sinkSpeeds that were unbeatable even with optimal play.
         private const float MazeEffMax = 0.55f;
         private const float MazeEffMin = 0.30f;
+        // Control flip is suppressed entirely below this chapter so new players can learn
+        // the core climbing mechanic before inverted controls debut. From chapter 16
+        // onward, flip parameters lerp on the same smoothstep complexity curve as
+        // MazeSettings/SinkSpeed.
+        public const int FlipFirstChapter = 16;
+        private const int FlipStartZoneEarly = 8;
+        private const int FlipStartZoneLate = 4;
+        private const int FlipRepeatEveryEarly = 5;
+        private const int FlipRepeatEveryLate = 3;
+        private const float FlipDurationEarly = 5f;
+        private const float FlipDurationLate = 10f;
+        private const float FlipWarningEarly = 1.2f;
+        private const float FlipWarningLate = 0.6f;
+        private const float FlipScalingEarly = 0f;
+        private const float FlipScalingLate = 1.5f;
         private const string KeyUnlocked = "TowerMaze.UnlockedChapters";
         private const string KeyBestPrefix = "TowerMaze.ChapterBest.";
         private const string KeySeedAttemptPrefix = "TowerMaze.ChapterSeedAttempt.";
@@ -73,6 +91,7 @@ namespace TowerMaze
                 float complexity = ComputeComplexity(i);
                 float targetHeight = ComputeTargetHeight(i);
                 MazeSettings mazeSettings = ComputeMazeSettings(i);
+                FlipSettings flipSettings = ComputeFlipSettings(i);
                 int attempt = preValidatedTable != null
                     ? preValidatedTable.GetAttempt(i)
                     : PlayerPrefs.GetInt(KeySeedAttemptPrefix + i, 0);
@@ -83,7 +102,7 @@ namespace TowerMaze
                 float bakedSink = preValidatedTable != null ? preValidatedTable.GetSinkSpeed(i) : 0f;
                 float sinkSpeed = bakedSink > 0f ? bakedSink : ComputeSinkSpeed(i, ballPlayerSpeed);
 
-                _chapters[i - 1] = new ChapterDefinition(i, tier, complexity, targetHeight, sinkSpeed, mazeSettings, seed);
+                _chapters[i - 1] = new ChapterDefinition(i, tier, complexity, targetHeight, sinkSpeed, mazeSettings, flipSettings, seed);
             }
         }
 
@@ -182,6 +201,19 @@ namespace TowerMaze
             float expectedTime = h / Mathf.Max(0.01f, playerEff);
             float safety = ComputeSafetyMargin(c);
             return (h + LavaHeadStart) / Mathf.Max(0.01f, expectedTime * safety);
+        }
+
+        public static FlipSettings ComputeFlipSettings(int n)
+        {
+            if (n < FlipFirstChapter) return FlipSettings.Disabled;
+            float c = ComputeComplexity(n);
+            return new FlipSettings(
+                enabled: true,
+                startZone: Mathf.RoundToInt(Mathf.Lerp(FlipStartZoneEarly, FlipStartZoneLate, c)),
+                repeatEveryZones: Mathf.RoundToInt(Mathf.Lerp(FlipRepeatEveryEarly, FlipRepeatEveryLate, c)),
+                duration: Mathf.Lerp(FlipDurationEarly, FlipDurationLate, c),
+                warningDuration: Mathf.Lerp(FlipWarningEarly, FlipWarningLate, c),
+                durationIncreasePerTrigger: Mathf.Lerp(FlipScalingEarly, FlipScalingLate, c));
         }
 
         public static MazeSettings ComputeMazeSettings(int n)

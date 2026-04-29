@@ -3928,17 +3928,36 @@ namespace TowerMaze
             triggeredControlFlipZones.Clear();
             controlFlipState = ControlFlipState.Idle;
             controlFlipStateRemaining = 0f;
-            currentControlFlipDuration = config != null ? config.controlFlipDuration : 8f;
+            currentControlFlipDuration = GetActiveFlipSettings().duration;
             StopControlFlipEffects();
+        }
+
+        // In chapter mode, flip params come from ChapterManager.ComputeFlipSettings (smoothstep
+        // curve, disabled below FlipFirstChapter). Endless / daily fall back to the GameConfig
+        // fields so existing balance is unchanged.
+        private FlipSettings GetActiveFlipSettings()
+        {
+            if (activeRunMode == RunMode.Chapter && chapterManager != null)
+            {
+                return chapterManager.GetChapter(chapterManager.ActiveChapterIndex).FlipSettings;
+            }
+            return new FlipSettings(
+                enabled: true,
+                startZone: config.controlFlipStartZone,
+                repeatEveryZones: config.controlFlipRepeatEveryZones,
+                duration: config.controlFlipDuration,
+                warningDuration: config.controlFlipWarningDuration,
+                durationIncreasePerTrigger: config.controlFlipDurationIncreasePerTrigger);
         }
 
         private void UpdateControlFlipState()
         {
+            FlipSettings flip = GetActiveFlipSettings();
             switch (controlFlipState)
             {
                 case ControlFlipState.Warning:
                     controlFlipStateRemaining -= Time.deltaTime;
-                    uiManager.SetControlFlipState(true, false, GetControlFlipPulse(), controlFlipStateRemaining / Mathf.Max(0.01f, config.controlFlipWarningDuration), currentControlFlipDuration);
+                    uiManager.SetControlFlipState(true, false, GetControlFlipPulse(), controlFlipStateRemaining / Mathf.Max(0.01f, flip.warningDuration), currentControlFlipDuration);
                     if (controlFlipStateRemaining <= 0f)
                     {
                         controlFlipState = ControlFlipState.Active;
@@ -3961,7 +3980,8 @@ namespace TowerMaze
             }
 
             StopControlFlipEffects();
-            TryTriggerControlFlipForZone(GetCurrentZoneIndex() + 1);
+            if (!flip.enabled) return;
+            TryTriggerControlFlipForZone(GetCurrentZoneIndex() + 1, flip);
         }
 
         private void UpdateRushState()
@@ -4027,15 +4047,16 @@ namespace TowerMaze
             uiManager.SetRushState(true, false, 1f, 1f);
         }
 
-        private void TryTriggerControlFlipForZone(int zoneNumber)
+        private void TryTriggerControlFlipForZone(int zoneNumber, FlipSettings flip)
         {
-            if (zoneNumber < config.controlFlipStartZone)
+            if (!flip.enabled) return;
+            if (zoneNumber < flip.startZone)
             {
                 return;
             }
 
-            int repeatEvery = Mathf.Max(1, config.controlFlipRepeatEveryZones);
-            if (((zoneNumber - config.controlFlipStartZone) % repeatEvery) != 0)
+            int repeatEvery = Mathf.Max(1, flip.repeatEveryZones);
+            if (((zoneNumber - flip.startZone) % repeatEvery) != 0)
             {
                 return;
             }
@@ -4046,9 +4067,9 @@ namespace TowerMaze
             }
 
             int triggerIndex = Mathf.Max(0, triggeredControlFlipZones.Count - 1);
-            currentControlFlipDuration = config.controlFlipDuration + (triggerIndex * config.controlFlipDurationIncreasePerTrigger);
+            currentControlFlipDuration = flip.duration + (triggerIndex * flip.durationIncreasePerTrigger);
             controlFlipState = ControlFlipState.Warning;
-            controlFlipStateRemaining = config.controlFlipWarningDuration;
+            controlFlipStateRemaining = flip.warningDuration;
             uiManager.SetControlFlipState(true, false, 1f, 1f, currentControlFlipDuration);
         }
 
