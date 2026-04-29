@@ -185,6 +185,74 @@ namespace TowerMaze
             return AStarMinTime(grid, rows, cols, targetRow, edgeCost);
         }
 
+        /// <summary>
+        /// Diagnostic helper: BFS the previewed maze and return the highest reachable row
+        /// from any open bottom-row cell. Use this to localize where reachability breaks
+        /// when a chapter reports unreachable on every seed attempt.
+        /// </summary>
+        public int MeasureMaxReachableRow(int seed, MazeSettings mazeSettings, float targetHeight, out int rows, out int cols, out int bottomRowOpenCells)
+        {
+            CellWalls[,] grid = BuildPreviewGrid(seed, mazeSettings, targetHeight, out rows, out cols);
+            int[,] dist = new int[rows, cols];
+            for (int r = 0; r < rows; r++)
+                for (int c = 0; c < cols; c++)
+                    dist[r, c] = -1;
+
+            int capacity = rows * cols;
+            int[] queue = new int[capacity];
+            int head = 0, tail = 0;
+            bottomRowOpenCells = 0;
+
+            for (int c = 0; c < cols; c++)
+            {
+                CellWalls bottomWalls = grid[0, c];
+                if (bottomWalls.wallN && bottomWalls.wallE && bottomWalls.wallW) continue;
+                dist[0, c] = 0;
+                queue[tail++] = c;
+                bottomRowOpenCells++;
+            }
+
+            int maxRow = 0;
+            while (head < tail)
+            {
+                int packed = queue[head++];
+                int row = packed / cols;
+                int col = packed % cols;
+                if (row > maxRow) maxRow = row;
+
+                CellWalls walls = grid[row, col];
+                if (!walls.wallN && row + 1 < rows && dist[row + 1, col] < 0)
+                {
+                    dist[row + 1, col] = dist[row, col] + 1;
+                    queue[tail++] = (row + 1) * cols + col;
+                }
+                if (!walls.wallS && row - 1 >= 0 && dist[row - 1, col] < 0)
+                {
+                    dist[row - 1, col] = dist[row, col] + 1;
+                    queue[tail++] = (row - 1) * cols + col;
+                }
+                if (!walls.wallE)
+                {
+                    int eastCol = (col + 1) % cols;
+                    if (dist[row, eastCol] < 0)
+                    {
+                        dist[row, eastCol] = dist[row, col] + 1;
+                        queue[tail++] = row * cols + eastCol;
+                    }
+                }
+                if (!walls.wallW)
+                {
+                    int westCol = ((col - 1) % cols + cols) % cols;
+                    if (dist[row, westCol] < 0)
+                    {
+                        dist[row, westCol] = dist[row, col] + 1;
+                        queue[tail++] = row * cols + westCol;
+                    }
+                }
+            }
+            return maxRow;
+        }
+
         private const int MaxAttempts = 16;
         private const float LavaHeadStart = 8f;
 

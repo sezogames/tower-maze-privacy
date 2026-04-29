@@ -85,7 +85,20 @@ namespace TowerMaze.EditorTools
                     if (float.IsPositiveInfinity(chosenOptimalTime))
                     {
                         unreachableCount++;
-                        Debug.LogError($"[PreValidateChaptersTool] Chapter {n} unreachable on all {MaxAttempts} attempts");
+                        // Diagnose the first few failures to help localize the bug — full
+                        // 500-chapter spam isn't useful, but knowing how far BFS got and
+                        // whether the bottom row had open cells narrows it quickly.
+                        if (unreachableCount <= 5)
+                        {
+                            int diagSeed = (baseSeed * 31) ^ (n * 7919) ^ (0 * 12911);
+                            int maxRow = validator.MeasureMaxReachableRow(diagSeed, ms, h,
+                                out int diagRows, out int diagCols, out int bottomOpen);
+                            int targetRow = Mathf.CeilToInt(h / Mathf.Max(0.0001f, config.CellHeight));
+                            int seg = maxRow / Mathf.Max(1, config.mazeHeightCells);
+                            Debug.LogError($"[PreValidateChaptersTool] Chapter {n} unreachable on all {MaxAttempts} attempts. " +
+                                $"BFS@attempt0: maxRow={maxRow} (segment {seg}), targetRow={targetRow}, " +
+                                $"gridRows={diagRows}, cols={diagCols}, bottomOpen={bottomOpen}");
+                        }
                         // Fall back to formula sinkSpeed so the runtime still has a value.
                         table.SetAttempt(n, 0);
                         table.SetSinkSpeed(n, ChapterManager.ComputeSinkSpeed(n, ballPlayerSpeed));
