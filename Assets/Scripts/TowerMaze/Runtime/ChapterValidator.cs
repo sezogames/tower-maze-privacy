@@ -309,125 +309,79 @@ namespace TowerMaze
         }
 
         /// <summary>
-        /// A* on the cell grid with admissible heuristic <c>(targetRow - row) * edgeCost</c>.
-        /// Start frontier: the entire bottom row (player x-position is unconstrained at spawn).
-        /// Goal: any cell whose row index is &gt;= <paramref name="targetRow"/>. Edge cost is
-        /// uniform; obstacle is the wall flag on the side of travel. East/west wrap modulo cols.
+        /// BFS on the cell grid. Edge cost is uniform (cellHeight/playerSpeed) so BFS
+        /// distance × edgeCost equals the true minimum traversal time. Start frontier:
+        /// every open cell in the bottom row (player x-position is unconstrained at spawn).
+        /// Goal: any cell whose row index is &gt;= <paramref name="targetRow"/>. East/west
+        /// wrap modulo cols. Returns <see cref="float.PositiveInfinity"/> if unreachable.
         /// </summary>
         private static float AStarMinTime(CellWalls[,] grid, int rows, int cols, int targetRow, float edgeCost)
         {
-            float[,] cost = new float[rows, cols];
+            int[,] dist = new int[rows, cols];
             for (int r = 0; r < rows; r++)
                 for (int c = 0; c < cols; c++)
-                    cost[r, c] = float.PositiveInfinity;
+                    dist[r, c] = -1;
 
-            var open = new MinHeap();
+            // Use a flat int queue (row*cols+col) to avoid List<(int,int)> allocations on
+            // 10k+ cell grids. Two-pointer ring is unnecessary since we visit each cell once.
+            int capacity = rows * cols;
+            int[] queue = new int[capacity];
+            int head = 0;
+            int tail = 0;
+
             for (int c = 0; c < cols; c++)
             {
-                cost[0, c] = 0f;
-                open.Push(targetRow * edgeCost, 0, c);
+                // Only seed cells that are actually open — a cell with all walls true
+                // contributes nothing and would just inflate the queue.
+                CellWalls bottomWalls = grid[0, c];
+                if (bottomWalls.wallN && bottomWalls.wallE && bottomWalls.wallW)
+                    continue;
+                dist[0, c] = 0;
+                queue[tail++] = c;
             }
 
-            while (open.Count > 0)
+            while (head < tail)
             {
-                open.Pop(out int row, out int col, out float priority);
-                float baseCost = cost[row, col];
-                // Stale entry — a cheaper path was found after this one was queued.
-                if (priority > baseCost + Mathf.Max(0, targetRow - row) * edgeCost + 1e-5f) continue;
+                int packed = queue[head++];
+                int row = packed / cols;
+                int col = packed % cols;
+                int d = dist[row, col];
 
-                if (row >= targetRow) return baseCost;
+                if (row >= targetRow) return d * edgeCost;
 
                 CellWalls walls = grid[row, col];
 
-                if (!walls.wallN && row + 1 < rows)
-                    Relax(grid, cost, open, row + 1, col, baseCost + edgeCost, targetRow, edgeCost);
-                if (!walls.wallS && row - 1 >= 0)
-                    Relax(grid, cost, open, row - 1, col, baseCost + edgeCost, targetRow, edgeCost);
+                if (!walls.wallN && row + 1 < rows && dist[row + 1, col] < 0)
+                {
+                    dist[row + 1, col] = d + 1;
+                    queue[tail++] = (row + 1) * cols + col;
+                }
+                if (!walls.wallS && row - 1 >= 0 && dist[row - 1, col] < 0)
+                {
+                    dist[row - 1, col] = d + 1;
+                    queue[tail++] = (row - 1) * cols + col;
+                }
                 if (!walls.wallE)
                 {
                     int eastCol = (col + 1) % cols;
-                    Relax(grid, cost, open, row, eastCol, baseCost + edgeCost, targetRow, edgeCost);
+                    if (dist[row, eastCol] < 0)
+                    {
+                        dist[row, eastCol] = d + 1;
+                        queue[tail++] = row * cols + eastCol;
+                    }
                 }
                 if (!walls.wallW)
                 {
                     int westCol = ((col - 1) % cols + cols) % cols;
-                    Relax(grid, cost, open, row, westCol, baseCost + edgeCost, targetRow, edgeCost);
+                    if (dist[row, westCol] < 0)
+                    {
+                        dist[row, westCol] = d + 1;
+                        queue[tail++] = row * cols + westCol;
+                    }
                 }
             }
 
             return float.PositiveInfinity;
-        }
-
-        private static void Relax(CellWalls[,] grid, float[,] cost, MinHeap open,
-            int toRow, int toCol, float newCost, int targetRow, float edgeCost)
-        {
-            if (newCost >= cost[toRow, toCol]) return;
-            cost[toRow, toCol] = newCost;
-            float h = Mathf.Max(0, targetRow - toRow) * edgeCost;
-            open.Push(newCost + h, toRow, toCol);
-        }
-
-        /// <summary>
-        /// Min-heap keyed on f = g + h. Stores (row, col) payload directly to avoid tuple
-        /// allocations. Stale entries are filtered at pop time via cost-table re-check.
-        /// </summary>
-        private sealed class MinHeap
-        {
-            private readonly List<Entry> heap = new List<Entry>(256);
-
-            public int Count => heap.Count;
-
-            public void Push(float priority, int row, int col)
-            {
-                heap.Add(new Entry { priority = priority, row = row, col = col });
-                SiftUp(heap.Count - 1);
-            }
-
-            public void Pop(out int row, out int col, out float priority)
-            {
-                Entry root = heap[0];
-                row = root.row;
-                col = root.col;
-                priority = root.priority;
-                int last = heap.Count - 1;
-                heap[0] = heap[last];
-                heap.RemoveAt(last);
-                if (heap.Count > 0) SiftDown(0);
-            }
-
-            private void SiftUp(int i)
-            {
-                while (i > 0)
-                {
-                    int parent = (i - 1) >> 1;
-                    if (heap[parent].priority <= heap[i].priority) break;
-                    (heap[parent], heap[i]) = (heap[i], heap[parent]);
-                    i = parent;
-                }
-            }
-
-            private void SiftDown(int i)
-            {
-                int n = heap.Count;
-                while (true)
-                {
-                    int left = (i << 1) + 1;
-                    int right = left + 1;
-                    int smallest = i;
-                    if (left < n && heap[left].priority < heap[smallest].priority) smallest = left;
-                    if (right < n && heap[right].priority < heap[smallest].priority) smallest = right;
-                    if (smallest == i) break;
-                    (heap[smallest], heap[i]) = (heap[i], heap[smallest]);
-                    i = smallest;
-                }
-            }
-
-            private struct Entry
-            {
-                public float priority;
-                public int row;
-                public int col;
-            }
         }
     }
 }
