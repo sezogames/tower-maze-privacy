@@ -41,12 +41,14 @@ namespace TowerMaze
         public float height;
         public float timeSeconds;
         public string label;
+        public string avatarFrameId;
 
-        public LeaderboardEntry(float height, float timeSeconds, string label = "")
+        public LeaderboardEntry(float height, float timeSeconds, string label = "", string avatarFrameId = "")
         {
             this.height = height;
             this.timeSeconds = timeSeconds;
             this.label = label ?? string.Empty;
+            this.avatarFrameId = avatarFrameId ?? string.Empty;
         }
     }
 
@@ -291,6 +293,36 @@ namespace TowerMaze
     }
 
     [System.Serializable]
+    public struct AvatarFrameDefinition
+    {
+        public string id;
+        public string displayName;
+        public int priceEmber;
+        public Color frameColor;
+        public Color glowColor;
+        public bool unlockedByDefault;
+        public string resourcePath;
+
+        public AvatarFrameDefinition(
+            string id,
+            string displayName,
+            int priceEmber,
+            Color frameColor,
+            Color glowColor,
+            bool unlockedByDefault = false,
+            string resourcePath = "")
+        {
+            this.id = id;
+            this.displayName = displayName;
+            this.priceEmber = priceEmber;
+            this.frameColor = frameColor;
+            this.glowColor = glowColor;
+            this.unlockedByDefault = unlockedByDefault;
+            this.resourcePath = resourcePath;
+        }
+    }
+
+    [System.Serializable]
     internal sealed class SkinInventorySaveData
     {
         public List<string> ownedSkinIds = new();
@@ -313,6 +345,8 @@ namespace TowerMaze
         private const string EquippedSkinKey = "TowerMaze.EquippedSkin";
         private const string OwnedTowerSkinsKey = "TowerMaze.OwnedTowerSkins";
         private const string EquippedTowerSkinKey = "TowerMaze.EquippedTowerSkin";
+        private const string OwnedAvatarFramesKey = "TowerMaze.OwnedAvatarFrames";
+        private const string EquippedAvatarFrameKey = "TowerMaze.EquippedAvatarFrame";
         private const string DailyMissionKey = "TowerMaze.DailyMissionState";
         private const string DailyChallengeKey = "TowerMaze.DailyChallengeState";
         private const string TotalRunsKey = "TowerMaze.TotalRuns";
@@ -328,6 +362,8 @@ namespace TowerMaze
         private readonly HashSet<string> ownedSkinIds = new();
         private readonly List<TowerSkinDefinition> towerSkins = new();
         private readonly HashSet<string> ownedTowerSkinIds = new();
+        private readonly List<AvatarFrameDefinition> avatarFrames = new();
+        private readonly HashSet<string> ownedAvatarFrameIds = new();
         private readonly List<DailyMissionState> dailyMissions = new();
         private string dailyDateKey;
         private string lastFreeChestClaimDateKey;
@@ -350,6 +386,7 @@ namespace TowerMaze
         }
         public string EquippedSkinId { get; private set; }
         public string EquippedTowerSkinId { get; private set; }
+        public string EquippedAvatarFrameId { get; private set; }
         public IReadOnlyList<BallSkinDefinition> Skins
         {
             get
@@ -367,6 +404,15 @@ namespace TowerMaze
                 return towerSkins;
             }
         }
+
+        public IReadOnlyList<AvatarFrameDefinition> AvatarFrames
+        {
+            get
+            {
+                EnsureCatalogBuilt();
+                return avatarFrames;
+            }
+        }
         public IReadOnlyList<DailyMissionState> DailyMissions => dailyMissions;
         public DailyChallengeStatus DailyChallengeStatus
         {
@@ -378,6 +424,7 @@ namespace TowerMaze
         }
         public event Action<int> EmberBalanceChanged;
         public event Action<TowerSkinDefinition> EquippedTowerSkinChanged;
+        public event Action<AvatarFrameDefinition> EquippedAvatarFrameChanged;
         public event Action StateChanged;
 
         public void Initialize()
@@ -389,6 +436,7 @@ namespace TowerMaze
             lifeRechargeStartTicks = long.TryParse(PlayerPrefs.GetString(LifeRechargeStartTicksKey, "0"), out long parsedTicks) ? parsedTicks : 0L;
             LoadOwnedSkins();
             LoadOwnedTowerSkins();
+            LoadOwnedAvatarFrames();
             LoadDailyState();
             LoadDailyChallengeState();
             RefreshDailyContentIfNeeded();
@@ -411,6 +459,14 @@ namespace TowerMaze
                 }
             }
 
+            foreach (AvatarFrameDefinition frame in avatarFrames)
+            {
+                if (frame.unlockedByDefault)
+                {
+                    ownedAvatarFrameIds.Add(frame.id);
+                }
+            }
+
             EquippedSkinId = PlayerPrefs.GetString(EquippedSkinKey, skins.Count > 0 ? skins[0].id : string.Empty);
             if (!IsOwnedSkin(EquippedSkinId) && skins.Count > 0)
             {
@@ -423,9 +479,16 @@ namespace TowerMaze
                 EquippedTowerSkinId = towerSkins[0].id;
             }
 
+            EquippedAvatarFrameId = PlayerPrefs.GetString(EquippedAvatarFrameKey, avatarFrames.Count > 0 ? avatarFrames[0].id : string.Empty);
+            if (!IsOwnedAvatarFrame(EquippedAvatarFrameId) && avatarFrames.Count > 0)
+            {
+                EquippedAvatarFrameId = avatarFrames[0].id;
+            }
+
             SaveState();
             NotifyEmberBalanceChanged();
             NotifyTowerSkinChanged();
+            NotifyAvatarFrameChanged();
         }
 
         public bool HasPlayedDailyChallengeToday
@@ -500,8 +563,10 @@ namespace TowerMaze
                 lifeRechargeStartTicks = lifeRechargeStartTicks,
                 equippedSkinId = EquippedSkinId ?? string.Empty,
                 equippedTowerSkinId = EquippedTowerSkinId ?? string.Empty,
+                equippedAvatarFrameId = EquippedAvatarFrameId ?? string.Empty,
                 ownedSkinIds = new List<string>(ownedSkinIds),
                 ownedTowerSkinIds = new List<string>(ownedTowerSkinIds),
+                ownedAvatarFrameIds = new List<string>(ownedAvatarFrameIds),
                 dailyMissionState = new DailyMissionSaveData
                 {
                     dateKey = dailyDateKey ?? string.Empty,
@@ -555,6 +620,18 @@ namespace TowerMaze
                 }
             }
 
+            ownedAvatarFrameIds.Clear();
+            if (saveData.ownedAvatarFrameIds != null)
+            {
+                foreach (string frameId in saveData.ownedAvatarFrameIds)
+                {
+                    if (!string.IsNullOrWhiteSpace(frameId))
+                    {
+                        ownedAvatarFrameIds.Add(frameId);
+                    }
+                }
+            }
+
             for (int index = 0; index < skins.Count; index++)
             {
                 if (skins[index].unlockedByDefault)
@@ -571,12 +648,23 @@ namespace TowerMaze
                 }
             }
 
+            for (int index = 0; index < avatarFrames.Count; index++)
+            {
+                if (avatarFrames[index].unlockedByDefault)
+                {
+                    ownedAvatarFrameIds.Add(avatarFrames[index].id);
+                }
+            }
+
             EquippedSkinId = !string.IsNullOrWhiteSpace(saveData.equippedSkinId) && IsOwnedSkin(saveData.equippedSkinId)
                 ? saveData.equippedSkinId
                 : (skins.Count > 0 ? skins[0].id : string.Empty);
             EquippedTowerSkinId = !string.IsNullOrWhiteSpace(saveData.equippedTowerSkinId) && IsOwnedTowerSkin(saveData.equippedTowerSkinId)
                 ? saveData.equippedTowerSkinId
                 : (towerSkins.Count > 0 ? towerSkins[0].id : string.Empty);
+            EquippedAvatarFrameId = !string.IsNullOrWhiteSpace(saveData.equippedAvatarFrameId) && IsOwnedAvatarFrame(saveData.equippedAvatarFrameId)
+                ? saveData.equippedAvatarFrameId
+                : (avatarFrames.Count > 0 ? avatarFrames[0].id : string.Empty);
 
             dailyMissions.Clear();
             DailyMissionSaveData missionState = saveData.dailyMissionState;
@@ -998,6 +1086,18 @@ namespace TowerMaze
             return !string.IsNullOrWhiteSpace(skinId) && ownedTowerSkinIds.Contains(skinId);
         }
 
+        public bool IsOwnedAvatarFrame(string frameId)
+        {
+            return !string.IsNullOrWhiteSpace(frameId) && ownedAvatarFrameIds.Contains(frameId);
+        }
+
+        private void NotifyAvatarFrameChanged()
+        {
+            AvatarFrameDefinition frame = GetAvatarFrame(EquippedAvatarFrameId);
+            EquippedAvatarFrameChanged?.Invoke(frame);
+            StateChanged?.Invoke();
+        }
+
         public TowerSkinDefinition GetEquippedTowerSkin()
         {
             return GetTowerSkin(EquippedTowerSkinId);
@@ -1014,6 +1114,19 @@ namespace TowerMaze
             }
 
             return towerSkins.Count > 0 ? towerSkins[0] : default;
+        }
+
+        public AvatarFrameDefinition GetAvatarFrame(string frameId)
+        {
+            for (int index = 0; index < avatarFrames.Count; index++)
+            {
+                if (avatarFrames[index].id == frameId)
+                {
+                    return avatarFrames[index];
+                }
+            }
+
+            return avatarFrames.Count > 0 ? avatarFrames[0] : default;
         }
 
         public ShopActionResult PurchaseOrEquipSkin(string skinId)
@@ -1046,6 +1159,41 @@ namespace TowerMaze
 
             EquippedSkinId = skin.id;
             SaveState();
+            return ShopActionResult.Equipped;
+        }
+
+        public ShopActionResult PurchaseOrEquipAvatarFrame(string frameId)
+        {
+            AvatarFrameDefinition frame = GetAvatarFrame(frameId);
+            if (string.IsNullOrWhiteSpace(frame.id))
+            {
+                return ShopActionResult.None;
+            }
+
+            if (!IsOwnedAvatarFrame(frame.id))
+            {
+                if (EmberBalance < frame.priceEmber)
+                {
+                    return ShopActionResult.InsufficientFunds;
+                }
+
+                EmberBalance -= frame.priceEmber;
+                ownedAvatarFrameIds.Add(frame.id);
+                EquippedAvatarFrameId = frame.id;
+                SaveState();
+                NotifyEmberBalanceChanged();
+                NotifyAvatarFrameChanged();
+                return ShopActionResult.Purchased;
+            }
+
+            if (EquippedAvatarFrameId == frame.id)
+            {
+                return ShopActionResult.None;
+            }
+
+            EquippedAvatarFrameId = frame.id;
+            SaveState();
+            NotifyAvatarFrameChanged();
             return ShopActionResult.Equipped;
         }
 
@@ -1487,9 +1635,46 @@ namespace TowerMaze
                     new Color(0.8f, 0.8f, 0.8f, 1f),
                     unlockedByDefault: false,
                     useUnifiedTextureSet: true,
-                    wallBaseMapResourcePath: "TowerMaze/BallSkins/Checker/CheckerBaseMap",
-                    pathBaseMapResourcePath: "TowerMaze/BallSkins/Checker/CheckerBaseMap",
                     mainPathBaseMapResourcePath: "TowerMaze/BallSkins/Checker/CheckerBaseMap"));
+            }
+
+            if (avatarFrames.Count == 0)
+            {
+                avatarFrames.Add(new AvatarFrameDefinition(
+                    "none",
+                    "Basic Frame",
+                    0,
+                    new Color(0.8f, 0.8f, 0.8f, 0.4f),
+                    new Color(1f, 1f, 1f, 0.1f),
+                    true));
+
+                avatarFrames.Add(new AvatarFrameDefinition(
+                    "gold_premium",
+                    "Royal Gold",
+                    5000,
+                    new Color(1f, 0.84f, 0f, 1f),
+                    new Color(1f, 0.92f, 0.5f, 0.8f)));
+
+                avatarFrames.Add(new AvatarFrameDefinition(
+                    "flame_master",
+                    "Inferno Flame",
+                    12000,
+                    new Color(1f, 0.3f, 0.1f, 1f),
+                    new Color(1f, 0.6f, 0.2f, 0.9f)));
+
+                avatarFrames.Add(new AvatarFrameDefinition(
+                    "ice_crown",
+                    "Frozen Crown",
+                    12000,
+                    new Color(0.4f, 0.8f, 1f, 1f),
+                    new Color(0.8f, 0.95f, 1f, 0.9f)));
+
+                avatarFrames.Add(new AvatarFrameDefinition(
+                    "neon_glow",
+                    "Neon Cyber",
+                    25000,
+                    new Color(0.1f, 1f, 0.4f, 1f),
+                    new Color(0.4f, 1f, 0.8f, 1f)));
             }
         }
 
@@ -1548,6 +1733,32 @@ namespace TowerMaze
                 }
             }
         }
+
+        private void LoadOwnedAvatarFrames()
+        {
+            ownedAvatarFrameIds.Clear();
+            string json = PlayerPrefs.GetString(OwnedAvatarFramesKey, string.Empty);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return;
+            }
+
+            SkinInventorySaveData saveData = JsonUtility.FromJson<SkinInventorySaveData>(json);
+            if (saveData?.ownedSkinIds == null)
+            {
+                return;
+            }
+
+            foreach (string frameId in saveData.ownedSkinIds)
+            {
+                if (!string.IsNullOrWhiteSpace(frameId))
+                {
+                    ownedAvatarFrameIds.Add(frameId);
+                }
+            }
+        }
+
+
 
         private void LoadDailyState()
         {
@@ -1826,6 +2037,7 @@ namespace TowerMaze
             PlayerPrefs.SetString(LifeRechargeStartTicksKey, lifeRechargeStartTicks.ToString());
             PlayerPrefs.SetString(EquippedSkinKey, EquippedSkinId ?? string.Empty);
             PlayerPrefs.SetString(EquippedTowerSkinKey, EquippedTowerSkinId ?? string.Empty);
+            PlayerPrefs.SetString(EquippedAvatarFrameKey, EquippedAvatarFrameId ?? string.Empty);
             SkinInventorySaveData saveData = new()
             {
                 ownedSkinIds = new List<string>(ownedSkinIds)
@@ -1836,6 +2048,11 @@ namespace TowerMaze
                 ownedSkinIds = new List<string>(ownedTowerSkinIds)
             };
             PlayerPrefs.SetString(OwnedTowerSkinsKey, JsonUtility.ToJson(towerSaveData));
+            SkinInventorySaveData frameSaveData = new()
+            {
+                ownedSkinIds = new List<string>(ownedAvatarFrameIds)
+            };
+            PlayerPrefs.SetString(OwnedAvatarFramesKey, JsonUtility.ToJson(frameSaveData));
             PlayerPrefs.Save();
             SaveDailyState();
             SaveDailyChallengeState();
@@ -1932,6 +2149,7 @@ namespace TowerMaze
         private float persistedBestScore;
         private readonly List<LeaderboardEntry> leaderboardEntries = new();
         private readonly List<LeaderboardEntry> cloudLeaderboardEntries = new();
+        private readonly List<LeaderboardEntry> cloudChapterLeaderboardEntries = new();
 
         public float CurrentScore { get; private set; }
         public float CurrentRunTime { get; private set; }
@@ -1939,6 +2157,7 @@ namespace TowerMaze
         public float PersistedBestScore => persistedBestScore;
         public bool IsNewBestThisRun => CurrentScore > persistedBestScore + 0.001f;
         public IReadOnlyList<LeaderboardEntry> LeaderboardEntries => cloudLeaderboardEntries.Count > 0 ? cloudLeaderboardEntries : leaderboardEntries;
+        public IReadOnlyList<LeaderboardEntry> ChapterLeaderboardEntries => cloudChapterLeaderboardEntries;
         public event Action StateChanged;
         private GameConfig config;
         private bool[] milestoneFired; // allocated in Initialize when config != null
@@ -2056,6 +2275,17 @@ namespace TowerMaze
             if (entries != null)
             {
                 cloudLeaderboardEntries.AddRange(entries);
+            }
+        }
+
+        // Chapter-mode leaderboard entries (LeaderboardEntry.height carries the
+        // chapter number — the StartScreen formatter handles "CH N" rendering).
+        public void SetCloudChapterLeaderboardEntries(IReadOnlyList<LeaderboardEntry> entries)
+        {
+            cloudChapterLeaderboardEntries.Clear();
+            if (entries != null)
+            {
+                cloudChapterLeaderboardEntries.AddRange(entries);
             }
         }
 
@@ -2508,21 +2738,21 @@ namespace TowerMaze
             if (lavaGlowMaterial != null)
             {
                 glowScrollOffset += new Vector2(-0.009f, 0.006f) * Time.deltaTime * rushMult;
-                lavaGlowMaterial?.SetTextureOffset("_BaseMap", glowScrollOffset);
+                ApplyTextureOffset(lavaGlowMaterial, glowScrollOffset);
                 float glowPulse = 0.9f + (Mathf.Sin(time * (1.8f + (rushIntensityCached * 1.2f))) * 0.08f);
                 Color glowColor = Color.Lerp(theme.lavaColor, theme.lavaEmissionColor, 0.55f);
                 glowColor.a = Mathf.Lerp(0.18f, 0.34f, rushIntensityCached) * glowPulse;
-                lavaGlowMaterial.SetColor("_BaseColor", glowColor);
+                ApplyMaterialColor(lavaGlowMaterial, glowColor);
             }
 
             if (lavaRimMaterial != null)
             {
                 Vector2 rimOffset = new Vector2(-glowScrollOffset.y, glowScrollOffset.x) * 0.45f;
-                lavaRimMaterial.SetTextureOffset("_BaseMap", rimOffset);
+                ApplyTextureOffset(lavaRimMaterial, rimOffset);
                 float rimPulse = 0.92f + (Mathf.Sin(time * (2.4f + rushIntensityCached)) * 0.08f);
                 Color rimColor = Color.Lerp(theme.lavaColor, theme.lavaEmissionColor, 0.72f);
                 rimColor.a = Mathf.Lerp(0.24f, 0.4f, rushIntensityCached) * rimPulse;
-                lavaRimMaterial.SetColor("_BaseColor", rimColor);
+                ApplyMaterialColor(lavaRimMaterial, rimColor);
             }
 
             UpdateHeatShimmerState(rushIntensityCached);
@@ -2747,7 +2977,7 @@ namespace TowerMaze
             rimMaterial.renderQueue = 3002;
             ApplyMaterialColor(rimMaterial, new Color(theme.lavaEmissionColor.r, theme.lavaEmissionColor.g, theme.lavaEmissionColor.b, 0.24f));
             ApplyTexture(rimMaterial, GetLavaRimTexture());
-            rimMaterial.SetTextureScale("_BaseMap", new Vector2(1.02f, 1.02f));
+            ApplyTextureScale(rimMaterial, new Vector2(1.02f, 1.02f));
             Renderer rimRenderer = rim.GetComponent<Renderer>();
             rimRenderer.sharedMaterial = rimMaterial;
             rimRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -2906,6 +3136,42 @@ namespace TowerMaze
             }
 
             material.mainTexture = texture;
+        }
+
+        private static void ApplyTextureScale(Material material, Vector2 scale)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            if (material.HasProperty("_BaseMap"))
+            {
+                material.SetTextureScale("_BaseMap", scale);
+            }
+
+            if (material.HasProperty("_MainTex"))
+            {
+                material.SetTextureScale("_MainTex", scale);
+            }
+        }
+
+        private static void ApplyTextureOffset(Material material, Vector2 offset)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            if (material.HasProperty("_BaseMap"))
+            {
+                material.SetTextureOffset("_BaseMap", offset);
+            }
+
+            if (material.HasProperty("_MainTex"))
+            {
+                material.SetTextureOffset("_MainTex", offset);
+            }
         }
 
         private static Texture2D GetLavaRimTexture()

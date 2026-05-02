@@ -108,6 +108,8 @@ namespace TowerMaze
         private readonly List<Text> leaderboardRankTexts = new();
         private readonly List<Text> leaderboardNameTexts = new();
         private readonly List<Text> leaderboardScoreTexts = new();
+        private readonly List<Image> leaderboardAvatarIcons = new();
+        private readonly List<Image> leaderboardAvatarFrames = new();
         private readonly string[] supportedLanguageCodes = UILanguage.SupportedCodes;
         private Image[] languageChipBackgrounds;
         private Text[] languageChipTexts;
@@ -116,6 +118,9 @@ namespace TowerMaze
         private DailyChallengeStatus cachedDailyChallengeStatus;
         private Coroutine ownRowPulseRoutine;
         private IReadOnlyList<LeaderboardEntry> cachedLeaderboardEntries = Array.Empty<LeaderboardEntry>();
+        // Cached chapter-mode leaderboard rows (height field carries chapter number).
+        // Wired through but the visible tab toggle ships in a follow-up commit.
+        private IReadOnlyList<LeaderboardEntry> cachedChapterLeaderboardEntries = Array.Empty<LeaderboardEntry>();
         private IReadOnlyList<DailyMissionState> cachedDailyMissions = Array.Empty<DailyMissionState>();
         private static readonly Color LogoCandyChipActive = new Color(0.06f, 0.73f, 0.51f, 1f);   // Jelly Green (UIStyle.Owned)
         private static readonly Color LogoCandyChipInactive = new Color(0.94f, 0.27f, 0.27f, 1f); // Jelly Red (UIStyle.Danger)
@@ -557,7 +562,7 @@ namespace TowerMaze
             lbl.resizeTextForBestFit = true;
             UIManager.SetScaledBestFit(lbl, 10, 15, UIFontRole.Button);
             UIManager.Stretch(lbl.rectTransform, new Vector2(0.08f, 0.18f), new Vector2(0.92f, 0.82f), Vector2.zero, Vector2.zero);
-            lbl.text = UILanguage.Translate("SONSUZ", "ENDLESS", "INFINITO");
+            lbl.text = UILanguage.Translate("Endless Mode", "Endless Mode", "Endless Mode");
             Shadow shadow = lbl.gameObject.AddComponent<Shadow>();
             shadow.effectColor = new Color(0.14f, 0.05f, 0.20f, 0.44f);
             shadow.effectDistance = new Vector2(0f, -3f);
@@ -1320,6 +1325,14 @@ namespace TowerMaze
             RefreshLeaderboardRows(resetPosition: false);
         }
 
+        // Chapter-mode leaderboard cache. The visible tab toggle is added in the
+        // follow-up commit; for now the data is held server-fresh so the toggle
+        // can render instantly when wired.
+        public void UpdateChapterLeaderboardData(IReadOnlyList<LeaderboardEntry> entries)
+        {
+            cachedChapterLeaderboardEntries = entries ?? Array.Empty<LeaderboardEntry>();
+        }
+
         private void ShowMissionsSheet()
         {
             if (missionsOverlay == null || missionsSheet == null) return;
@@ -1813,7 +1826,7 @@ namespace TowerMaze
 
         private string GetDailyChallengeTitle()
         {
-            return TranslateText("GUNLUK GOREV", "DAILY CHALLENGE", "DESAFIO DIARIO");
+            return TranslateText("Daily Challenge", "Daily Challenge", "Daily Challenge");
         }
 
         private string FormatDailyChallengeSubtitle()
@@ -1882,7 +1895,7 @@ namespace TowerMaze
             card.AddComponent<CanvasGroup>().alpha = 0f;
 
             CreateCandyTitleRibbon(card.transform, font, "DailyChallengeTitle",
-                "DAILY CHALLENGE", new Vector2(0.08f, 0.84f), new Vector2(0.92f, 0.97f), 22);
+                "Daily Challenge", new Vector2(0.08f, 0.84f), new Vector2(0.92f, 0.97f), 22);
 
             Button closeButton = UIManager.CreateCandyCloseButton("CloseBtn", card.transform, font, 16);
             UIManager.BindButton(closeButton, () => StartCoroutine(CloseSheet(dailyChallengePopupSheet, dailyChallengePopupOverlay)), buttonClickSound);
@@ -2153,6 +2166,47 @@ namespace TowerMaze
                 }
                 leaderboardRankTexts[index].text = (index + 1).ToString();
                 leaderboardRankTexts[index].color = isOwnEntry ? Color.white : (index == 0 ? UIStyle.Gold : UIStyle.PopupTextDim);
+
+                Image avatarIcon = leaderboardAvatarIcons[index];
+                avatarIcon.enabled = hasEntry;
+                if (hasEntry)
+                {
+                    Sprite avatarSprite = Resources.Load<Sprite>("TowerMaze/UITheme/icon_avatar_default");
+                    if (avatarSprite != null)
+                    {
+                        avatarIcon.sprite = avatarSprite;
+                        avatarIcon.color = Color.white;
+                    }
+                    else
+                    {
+                        avatarIcon.color = new Color(0.8f, 0.8f, 0.8f, 0.5f);
+                    }
+                }
+
+                Image avatarFrame = leaderboardAvatarFrames[index];
+                if (hasEntry && !string.IsNullOrEmpty(entry.avatarFrameId) && entry.avatarFrameId != "none")
+                {
+                    avatarFrame.enabled = true;
+                    AvatarFrameDefinition frameDef = economyManager != null ? economyManager.GetAvatarFrame(entry.avatarFrameId) : default;
+                    
+                    Sprite frameSprite = Resources.Load<Sprite>($"TowerMaze/UITheme/frame_{entry.avatarFrameId}");
+                    if (frameSprite != null)
+                    {
+                        avatarFrame.sprite = frameSprite;
+                        avatarFrame.color = Color.white;
+                    }
+                    else
+                    {
+                        avatarFrame.color = frameDef.frameColor;
+                        Sprite defaultFrame = Resources.Load<Sprite>("TowerMaze/UITheme/frame_default");
+                        if (defaultFrame != null) avatarFrame.sprite = defaultFrame;
+                    }
+                }
+                else
+                {
+                    avatarFrame.enabled = false;
+                }
+
                 leaderboardNameTexts[index].text = hasEntry
                     ? (string.IsNullOrWhiteSpace(entry.label) ? GetLeaderboardPlaceholderName(index + 1) : entry.label)
                     : "---";
@@ -2203,13 +2257,32 @@ namespace TowerMaze
                 Text rank = UIManager.CreateText("Rank", row.transform, runtimeFont, 15, TextAnchor.MiddleCenter, UIStyle.PopupText);
                 rank.fontStyle = FontStyle.Bold;
                 rank.rectTransform.anchorMin = new Vector2(0.04f, 0f);
-                rank.rectTransform.anchorMax = new Vector2(0.16f, 1f);
+                rank.rectTransform.anchorMax = new Vector2(0.14f, 1f);
                 rank.rectTransform.offsetMin = rank.rectTransform.offsetMax = Vector2.zero;
+
+                GameObject avatarGroup = new GameObject("AvatarGroup");
+                avatarGroup.transform.SetParent(row.transform, false);
+                RectTransform avatarRt = avatarGroup.AddComponent<RectTransform>();
+                avatarRt.anchorMin = new Vector2(0.16f, 0.15f);
+                avatarRt.anchorMax = new Vector2(0.26f, 0.85f);
+                avatarRt.offsetMin = avatarRt.offsetMax = Vector2.zero;
+
+                Image avatarIcon = UIManager.CreateImage("AvatarIcon", avatarRt, Color.white);
+                avatarIcon.preserveAspect = true;
+                UIManager.Stretch(avatarIcon.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                avatarIcon.color = new Color(1f, 1f, 1f, 0.3f); // Placeholder alpha
+
+                Image avatarFrame = UIManager.CreateImage("AvatarFrame", avatarRt, Color.white);
+                avatarFrame.preserveAspect = true;
+                avatarFrame.rectTransform.anchorMin = new Vector2(-0.1f, -0.1f);
+                avatarFrame.rectTransform.anchorMax = new Vector2(1.1f, 1.1f);
+                avatarFrame.rectTransform.offsetMin = avatarFrame.rectTransform.offsetMax = Vector2.zero;
+                avatarFrame.enabled = false;
 
                 Text nameText = UIManager.CreateText("Name", row.transform, runtimeFont, 14, TextAnchor.MiddleLeft, UIStyle.PopupText);
                 nameText.resizeTextForBestFit = true;
                 UIManager.SetScaledBestFit(nameText, 12, 14, UIFontRole.Popup);
-                nameText.rectTransform.anchorMin = new Vector2(0.20f, 0f);
+                nameText.rectTransform.anchorMin = new Vector2(0.28f, 0f);
                 nameText.rectTransform.anchorMax = new Vector2(0.68f, 1f);
                 nameText.rectTransform.offsetMin = nameText.rectTransform.offsetMax = Vector2.zero;
 
@@ -2222,6 +2295,8 @@ namespace TowerMaze
                 leaderboardRowBgs.Add(row);
                 leaderboardRowOutlines.Add(ownOutline);
                 leaderboardRankTexts.Add(rank);
+                leaderboardAvatarIcons.Add(avatarIcon);
+                leaderboardAvatarFrames.Add(avatarFrame);
                 leaderboardNameTexts.Add(nameText);
                 leaderboardScoreTexts.Add(scoreText);
             }

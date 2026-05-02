@@ -139,6 +139,7 @@ namespace TowerMaze
         private BannerAdManager bannerAdManager;
         private float cachedBestScore;
         private IReadOnlyList<LeaderboardEntry> cachedLeaderboardEntries = Array.Empty<LeaderboardEntry>();
+        private IReadOnlyList<LeaderboardEntry> cachedChapterLeaderboardEntries = Array.Empty<LeaderboardEntry>();
         private IReadOnlyList<DailyMissionState> cachedDailyMissions = Array.Empty<DailyMissionState>();
         private DailyChestStatus cachedChestStatus;
         private DailyChallengeStatus cachedDailyChallengeStatus;
@@ -389,6 +390,18 @@ namespace TowerMaze
                     cachedLeaderboardEntries = freshLeaderboard;
                     prev?.Invoke();
                 };
+            }
+        }
+
+        // Mirror of UpdateCachedLeaderboard for the chapter leaderboard tab. Cached
+        // alongside the endless list so the start screen can switch tabs instantly
+        // without waiting for another Firestore round-trip.
+        public void UpdateChapterLeaderboard(IReadOnlyList<LeaderboardEntry> chapterEntries)
+        {
+            cachedChapterLeaderboardEntries = chapterEntries ?? Array.Empty<LeaderboardEntry>();
+            if (startScreenController != null && startScreenController.gameObject.activeSelf)
+            {
+                startScreenController.UpdateChapterLeaderboardData(cachedChapterLeaderboardEntries);
             }
         }
 
@@ -674,7 +687,7 @@ namespace TowerMaze
 
             shopUIController.gameObject.SetActive(true);
             shopUIController.transform.SetAsLastSibling();
-            shopUIController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+                        shopUIController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, economyManager.AvatarFrames, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
             bannerAdManager?.HideBanner();
         }
 
@@ -764,6 +777,7 @@ namespace TowerMaze
             {
                 ShopCatalogType.Ball => economyManager.PurchaseOrEquipSkin(itemId),
                 ShopCatalogType.Tower => economyManager.PurchaseOrEquipTowerSkin(itemId),
+                ShopCatalogType.AvatarFrame => economyManager.PurchaseOrEquipAvatarFrame(itemId),
                 _ => ShopActionResult.None
             };
 
@@ -799,7 +813,7 @@ namespace TowerMaze
                 }
 
                 RefreshStartScreenState();
-                shopUIController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager.Offers, economyManager);
+                shopUIController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, economyManager.AvatarFrames, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
                 return;
             }
 
@@ -815,7 +829,7 @@ namespace TowerMaze
                 RefreshStartScreenState();
             }
 
-            shopUIController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+            shopUIController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, economyManager.AvatarFrames, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
         }
 
         private static readonly string[] UpsellCandidateIds = { "welcome_pack", "no_ads_pack", "bundle_neon_rush", "bundle_frost_reign" };
@@ -970,7 +984,7 @@ namespace TowerMaze
                     break;
             }
 
-            shopUIController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+            shopUIController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, economyManager.AvatarFrames, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
         }
 
         private void HandleMissionReroll()
@@ -1004,7 +1018,7 @@ namespace TowerMaze
                 economyManager.ClaimShopCoinBoost();
                 QueueRewardToast(GetShopBoostTitle(), FormatCoinReward(directReward), new Color(0.34f, 0.86f, 0.68f, 1f));
                 RefreshStartScreenState();
-                shopUIController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+                shopUIController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, economyManager.AvatarFrames, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
                 return;
             }
 
@@ -1019,7 +1033,7 @@ namespace TowerMaze
                 economyManager.ClaimShopCoinBoost();
                 QueueRewardToast(GetShopBoostTitle(), FormatCoinReward(reward), new Color(0.34f, 0.86f, 0.68f, 1f));
                 RefreshStartScreenState();
-                shopUIController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+                shopUIController?.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, economyManager.AvatarFrames, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
             });
         }
 
@@ -1056,7 +1070,7 @@ namespace TowerMaze
                 return;
             }
 
-            shopUIController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+            shopUIController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, economyManager.AvatarFrames, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
         }
 
         private void HandleCoinStorePurchaseFinished(CoinPackPurchaseResult result)
@@ -1084,7 +1098,7 @@ namespace TowerMaze
             RefreshStartScreenState();
             if (shopUIController != null && shopUIController.gameObject.activeSelf && economyManager != null)
             {
-                shopUIController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+                shopUIController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, economyManager.AvatarFrames, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
             }
         }
 
@@ -1093,7 +1107,7 @@ namespace TowerMaze
             QueueRewardToast(GetRestoreTitle(success), message, success ? new Color(0.42f, 0.86f, 1f, 1f) : new Color(1f, 0.68f, 0.3f, 1f));
             if (shopUIController != null && shopUIController.gameObject.activeSelf && economyManager != null)
             {
-                shopUIController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
+                shopUIController.SetState(economyManager.EmberBalance, economyManager.Skins, economyManager.TowerSkins, economyManager.AvatarFrames, coinStoreManager != null ? coinStoreManager.Offers : Array.Empty<CoinPackOffer>(), economyManager);
             }
         }
 
@@ -2044,5 +2058,5 @@ namespace TowerMaze
     }
 
     // ─── Shop catalog type (pre-redesign) ───────────────────────────────────────
-    public enum ShopCatalogType { Coin, Ball, Tower }
+    public enum ShopCatalogType { Coin, Ball, Tower, AvatarFrame }
 }

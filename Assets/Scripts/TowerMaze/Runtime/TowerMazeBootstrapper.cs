@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -20,6 +21,7 @@ namespace TowerMaze
         [SerializeField] private Transform uiRoot;
 
         private bool initialized;
+        private bool bootstrapRoutineStarted;
 
         private static bool IsMobileRuntimePlatform =>
             Application.platform == RuntimePlatform.Android || Application.platform == RuntimePlatform.IPhonePlayer;
@@ -56,109 +58,178 @@ namespace TowerMaze
             themeDefinition = theme;
         }
 
-
         private void Awake()
         {
+            Application.runInBackground = true;
             ConfigurePerformanceDefaults();
-            AnalyticsManager.Initialize();
             LogVerbose("[Bootstrapper] Awake started");
+            
             if (initialized)
             {
                 LogVerbose("[Bootstrapper] Already initialized, skipping");
                 return;
             }
+        }
 
+        private void Start()
+        {
+            TryStartBootstrap("Start");
+        }
+
+        private void TryStartBootstrap(string trigger)
+        {
+            if (initialized || bootstrapRoutineStarted)
+            {
+                return;
+            }
+
+            bootstrapRoutineStarted = true;
+            StartCoroutine(BootstrapRoutine());
+        }
+
+        private IEnumerator BootstrapRoutine()
+        {
+            LogVerbose("[Bootstrapper] Starting BootstrapRoutine...");
+            
+            // Step 1: Config Loading
             try {
                 if (gameConfig == null) {
                     LogVerbose("[Bootstrapper] Loading GameConfig from Resources...");
                     gameConfig = Resources.Load<GameConfig>("TowerMaze/GameConfig");
                 }
+            } catch (System.Exception e) { Debug.LogError($"[Bootstrapper] Config Load Error: {e.Message}"); }
+            yield return null;
+
+            try {
                 if (difficultyProfile == null)
                 {
                     difficultyProfile = Resources.Load<DifficultyProfile>("TowerMaze/DifficultyProfile")
                         ?? Resources.Load<DifficultyProfile>("TowerMaze/StandardDifficultyProfile");
                 }
+            } catch (System.Exception e) { Debug.LogError($"[Bootstrapper] Difficulty Load Error: {e.Message}"); }
+            yield return null;
+
+            try {
                 if (themeDefinition == null) themeDefinition = LoadThemeDefinition();
                 if (difficultyProfile == null) difficultyProfile = CreateFallbackDifficultyProfile();
+            } catch (System.Exception e) { Debug.LogError($"[Bootstrapper] Theme/Fallback Error: {e.Message}"); }
+            yield return null;
 
-                if (gameConfig == null) Debug.LogError("[Bootstrapper] CRITICAL: GameConfig asset not found in Resources/TowerMaze/GameConfig!");
-                else LogVerbose($"[Bootstrapper] GameConfig loaded: {gameConfig.name}");
+            if (gameConfig == null) Debug.LogError("[Bootstrapper] CRITICAL: GameConfig asset not found in Resources/TowerMaze/GameConfig!");
+            else LogVerbose($"[Bootstrapper] GameConfig loaded: {gameConfig.name}");
 
+            // Step 2: Roots and Environment
+            try {
                 LogVerbose("[Bootstrapper] Ensuring roots...");
                 EnsureRoots();
                 ConfigureEnvironment();
+            } catch (System.Exception e) { Debug.LogError($"[Bootstrapper] Roots/Env Error: {e.Message}"); }
+            yield return null;
 
+            // Step 3: Manager Creation
+            ScoreManager scoreManager = null;
+            EconomyManager economyManager = null;
+            RewardedAdManager rewardedAdManager = null;
+            InterstitialAdManager interstitialAdManager = null;
+            InAppReviewManager inAppReviewManager = null;
+            CoinStoreManager coinStoreManager = null;
+            AudioManager audioManager = null;
+            BannerAdManager bannerAdManager = null;
+            FirebaseCloudManager firebaseCloudManager = null;
+            RunManager runManager = null;
+            ChapterManager chapterManager = null;
+
+            try {
                 LogVerbose("[Bootstrapper] Creating Managers...");
-                ScoreManager scoreManager = EnsureComponent<ScoreManager>(EnsureChild(managersRoot, "ScoreManager"));
-                LogVerbose("[Bootstrapper] Created ScoreManager");
-                EconomyManager economyManager = EnsureComponent<EconomyManager>(EnsureChild(managersRoot, "EconomyManager"));
-                LogVerbose("[Bootstrapper] Created EconomyManager");
-                RewardedAdManager rewardedAdManager = EnsureComponent<RewardedAdManager>(EnsureChild(managersRoot, "RewardedAdManager"));
-                InterstitialAdManager interstitialAdManager = EnsureComponent<InterstitialAdManager>(EnsureChild(managersRoot, "InterstitialAdManager"));
-                InAppReviewManager inAppReviewManager = EnsureComponent<InAppReviewManager>(EnsureChild(managersRoot, "InAppReviewManager"));
-                CoinStoreManager coinStoreManager = EnsureComponent<CoinStoreManager>(EnsureChild(managersRoot, "CoinStoreManager"));
-                AudioManager audioManager = EnsureComponent<AudioManager>(EnsureChild(managersRoot, "AudioManager"));
-                BannerAdManager bannerAdManager = EnsureComponent<BannerAdManager>(EnsureChild(managersRoot, "BannerAdManager"));
-                FirebaseCloudManager firebaseCloudManager = EnsureComponent<FirebaseCloudManager>(EnsureChild(managersRoot, "FirebaseCloudManager"));
-                RunManager runManager = EnsureComponent<RunManager>(EnsureChild(managersRoot, "RunManager"));
-                ChapterManager chapterManager = EnsureComponent<ChapterManager>(EnsureChild(managersRoot, "ChapterManager"));
+                scoreManager = EnsureComponent<ScoreManager>(EnsureChild(managersRoot, "ScoreManager"));
+                economyManager = EnsureComponent<EconomyManager>(EnsureChild(managersRoot, "EconomyManager"));
+                rewardedAdManager = EnsureComponent<RewardedAdManager>(EnsureChild(managersRoot, "RewardedAdManager"));
+                interstitialAdManager = EnsureComponent<InterstitialAdManager>(EnsureChild(managersRoot, "InterstitialAdManager"));
+                inAppReviewManager = EnsureComponent<InAppReviewManager>(EnsureChild(managersRoot, "InAppReviewManager"));
+                coinStoreManager = EnsureComponent<CoinStoreManager>(EnsureChild(managersRoot, "CoinStoreManager"));
+                audioManager = EnsureComponent<AudioManager>(EnsureChild(managersRoot, "AudioManager"));
+                bannerAdManager = EnsureComponent<BannerAdManager>(EnsureChild(managersRoot, "BannerAdManager"));
+                firebaseCloudManager = EnsureComponent<FirebaseCloudManager>(EnsureChild(managersRoot, "FirebaseCloudManager"));
+                runManager = EnsureComponent<RunManager>(EnsureChild(managersRoot, "RunManager"));
+                chapterManager = EnsureComponent<ChapterManager>(EnsureChild(managersRoot, "ChapterManager"));
                 LogVerbose("[Bootstrapper] All Managers created");
-                
+            } catch (System.Exception e) { Debug.LogError($"[Bootstrapper] Manager Creation Error: {e.Message}"); }
+            yield return null;
+            
+            // Step 4: Tower and Player Setup
+            TowerGenerator towerGenerator = null;
+            Transform towerRoot = null;
+            LavaController lavaController = null;
+            PlayerController playerController = null;
+            Camera mainCamera = null;
+            CameraFollowController cameraFollow = null;
+            EnvironmentBackdropController backdropController = null;
+            UIManager uiManager = null;
+            Transform cameraTarget = null;
+
+            try {
                 LogVerbose("[Bootstrapper] Creating Tower System...");
                 Transform towerMotionRoot = EnsureChild(towerSystemRoot, "TowerMotionRoot");
-                TowerSinkController sinkController = EnsureComponent<TowerSinkController>(towerMotionRoot);
-                Transform towerRoot = EnsureChild(towerMotionRoot, "TowerRoot");
-                TowerRotationController rotationController = EnsureComponent<TowerRotationController>(towerRoot);
-                TowerGenerator towerGenerator = EnsureComponent<TowerGenerator>(towerRoot);
-                
-                LavaController lavaController = EnsureComponent<LavaController>(EnsureChild(towerSystemRoot, "Lava"));
+                EnsureComponent<TowerSinkController>(towerMotionRoot);
+                towerRoot = EnsureChild(towerMotionRoot, "TowerRoot");
+                EnsureComponent<TowerRotationController>(towerRoot);
+                towerGenerator = EnsureComponent<TowerGenerator>(towerRoot);
+                lavaController = EnsureComponent<LavaController>(EnsureChild(towerSystemRoot, "Lava"));
                 LogVerbose("[Bootstrapper] Tower System created");
+            } catch (System.Exception e) { Debug.LogError($"[Bootstrapper] Tower Setup Error: {e.Message}"); }
+            yield return null;
 
+            try {
                 LogVerbose("[Bootstrapper] Creating Player...");
                 Transform playerVisualRoot = EnsureChild(playerRoot, "Visual");
-                Transform cameraTarget = EnsureChild(playerRoot, "CameraTarget");
+                cameraTarget = EnsureChild(playerRoot, "CameraTarget");
                 cameraTarget.localPosition = new Vector3(0f, 0.34f, 0f);
                 EnsureComponent<PlayerInputHandler>(playerRoot);
-                PlayerController playerController = EnsureComponent<PlayerController>(playerRoot);
+                playerController = EnsureComponent<PlayerController>(playerRoot);
                 EnsureComponent<HeroVisualController>(playerVisualRoot);
+                LogVerbose("[Bootstrapper] Player created");
+            } catch (System.Exception e) { Debug.LogError($"[Bootstrapper] Player Setup Error: {e.Message}"); }
+            yield return null;
 
-                Camera mainCamera = EnsureCamera();
+            try {
+                mainCamera = EnsureCamera();
                 mainCamera.transform.SetParent(cameraRigRoot, false);
-                CameraFollowController cameraFollow = EnsureComponent<CameraFollowController>(mainCamera.transform);
-                EnvironmentBackdropController backdropController = EnsureComponent<EnvironmentBackdropController>(EnsureChild(vfxRoot, "Backdrop"));
+                cameraFollow = EnsureComponent<CameraFollowController>(mainCamera.transform);
+                backdropController = EnsureComponent<EnvironmentBackdropController>(EnsureChild(vfxRoot, "Backdrop"));
+                uiManager = EnsureComponent<UIManager>(uiRoot);
+            } catch (System.Exception e) { Debug.LogError($"[Bootstrapper] Camera/UI Setup Error: {e.Message}"); }
+            yield return null;
 
-                UIManager uiManager = EnsureComponent<UIManager>(uiRoot);
-
+            // Step 5: Splash Screen
+            try {
                 Texture2D splashTex = Resources.Load<Texture2D>("TowerMaze/UITheme/SplashBackground");
                 Font splashFont = Resources.Load<Font>("TowerMaze/UITheme/Outfit-Bold");
-
-                Texture2D staticBgTex = Resources.Load<Texture2D>("TowerMaze/UITheme/MainMenuStaticBackground");
-                Sprite staticBgSprite = null;
-                if (staticBgTex != null)
-                {
-                    staticBgSprite = Sprite.Create(staticBgTex, new Rect(0, 0, staticBgTex.width, staticBgTex.height), new Vector2(0.5f, 0.5f));
-                }
-
-                SplashScreenController splashController = new GameObject("SplashScreen")
-                    .AddComponent<SplashScreenController>();
+                SplashScreenController splashController = new GameObject("SplashScreen").AddComponent<SplashScreenController>();
                 splashController.Initialize(splashFont, splashTex, onComplete: () => uiManager.OnSplashComplete());
+            } catch (System.Exception e) { Debug.LogError($"[Bootstrapper] Splash Error: {e.Message}"); }
+            yield return null;
 
+            // Step 6: System Initialization
+            try {
                 LogVerbose("[Bootstrapper] Initializing systems...");
                 towerGenerator.Initialize(gameConfig, difficultyProfile, themeDefinition);
                 lavaController.Initialize(gameConfig, themeDefinition);
                 playerController.Initialize(gameConfig, towerGenerator, towerRoot, themeDefinition, audioManager, cameraFollow);
                 scoreManager.Initialize(gameConfig);
                 economyManager.Initialize();
+            } catch (System.Exception e) { Debug.LogError($"[Bootstrapper] System Init Error: {e.Message}"); }
+            yield return null;
+
+            try {
                 int chapterBaseSeed = gameConfig != null ? gameConfig.seed : 1347;
                 float chapterBallSpeed = gameConfig != null ? gameConfig.climbSpeed : 2.65f;
                 ChapterSeedTable preBakedSeeds = Resources.Load<ChapterSeedTable>("TowerMaze/ChapterSeedTable");
-                if (preBakedSeeds == null)
-                {
-                    LogVerbose("[Bootstrapper] No pre-baked ChapterSeedTable in Resources/TowerMaze. Run 'Tools → TowerMaze → Pre-Validate Chapters' to bake one. Booting with attempt=0 fallback.");
-                }
                 chapterManager.Initialize(chapterBaseSeed, chapterBallSpeed, preBakedSeeds);
                 coinStoreManager.Initialize(economyManager);
-                
+            } catch (System.Exception e) { Debug.LogError($"[Bootstrapper] Chapter/Store Error: {e.Message}"); }
+            yield return null;
+            
+            try {
                 System.Action applyTowerVisuals = () => {
                     if (economyManager != null && towerGenerator != null)
                         towerGenerator.ApplyTowerSkin(economyManager.GetEquippedTowerSkin(), economyManager.EmberBalance);
@@ -166,15 +237,15 @@ namespace TowerMaze
                 applyTowerVisuals();
                 economyManager.EmberBalanceChanged += _ => applyTowerVisuals();
                 economyManager.EquippedTowerSkinChanged += _ => applyTowerVisuals();
-                rewardedAdManager.Initialize(gameConfig);
-                interstitialAdManager.Initialize(gameConfig);
-                bannerAdManager.Initialize(gameConfig);
+
                 inAppReviewManager.Initialize();
                 playerController.ApplySkin(economyManager.GetEquippedSkin());
-                
                 cameraFollow.Initialize(cameraTarget);
                 backdropController.Initialize(themeDefinition, mainCamera, cameraTarget);
+            } catch (System.Exception e) { Debug.LogError($"[Bootstrapper] Visuals/Review Error: {e.Message}"); }
+            yield return null;
 
+            try {
                 System.Action<string> claimMissionAction = (missionId) =>
                 {
                     DailyMissionRewardResult result = economyManager.ClaimMissionReward(missionId);
@@ -191,22 +262,113 @@ namespace TowerMaze
                     onPlayEndless: runManager.StartRun,
                     onShowChapters: () => uiManager.ShowChapterSelect(chapterManager, (idx) => runManager.StartChapterRun(idx)),
                     chapterManager: chapterManager);
-                runManager.Initialize(gameConfig, difficultyProfile, themeDefinition, towerGenerator, playerController, lavaController, scoreManager, economyManager, coinStoreManager, rewardedAdManager, audioManager, uiManager, backdropController, cameraFollow, inAppReviewManager, interstitialAdManager, chapterManager);
-
-                firebaseCloudManager.Initialize(gameConfig, economyManager, scoreManager, coinStoreManager, uiManager);
-                firebaseCloudManager.NicknameRequired += () =>
-                {
-                    uiManager.ShowNicknamePopup((name, onComplete) =>
-                    {
-                        firebaseCloudManager.TrySetNickname(name, onComplete);
-                    });
-                };
                 
-                initialized = true;
-                LogVerbose($"[Bootstrapper] Awake completed successfully. Camera CullingMask: {mainCamera.cullingMask}, Layer: {mainCamera.gameObject.layer}");
-                LogVerbose($"[Bootstrapper] PlayerRoot Active: {playerRoot.gameObject.activeInHierarchy}, TowerRoot Active: {towerRoot.gameObject.activeInHierarchy}");
-            } catch (System.Exception e) {
-                Debug.LogError($"[Bootstrapper] CRITICAL FAILURE in Awake: {e.Message}\n{e.StackTrace}");
+                runManager.Initialize(gameConfig, difficultyProfile, themeDefinition, towerGenerator, playerController, lavaController, scoreManager, economyManager, coinStoreManager, rewardedAdManager, audioManager, uiManager, backdropController, cameraFollow, inAppReviewManager, interstitialAdManager, chapterManager);
+            } catch (System.Exception e) { Debug.LogError($"[Bootstrapper] UI/RunManager Error: {e.Message}"); }
+            yield return null;
+
+            // Step 7: Third-party systems
+            StartCoroutine(InitThirdPartySystemsRoutine(gameConfig, rewardedAdManager, interstitialAdManager, bannerAdManager, firebaseCloudManager, economyManager, scoreManager, coinStoreManager, uiManager));
+            
+            initialized = true;
+            LogVerbose("[Bootstrapper] BootstrapRoutine completed successfully.");
+        }
+
+        private IEnumerator InitThirdPartySystemsRoutine(GameConfig config, RewardedAdManager rewarded, InterstitialAdManager interstitial, BannerAdManager banner, FirebaseCloudManager firebase, EconomyManager economy, ScoreManager score, CoinStoreManager coinStore, UIManager ui)
+        {
+            // Initial delay to allow UI and game world to be fully visible
+            yield return new WaitForSeconds(0.2f);
+
+            LogVerbose("[Bootstrapper] Initializing Analytics (Deferred)...");
+            try 
+            {
+                AnalyticsManager.Initialize();
+            } 
+            catch (System.Exception ex) 
+            {
+                Debug.LogWarning($"[Bootstrapper] Analytics initialization failed: {ex.Message}");
+            }
+
+            yield return null;
+
+            LogVerbose("[Bootstrapper] Initializing Firebase Cloud (Deferred)...");
+            try 
+            {
+                if (firebase != null)
+                {
+                    firebase.Initialize(config, economy, score, coinStore, ui, chapterManager);
+                    firebase.NicknameRequired += () =>
+                    {
+                        if (ui != null)
+                        {
+                            ui.ShowNicknamePopup((name, onComplete) =>
+                            {
+                                firebase.TrySetNickname(name, onComplete);
+                            });
+                        }
+                    };
+                    // First-launch onboarding: if no nickname is cached locally, fire
+                    // the popup proactively now (instead of waiting for the player to
+                    // post a score). Idempotent within the session via the existing
+                    // nicknamePromptRequestedThisSession flag.
+                    if (string.IsNullOrEmpty(PlayerPrefs.GetString("TowerMaze.Firebase.Nickname", string.Empty)))
+                    {
+                        firebase.RequestNicknameNow();
+                    }
+                }
+            } 
+            catch (System.Exception ex) 
+            {
+                Debug.LogWarning($"[Bootstrapper] Firebase initialization failed: {ex.Message}");
+            }
+
+            yield return new WaitForSeconds(0.3f); // Further delay before Ads
+
+            LogVerbose("[Bootstrapper] Initializing Ad Systems (Deferred)...");
+            // Small delay to allow the engine and other managers to settle
+            yield return new WaitForSeconds(0.5f);
+            
+            try 
+            {
+                if (rewarded != null)
+                {
+                    rewarded.Initialize(config);
+                    LogVerbose("[Bootstrapper] RewardedAdManager initialization requested");
+                }
+            } 
+            catch (System.Exception ex) 
+            {
+                Debug.LogWarning($"[Bootstrapper] RewardedAdManager failed: {ex.Message}");
+            }
+
+            yield return null; // Yield between each to spread load
+
+            try 
+            {
+                if (interstitial != null)
+                {
+                    interstitial.Initialize(config);
+                    LogVerbose("[Bootstrapper] InterstitialAdManager initialization requested");
+                }
+            } 
+            catch (System.Exception ex) 
+            {
+                Debug.LogWarning($"[Bootstrapper] InterstitialAdManager failed: {ex.Message}");
+            }
+
+            yield return null;
+
+            try 
+            {
+                if (banner != null)
+                {
+                    banner.Initialize(config);
+                    LogVerbose("[Bootstrapper] BannerAdManager initialization requested");
+                }
+            } 
+            catch (System.Exception ex) 
+            {
+                Debug.LogWarning($"[Bootstrapper] BannerAdManager failed: {ex.Message}");
             }
         }
 
@@ -447,6 +609,10 @@ namespace TowerMaze
                 existing.allowHDR = allowHdr;
                 existing.allowMSAA = allowMsaa;
                 ConfigureUniversalCamera(existing);
+                if (existing.GetComponent<AudioListener>() == null)
+                {
+                    existing.gameObject.AddComponent<AudioListener>();
+                }
                 return existing;
             }
 

@@ -79,6 +79,10 @@ namespace TowerMaze
         public int UnlockedUpTo { get; private set; }
         public int ActiveChapterIndex { get; private set; }
 
+        // Fired when RecordChapterComplete bumps UnlockedUpTo. Used by FirebaseCloudManager
+        // to push the new chapter progress to Firestore for the chapter leaderboard tab.
+        public event Action<int> UnlockedUpToChanged;
+
         private ChapterDefinition[] _chapters;
 
         public void Initialize(int baseSeed, float ballPlayerSpeed, ChapterSeedTable preValidatedTable = null)
@@ -168,6 +172,7 @@ namespace TowerMaze
                 UnlockedUpTo = index + 1;
                 PlayerPrefs.SetInt(KeyUnlocked, UnlockedUpTo);
                 PlayerPrefs.Save();
+                UnlockedUpToChanged?.Invoke(UnlockedUpTo);
             }
         }
 

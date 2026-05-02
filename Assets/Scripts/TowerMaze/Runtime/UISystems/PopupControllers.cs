@@ -28,7 +28,7 @@ namespace TowerMaze
         public void SetValue(string label, bool isGo)
         {
             countdownText.text = label;
-            countdownText.fontSize = isGo ? 150 : 180;
+            UIManager.SetScaledFontSize(countdownText, isGo ? 150 : 180);
             countdownText.color = isGo ? goColor : numberColor;
             countdownText.transform.localScale = isGo ? Vector3.one * 1.08f : Vector3.one;
         }
@@ -62,20 +62,22 @@ namespace TowerMaze
             GameObject container = new("RewardToastContainer");
             container.transform.SetParent(transform, false);
             RectTransform containerRect = container.AddComponent<RectTransform>();
-            UIManager.Stretch(containerRect, new Vector2(0.5f, 0.9f), new Vector2(0.5f, 0.9f), new Vector2(-260f, -64f), new Vector2(260f, 64f));
+            UIManager.Stretch(containerRect, new Vector2(0.5f, 0.80f), new Vector2(0.5f, 0.80f), new Vector2(-234f, -69f), new Vector2(234f, 69f));
 
             // Dark card background (UIStyle.SurfaceDark — semi-transparent white on dark bg)
             backgroundImage = container.AddComponent<Image>();
             backgroundImage.color = new Color(UIStyle.SurfaceDark.r, UIStyle.SurfaceDark.g, UIStyle.SurfaceDark.b, 0f);
 
             // Title: bright white
-            titleText = UIManager.CreateText("RewardToastTitle", container.transform, font, 34, TextAnchor.UpperCenter, UIStyle.TextPrimary);
+            titleText = UIManager.CreateText("RewardToastTitle", container.transform, font, 36, TextAnchor.UpperCenter, UIStyle.TextPrimary);
             titleText.fontStyle = FontStyle.Bold;
-            UIManager.Stretch(titleText.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 1f), new Vector2(18f, -10f), new Vector2(-18f, -4f));
+            UIManager.Stretch(titleText.rectTransform, new Vector2(0f, 0.50f), new Vector2(1f, 1f), new Vector2(22f, -14f), new Vector2(-22f, -6f));
 
             // Subtitle: gold (coin-colored)
-            subtitleText = UIManager.CreateText("RewardToastSubtitle", container.transform, font, 28, TextAnchor.LowerCenter, UIStyle.Gold);
-            UIManager.Stretch(subtitleText.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.55f), new Vector2(18f, 8f), new Vector2(-18f, -8f));
+            subtitleText = UIManager.CreateText("RewardToastSubtitle", container.transform, font, 30, TextAnchor.LowerCenter, UIStyle.Gold);
+            UIManager.Stretch(subtitleText.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.52f), new Vector2(22f, 10f), new Vector2(-22f, -12f));
+
+            UIManager.ApplyPopupTextRoles(transform);
         }
 
         public void Enqueue(string title, string subtitle, Color accentColor)
@@ -102,7 +104,7 @@ namespace TowerMaze
             float alpha = Mathf.Min(fadeIn, fadeOut);
 
             Color background = backgroundImage.color;
-            background.a = 0.84f * alpha;
+            background.a = 0f;
             backgroundImage.color = background;
 
             Color title = titleText.color;
@@ -173,6 +175,9 @@ namespace TowerMaze
     {
         private Action buttonClickSound;
         private MonoBehaviour _runner;
+        private Text titleText;
+        private Text resumeLabel;
+        private Text menuLabel;
 
         public void Initialize(Font font, ThemeDefinition theme, Action onResume, Action onReturnToMenu, Action onButtonClick = null)
         {
@@ -191,29 +196,37 @@ namespace TowerMaze
                 new Vector2(-200f, -180f), new Vector2(200f, 180f));
 
             // Title
-            Text title = UIManager.CreateText("PauseTitle", panel.transform, font, 36, TextAnchor.MiddleCenter, UIStyle.TextPrimary);
-            title.text = "PAUSED";
-            title.fontStyle = FontStyle.Bold;
-            UIManager.Stretch(title.rectTransform,
+            titleText = UIManager.CreateText("PauseTitle", panel.transform, font, 36, TextAnchor.MiddleCenter, UIStyle.TextPrimary);
+            titleText.fontStyle = FontStyle.Bold;
+            titleText.resizeTextForBestFit = true;
+            titleText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            titleText.verticalOverflow = VerticalWrapMode.Truncate;
+            UIManager.SetScaledBestFit(titleText, 22, 36, UIFontRole.Popup);
+            UIManager.Stretch(titleText.rectTransform,
                 new Vector2(0f, 0.72f), new Vector2(1f, 1f),
                 new Vector2(24f, 0f), new Vector2(-24f, 0f));
 
-            // Resume button — orange gradient (dominant action)
+            // Resume button — jelly orange (dominant action)
             GameObject resumeGo = new("ResumeBtn");
             resumeGo.transform.SetParent(panel.transform, false);
-            GradientImage resumeGrad = resumeGo.AddComponent<GradientImage>();
-            resumeGrad.colorTop = UIStyle.ActionLight;
-            resumeGrad.colorBottom = UIStyle.Action;
+            Image resumeImg = resumeGo.AddComponent<Image>();
+            UICandySkin.ApplyCandyButton(resumeImg, "out_btn_orange", new Vector4(150f, 130f, 150f, 130f), 350f);
             Button resumeBtn = resumeGo.AddComponent<Button>();
-            resumeBtn.targetGraphic = resumeGrad;
+            resumeBtn.targetGraphic = resumeImg;
             RectTransform resumeRt = resumeGo.GetComponent<RectTransform>();
             resumeRt.anchorMin = new Vector2(0.1f, 0.42f);
             resumeRt.anchorMax = new Vector2(0.9f, 0.68f);
             resumeRt.offsetMin = Vector2.zero;
             resumeRt.offsetMax = Vector2.zero;
             Text resumeLbl = UIManager.CreateText(resumeGo.transform, "Label", "▶ DEVAM ET",
-                16, FontStyle.Bold, Color.white, font, TextAnchor.MiddleCenter);
+                20, FontStyle.Bold, Color.white, font, TextAnchor.MiddleCenter);
+            resumeLbl.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(resumeLbl, 16, 20, UIFontRole.Button);
             UIManager.Stretch(resumeLbl.rectTransform);
+            Shadow resumeLblShadow = resumeLbl.gameObject.AddComponent<Shadow>();
+            resumeLblShadow.effectColor = new Color(0.48f, 0.22f, 0f, 0.55f);
+            resumeLblShadow.effectDistance = new Vector2(0f, -2f);
+            resumeLabel = resumeLbl;
             UIManager.BindButton(resumeBtn, () =>
             {
                 _runner.StartCoroutine(UIStyle.ButtonPress(resumeRt));
@@ -221,25 +234,66 @@ namespace TowerMaze
                 onResume?.Invoke();
             });
 
-            // Main menu button — secondary (semi-transparent dark)
-            GameObject menuGo = UIManager.CreateSecondaryButton(panel.transform, "MainMenuBtn", "ANA MENÜ", font);
-            RectTransform menuRt = menuGo.GetComponent<RectTransform>();
+            // Main menu button — jelly purple (secondary)
+            GameObject menuGo = new("MainMenuBtn");
+            menuGo.transform.SetParent(panel.transform, false);
+            Image menuImg = menuGo.AddComponent<Image>();
+            UICandySkin.ApplyCandyButton(menuImg, "out_btn_purple", new Vector4(150f, 160f, 150f, 160f), 350f);
+            Button menuBtn = menuGo.AddComponent<Button>();
+            menuBtn.targetGraphic = menuImg;
+            RectTransform menuRt = (RectTransform)menuGo.transform;
             menuRt.anchorMin = new Vector2(0.1f, 0.1f);
             menuRt.anchorMax = new Vector2(0.9f, 0.36f);
             menuRt.offsetMin = Vector2.zero;
             menuRt.offsetMax = Vector2.zero;
-            Button menuBtn = menuGo.GetComponent<Button>();
+            Text menuLbl = UIManager.CreateText(menuGo.transform, "Label", "ANA MENÜ",
+                18, FontStyle.Bold, Color.white, font, TextAnchor.MiddleCenter);
+            menuLbl.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(menuLbl, 14, 20, UIFontRole.Button);
+            UIManager.Stretch(menuLbl.rectTransform);
+            Shadow menuLblShadow = menuLbl.gameObject.AddComponent<Shadow>();
+            menuLblShadow.effectColor = new Color(0.16f, 0.08f, 0.25f, 0.55f);
+            menuLblShadow.effectDistance = new Vector2(0f, -2f);
+            menuLabel = menuLbl;
             UIManager.BindButton(menuBtn, () =>
             {
                 _runner.StartCoroutine(UIStyle.ButtonPress(menuRt));
                 buttonClickSound?.Invoke();
                 onReturnToMenu?.Invoke();
             });
+
+            ApplyLocalizedTexts();
+            UIManager.ApplyPopupTextRoles(transform);
+        }
+
+        private void OnEnable()
+        {
+            ApplyLocalizedTexts();
+        }
+
+        private void ApplyLocalizedTexts()
+        {
+            if (titleText != null)
+            {
+                titleText.text = UILanguage.Translate("DURAKLATILDI", "PAUSED", "PAUSADO");
+            }
+
+            if (resumeLabel != null)
+            {
+                resumeLabel.text = UILanguage.Translate("DEVAM ET", "RESUME", "REANUDAR");
+            }
+
+            if (menuLabel != null)
+            {
+                menuLabel.text = UILanguage.Translate("ANA MENU", "MAIN MENU", "MENU PRINCIPAL");
+            }
         }
     }
 
     public sealed class ControlFlipController : MonoBehaviour
     {
+        private RectTransform badgeRoot;
+        private Image badgeBg;
         private Image pulseImage;
         private Image timerTrack;
         private Image timerFill;
@@ -256,8 +310,23 @@ namespace TowerMaze
             UIManager.Stretch(pulseImage.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             pulseImage.raycastTarget = false;
 
-            timerTrack = UIManager.CreateImage("ControlFlipTrack", transform, new Color(0f, 0f, 0f, 0.3f));
-            UIManager.Stretch(timerTrack.rectTransform, new Vector2(0.16f, 0.2f), new Vector2(0.84f, 0.2f), new Vector2(0f, -18f), new Vector2(0f, 6f));
+            GameObject badgeObj = new("ControlFlipBadge");
+            badgeRoot = badgeObj.AddComponent<RectTransform>();
+            badgeRoot.SetParent(transform, false);
+            badgeRoot.anchorMin = new Vector2(0.5f, 0.64f);
+            badgeRoot.anchorMax = new Vector2(0.5f, 0.64f);
+            badgeRoot.pivot = new Vector2(0.5f, 0.5f);
+            badgeRoot.anchoredPosition = Vector2.zero;
+            badgeRoot.sizeDelta = new Vector2(468f, 138f);
+
+            badgeBg = UIManager.CreateImage("ControlFlipBg", badgeRoot, new Color(0.16f, 0.11f, 0.21f, 0.94f));
+            badgeBg.sprite = Resources.Load<Sprite>("TowerMaze/UITheme/panel_dark_hq");
+            badgeBg.type = Image.Type.Sliced;
+            UIManager.Stretch(badgeBg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            badgeBg.raycastTarget = false;
+
+            timerTrack = UIManager.CreateImage("ControlFlipTrack", badgeRoot, new Color(1f, 1f, 1f, 0.14f));
+            UIManager.Stretch(timerTrack.rectTransform, new Vector2(0.08f, 0.18f), new Vector2(0.92f, 0.29f), Vector2.zero, Vector2.zero);
             timerTrack.raycastTarget = false;
 
             timerFill = UIManager.CreateImage("ControlFlipFill", timerTrack.transform, new Color(1f, 0.76f, 0.28f, 1f));
@@ -268,10 +337,12 @@ namespace TowerMaze
             UIManager.Stretch(timerFill.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             timerFill.raycastTarget = false;
 
-            warningText = UIManager.CreateText("ControlFlipText", transform, font, 72, TextAnchor.MiddleCenter, Color.white);
+            warningText = UIManager.CreateText("ControlFlipText", badgeRoot, font, 34, TextAnchor.MiddleCenter, Color.white);
             warningText.fontStyle = FontStyle.Bold;
             warningText.text = "CONTROL FLIP";
-            UIManager.Stretch(warningText.rectTransform, new Vector2(0.5f, 0.3f), new Vector2(0.5f, 0.3f), new Vector2(-340f, -70f), new Vector2(340f, 70f));
+            warningText.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(warningText, 26, 34, UIFontRole.Popup);
+            UIManager.Stretch(warningText.rectTransform, new Vector2(0.06f, 0.36f), new Vector2(0.94f, 0.86f), Vector2.zero, Vector2.zero);
         }
 
         public void SetState(bool controlsFlipped, float pulse, float remainingNormalized, float totalDurationSeconds)
@@ -280,7 +351,14 @@ namespace TowerMaze
             Color overlayColor = controlsFlipped ? activeColor : warningColor;
             overlayColor.a = controlsFlipped ? Mathf.Lerp(0.08f, 0.18f, clampedPulse) : Mathf.Lerp(0.05f, 0.13f, clampedPulse);
             pulseImage.color = overlayColor;
+            badgeBg.color = controlsFlipped
+                ? Color.Lerp(new Color(0.28f, 0.10f, 0.12f, 0.95f), new Color(0.40f, 0.12f, 0.12f, 0.98f), clampedPulse)
+                : Color.Lerp(new Color(0.14f, 0.11f, 0.24f, 0.93f), new Color(0.20f, 0.15f, 0.31f, 0.96f), clampedPulse);
+            badgeRoot.localScale = Vector3.one * Mathf.Lerp(0.98f, 1.05f, clampedPulse);
             timerFill.color = controlsFlipped ? new Color(1f, 0.28f, 0.28f, 1f) : new Color(1f, 0.72f, 0.28f, 1f);
+            timerTrack.color = controlsFlipped
+                ? new Color(1f, 1f, 1f, 0.20f)
+                : new Color(1f, 1f, 1f, 0.14f);
             timerFill.fillAmount = Mathf.Clamp01(remainingNormalized);
             warningText.color = controlsFlipped
                 ? Color.Lerp(new Color(1f, 0.82f, 0.82f, 1f), Color.white, clampedPulse)
@@ -296,57 +374,56 @@ namespace TowerMaze
     {
         private RectTransform badgeRoot;
         private Image badgeBg;
-        private Image iconImage;
+        private Image accentBar;
         private Image timerFill;
         private Text hurryText;
 
+        private static readonly Color PanelCore = new(0.08f, 0.06f, 0.12f, 0.88f);
+        private static readonly Color RushAccent = new(1f, 0.32f, 0.26f, 1f);
+        private static readonly Color WarningAccent = new(1f, 0.78f, 0.26f, 1f);
+
         public void Initialize(Font font, ThemeDefinition theme)
         {
-            // Floating center-top badge
             GameObject rootObj = new GameObject("RushBadge");
             badgeRoot = rootObj.AddComponent<RectTransform>();
             badgeRoot.SetParent(transform, false);
-            badgeRoot.anchorMin = new Vector2(0.5f, 1f);
-            badgeRoot.anchorMax = new Vector2(0.5f, 1f);
-            badgeRoot.pivot = new Vector2(0.5f, 1f);
-            badgeRoot.anchoredPosition = new Vector2(0f, -40f);
-            badgeRoot.sizeDelta = new Vector2(320f, 90f);
+            badgeRoot.anchorMin = new Vector2(0.5f, 0.64f);
+            badgeRoot.anchorMax = new Vector2(0.5f, 0.64f);
+            badgeRoot.pivot = new Vector2(0.5f, 0.5f);
+            badgeRoot.anchoredPosition = Vector2.zero;
+            badgeRoot.sizeDelta = new Vector2(440f, 72f);
 
-            // HQ Dark Panel Background
-            badgeBg = UIManager.CreateImage("BadgeBg", badgeRoot, UIColors.Card);
+            // Single dark glass pill
+            badgeBg = UIManager.CreateImage("BadgeBg", badgeRoot, PanelCore);
             badgeBg.sprite = Resources.Load<Sprite>("TowerMaze/UITheme/panel_dark_hq");
             badgeBg.type = Image.Type.Sliced;
             UIManager.Stretch(badgeBg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             badgeBg.raycastTarget = false;
 
-            // Premium Ember Icon
-            iconImage = UIManager.CreateImage("WarningIcon", badgeRoot, Color.white);
-            iconImage.sprite = Resources.Load<Sprite>("TowerMaze/UITheme/ember_icon_hq");
-            iconImage.preserveAspect = true;
-            iconImage.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-            iconImage.rectTransform.anchorMax = new Vector2(0f, 0.5f);
-            iconImage.rectTransform.pivot = new Vector2(0f, 0.5f);
-            iconImage.rectTransform.anchoredPosition = new Vector2(15f, 0f);
-            iconImage.rectTransform.sizeDelta = new Vector2(60f, 60f);
+            Shadow badgeShadow = badgeBg.gameObject.AddComponent<Shadow>();
+            badgeShadow.effectColor = new Color(0f, 0f, 0f, 0.42f);
+            badgeShadow.effectDistance = new Vector2(0f, -3f);
 
-            // Rush Title
-            hurryText = UIManager.CreateText("HurryText", badgeRoot, font, 24, TextAnchor.MiddleLeft, UIColors.Warning);
+            // Main text — centered
+            hurryText = UIManager.CreateText("HurryText", badgeRoot, font, 28, TextAnchor.MiddleCenter, Color.white);
             hurryText.fontStyle = FontStyle.Bold;
-            hurryText.text = "HURRY UP!";
-            hurryText.rectTransform.anchorMin = new Vector2(0.24f, 0.4f);
-            hurryText.rectTransform.anchorMax = new Vector2(0.95f, 0.9f);
+            hurryText.text = UILanguage.Translate("HIZLAN", "HURRY UP", "ACELERA");
+            hurryText.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(hurryText, 18, 30, UIFontRole.Popup);
+            hurryText.rectTransform.anchorMin = new Vector2(0.04f, 0.20f);
+            hurryText.rectTransform.anchorMax = new Vector2(0.96f, 1f);
             hurryText.rectTransform.offsetMin = Vector2.zero;
             hurryText.rectTransform.offsetMax = Vector2.zero;
 
-            // Compact Timer bar at the bottom of badge
-            Image timerTrack = UIManager.CreateImage("TimerTrack", badgeRoot, new Color(0f, 0f, 0f, 0.5f));
-            timerTrack.rectTransform.anchorMin = new Vector2(0.24f, 0.15f);
-            timerTrack.rectTransform.anchorMax = new Vector2(0.9f, 0.25f);
-            timerTrack.rectTransform.offsetMin = Vector2.zero;
-            timerTrack.rectTransform.offsetMax = Vector2.zero;
-            timerTrack.raycastTarget = false;
+            // Bottom accent bar (doubles as timer) — thin, modern progress line
+            accentBar = UIManager.CreateImage("AccentBar", badgeRoot, new Color(1f, 1f, 1f, 0.08f));
+            accentBar.rectTransform.anchorMin = new Vector2(0.12f, 0.08f);
+            accentBar.rectTransform.anchorMax = new Vector2(0.88f, 0.16f);
+            accentBar.rectTransform.offsetMin = Vector2.zero;
+            accentBar.rectTransform.offsetMax = Vector2.zero;
+            accentBar.raycastTarget = false;
 
-            timerFill = UIManager.CreateImage("TimerFill", timerTrack.transform, UIColors.Warning);
+            timerFill = UIManager.CreateImage("TimerFill", accentBar.transform, WarningAccent);
             timerFill.type = Image.Type.Filled;
             timerFill.fillMethod = Image.FillMethod.Horizontal;
             timerFill.fillOrigin = 0;
@@ -358,21 +435,23 @@ namespace TowerMaze
         public void SetState(bool rushActive, float pulse, float remainingNormalized)
         {
             float p = Mathf.Clamp01(pulse);
+            Color accent = rushActive ? RushAccent : WarningAccent;
 
-            // Badge visual state
-            Color accent = rushActive ? new Color(1f, 0.9f, 0.6f, 1f) : new Color(1f, 0.65f, 0.2f, 1f);
-            badgeBg.color = new Color(1f, 1f, 1f, Mathf.Lerp(0.9f, 1f, p));
-            badgeRoot.localScale = Vector3.one * (1f + p * 0.05f);
+            // Panel color: core + very subtle accent-tinted breathing when rush active
+            Color corePulse = Color.Lerp(PanelCore, new Color(accent.r, accent.g, accent.b, PanelCore.a), rushActive ? (p * 0.14f) : 0f);
+            badgeBg.color = corePulse;
 
+            // Small scale breathing — no thick glow, no halo
+            badgeRoot.localScale = Vector3.one * Mathf.Lerp(0.99f, rushActive ? 1.035f : 1.018f, p);
+
+            // Timer fill
             timerFill.color = accent;
             timerFill.fillAmount = Mathf.Clamp01(remainingNormalized);
 
-            hurryText.text = rushActive ? "RUSH ACTIVE!" : "HURRY UP!";
-            hurryText.color = Color.Lerp(Color.white, accent, p);
-
-            // Icon rotation pulse
-            iconImage.transform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(Time.time * 8f) * 10f * p);
-            iconImage.color = Color.Lerp(new Color(1f, 1f, 1f, 0.8f), Color.white, p);
+            hurryText.text = rushActive
+                ? UILanguage.Translate("HIZLAN", "HURRY UP", "ACELERA")
+                : UILanguage.Translate("HAZIR OL", "GET READY", "PREPARATE");
+            hurryText.color = Color.Lerp(Color.white, accent, rushActive ? (p * 0.18f) : 0f);
         }
     }
 
@@ -384,10 +463,12 @@ namespace TowerMaze
         private Image card;
         private Image previewFrame;
         private RawImage previewImage;
+        private Text closeButtonLabel;
         private Text titleText;
         private Text descText;
         private Text priceText;
         private Button buyButton;
+        private Text buyButtonLabel;
         private string currentOfferId;
         private MonoBehaviour _runner;
 
@@ -425,16 +506,14 @@ namespace TowerMaze
             cardRt.offsetMax = Vector2.zero;
 
             // X (close) button — top-right corner of card
-            Button closeBtn = UIManager.CreateButton("UpsellClose", cardObj.transform, runtimeFont, "✕", UIStyle.SurfaceDark, UIStyle.TextDim);
-            Text closeBtnLabel = closeBtn.GetComponentInChildren<Text>();
-            closeBtnLabel.fontSize = 18;
-            closeBtnLabel.fontStyle = FontStyle.Bold;
+            Button closeBtn = UIManager.CreateCandyCloseButton("UpsellClose", cardObj.transform, runtimeFont, 16);
+            closeButtonLabel = closeBtn.GetComponentInChildren<Text>();
             RectTransform closeBtnRt = (RectTransform)closeBtn.transform;
             closeBtnRt.anchorMin = new Vector2(1f, 1f);
             closeBtnRt.anchorMax = new Vector2(1f, 1f);
-            closeBtnRt.pivot = new Vector2(0.5f, 0.5f);
-            closeBtnRt.anchoredPosition = new Vector2(-20f, -20f);
-            closeBtnRt.sizeDelta = new Vector2(36f, 36f);
+            closeBtnRt.pivot = new Vector2(1f, 1f);
+            closeBtnRt.anchoredPosition = new Vector2(-22f, -18f);
+            closeBtnRt.sizeDelta = new Vector2(54f, 54f);
             UIManager.BindButton(closeBtn, () =>
             {
                 _runner.StartCoroutine(UIStyle.ButtonPress(closeBtnRt));
@@ -442,10 +521,10 @@ namespace TowerMaze
                 OnCloseClicked();
             });
 
-            // Image frame (top 28% of card) — dark surface
+            // Image frame — expanded to fill top of card as a square
             previewFrame = UIManager.CreateCard("UpsellPreviewFrame", cardObj.transform, UIStyle.SurfaceDark2, UIStyle.BorderDark);
             previewFrame.raycastTarget = false;
-            UIManager.Stretch(previewFrame.rectTransform, new Vector2(0.30f, 0.63f), new Vector2(0.70f, 0.93f), Vector2.zero, Vector2.zero);
+            UIManager.Stretch(previewFrame.rectTransform, new Vector2(0.05f, 0.22f), new Vector2(0.95f, 0.95f), Vector2.zero, Vector2.zero);
 
             // Product image inside frame — AspectRatioFitter prevents distortion
             GameObject previewObj = new("UpsellPreview");
@@ -456,25 +535,12 @@ namespace TowerMaze
             arf.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
             arf.aspectRatio = 1f;
             RectTransform previewRt = (RectTransform)previewObj.transform;
-            previewRt.anchorMin = new Vector2(0.1f, 0.1f);
-            previewRt.anchorMax = new Vector2(0.9f, 0.9f);
+            previewRt.anchorMin = Vector2.zero;
+            previewRt.anchorMax = Vector2.one;
             previewRt.offsetMin = Vector2.zero;
             previewRt.offsetMax = Vector2.zero;
 
-            // Title — bright white text
-            titleText = UIManager.CreateText("UpsellTitle", cardObj.transform, runtimeFont, 21, TextAnchor.MiddleCenter, UIStyle.TextPrimary);
-            titleText.fontStyle = FontStyle.Bold;
-            UIManager.Stretch(titleText.rectTransform, new Vector2(0.04f, 0.46f), new Vector2(0.96f, 0.62f), Vector2.zero, Vector2.zero);
-
-            // Description — dim text
-            descText = UIManager.CreateText("UpsellDesc", cardObj.transform, runtimeFont, 15, TextAnchor.MiddleCenter, UIStyle.TextDim);
-            descText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            UIManager.Stretch(descText.rectTransform, new Vector2(0.04f, 0.32f), new Vector2(0.96f, 0.47f), Vector2.zero, Vector2.zero);
-
-            // Price — gold color
-            priceText = UIManager.CreateText("UpsellPrice", cardObj.transform, runtimeFont, 17, TextAnchor.MiddleCenter, UIStyle.Gold);
-            priceText.fontStyle = FontStyle.Bold;
-            UIManager.Stretch(priceText.rectTransform, new Vector2(0.04f, 0.18f), new Vector2(0.96f, 0.32f), Vector2.zero, Vector2.zero);
+            // Title, Description, and Price text blocks removed based on user request ('giri alanı istemiyorum')
 
             // Buy button — orange gradient with ButtonPress animation
             GameObject buyGo = new("UpsellBuy");
@@ -485,19 +551,24 @@ namespace TowerMaze
             buyButton = buyGo.AddComponent<Button>();
             buyButton.targetGraphic = buyGrad;
             RectTransform buyRt = buyGo.GetComponent<RectTransform>();
-            buyRt.anchorMin = new Vector2(0.08f, 0.04f);
-            buyRt.anchorMax = new Vector2(0.92f, 0.17f);
+            buyRt.anchorMin = new Vector2(0.08f, 0.05f);
+            buyRt.anchorMax = new Vector2(0.92f, 0.18f);
             buyRt.offsetMin = Vector2.zero;
             buyRt.offsetMax = Vector2.zero;
-            Text buyLabel = UIManager.CreateText(buyGo.transform, "Label", "SATIN AL",
-                18, FontStyle.Bold, Color.white, runtimeFont, TextAnchor.MiddleCenter);
-            UIManager.Stretch(buyLabel.rectTransform);
+            buyButtonLabel = UIManager.CreateText(buyGo.transform, "Label", GetBuyButtonLabel(),
+                22, FontStyle.Bold, Color.white, runtimeFont, TextAnchor.MiddleCenter);
+            buyButtonLabel.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(buyButtonLabel, 18, 22, UIFontRole.Button);
+            UIManager.Stretch(buyButtonLabel.rectTransform);
             UIManager.BindButton(buyButton, () =>
             {
                 _runner.StartCoroutine(UIStyle.ButtonPress(buyRt));
                 buttonClickSound?.Invoke();
                 OnBuyClicked();
             });
+
+            closeBtn.transform.SetAsLastSibling();
+            UIManager.ApplyPopupTextRoles(transform);
         }
 
         public void Show(IReadOnlyList<CoinPackOffer> allOffers, string[] candidateIds)
@@ -511,13 +582,17 @@ namespace TowerMaze
 
             CoinPackOffer offer = picked.Value;
             currentOfferId = offer.id;
-            titleText.text = offer.displayName;
-            descText.text = !string.IsNullOrWhiteSpace(offer.bonusLabel) ? offer.bonusLabel : offer.badgeLabel;
-            priceText.text = offer.priceLabel;
+            // Removed text updates as elements are no longer present
+            if (buyButtonLabel != null)
+            {
+                buyButtonLabel.text = $"{offer.displayName} - {offer.priceLabel}";
+            }
 
             // Apply offer-specific colors
-            UIManager.ApplyCardSurface(card, ShopScreenController.GetCoinOfferCardColor(offer));
+            Color offerCardColor = ShopScreenController.GetCoinOfferCardColor(offer);
+            UIManager.ApplyCardSurface(card, offerCardColor);
             UIManager.ApplyCardSurface(previewFrame, ShopScreenController.GetCoinOfferPreviewFrameColor(offer));
+            ApplyReadableTextTheme(offerCardColor);
 
             // Load product image
             Texture2D tex = ShopScreenController.GetCoinPackPreviewTexture(offer);
@@ -525,6 +600,35 @@ namespace TowerMaze
             previewImage.color = tex != null ? ShopScreenController.GetCoinOfferPreviewTint(offer) : new Color(0.18f, 0.22f, 0.32f, 1f);
 
             gameObject.SetActive(true);
+        }
+
+        private void ApplyReadableTextTheme(Color offerCardColor)
+        {
+            if (closeButtonLabel != null)
+            {
+                closeButtonLabel.color = Color.white;
+            }
+        }
+
+        private static float GetRelativeLuminance(Color color)
+        {
+            return (0.2126f * color.r) + (0.7152f * color.g) + (0.0722f * color.b);
+        }
+
+        private static string FormatOfferDescription(CoinPackOffer offer)
+        {
+            string text = !string.IsNullOrWhiteSpace(offer.bonusLabel) ? offer.bonusLabel : offer.badgeLabel;
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return UILanguage.Translate("Ozel teklif", "Special offer", "Oferta especial");
+            }
+
+            return text.Replace("  |  ", "\n").Replace(" | ", "\n");
+        }
+
+        private static string GetBuyButtonLabel()
+        {
+            return UILanguage.Translate("SATIN AL", "BUY NOW", "COMPRAR");
         }
 
         private static CoinPackOffer? PickOffer(IReadOnlyList<CoinPackOffer> allOffers, string[] candidateIds)
@@ -668,7 +772,7 @@ namespace TowerMaze
             fillRect.offsetMax = Vector2.zero;
             fillRect.pivot = new Vector2(0f, 0.5f);
             Image fillImage = fillObj.AddComponent<Image>();
-            fillImage.color = UIColors.PrimaryLight;
+            fillImage.color = UIStyle.Action;
             fillImage.raycastTarget = false;
 
             StartCoroutine(SplashRoutine(rootGroup, spinnerObj, fillRect, onComplete));
@@ -709,36 +813,33 @@ namespace TowerMaze
         }
     }
 
-    // ─── Temporary stub — superseded by inline leaderboard in StartScreen.cs (Task 6) ───
-    // Kept here so the original StartScreenController compiles until Task 5 rewrites it.
-    public class LeaderboardPanelController : MonoBehaviour
-    {
-        public void Initialize(Font font, ThemeDefinition theme, string title) { }
-        public void SetEntries(System.Collections.Generic.IReadOnlyList<LeaderboardEntry> entries) { }
-    }
 
-    public sealed class NicknamePopupController : MonoBehaviour
+    public sealed class ReviewPopupController : MonoBehaviour
     {
-        private Action<string> onConfirm;
-        private InputField inputField;
-        private Button confirmButton;
+        private Action onRate;
+        private Action onLater;
+        private Action onNever;
 
-        public void Initialize(Font font, ThemeDefinition theme, Action<string> onConfirmCallback)
+        public void Initialize(Font font, ThemeDefinition theme, Action onRate, Action onLater, Action onNever)
         {
-            onConfirm = onConfirmCallback;
+            this.onRate = onRate;
+            this.onLater = onLater;
+            this.onNever = onNever;
 
             foreach (Transform child in transform) { Destroy(child.gameObject); }
 
+            // Root Overlay
             var overlay = UIManager.CreateImage(transform, "Overlay", new Color(0, 0, 0, 0.85f));
             UIManager.Stretch(overlay.rectTransform);
 
+            // Card
             var card = new GameObject("Card");
             card.transform.SetParent(transform, false);
             var cardImg = card.AddComponent<Image>();
             UICandySkin.ApplyCandyPanel(cardImg);
-            cardImg.color = new Color(0.92f, 0.88f, 1f, 0.98f);
+            cardImg.color = new Color(0.92f, 0.88f, 1f, 0.98f); // Soft lilac tint for the candy panel
             var cardRt = card.GetComponent<RectTransform>();
-            cardRt.sizeDelta = new Vector2(320, 280);
+            cardRt.sizeDelta = new Vector2(320, 380);
 
             var cardLayout = card.AddComponent<VerticalLayoutGroup>();
             cardLayout.padding = new RectOffset(24, 24, 32, 24);
@@ -747,26 +848,216 @@ namespace TowerMaze
             cardLayout.childControlHeight = false;
             cardLayout.childForceExpandHeight = false;
 
-            var title = UILanguage.Translate("ADINI GIR", "ENTER YOUR NAME", "INGRESA TU NOMBRE");
-            var titleTxt = UIManager.CreateText(card.transform, "Title", title, 18, FontStyle.Bold, Color.white, font);
+            // Title
+            var title = UILanguage.Translate("TOWER MAZE'I SEVDİN Mİ?", "DO YOU LOVE TOWER MAZE?", "¿TE GUSTA TOWER MAZE?");
+            var titleTxt = UIManager.CreateText(card.transform, "Title", title.ToUpper(), 18, FontStyle.Bold, Color.white, font);
             titleTxt.gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.5f);
+
+            // Stars placeholder (Visual only)
+            var starsContainer = new GameObject("Stars");
+            starsContainer.transform.SetParent(card.transform, false);
+            var starsLayout = starsContainer.AddComponent<HorizontalLayoutGroup>();
+            starsLayout.spacing = 6;
+            starsLayout.childAlignment = TextAnchor.MiddleCenter;
+            starsLayout.childControlWidth = true;
+            starsLayout.childForceExpandWidth = false;
+            for (int i = 0; i < 5; i++)
+            {
+                var star = UIManager.CreateText(starsContainer.transform, $"Star_{i}", "★", 34, FontStyle.Normal, new Color(1f, 0.84f, 0f), font);
+                star.gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.3f);
+            }
+
+            // Description
+            var desc = UILanguage.Translate(
+                "FİKİRLERİN BİZİM İÇİN ÇOK DEĞERLİ!\nDESTEK OLMAK İÇİN OYLAR MISIN?",
+                "YOUR FEEDBACK IS VERY VALUABLE!\nWOULD YOU SUPPORT US WITH A RATING?",
+                "¡TU OPINIÓN ES MUY VALIOSA!\n¿NOS APOYARÍAS CON UNA CALIFICACIÓN?");
+            var descTxt = UIManager.CreateText(card.transform, "Desc", desc, 13, FontStyle.Normal, new Color(1, 1, 1, 0.7f), font);
+            descTxt.gameObject.AddComponent<LayoutElement>().preferredHeight = 60;
+            descTxt.alignment = TextAnchor.UpperCenter;
+            descTxt.lineSpacing = 1.2f;
+
+            // Actions Container
+            var actions = new GameObject("Actions");
+            actions.transform.SetParent(card.transform, false);
+            var actionsLayout = actions.AddComponent<VerticalLayoutGroup>();
+            actionsLayout.spacing = 8;
+            actionsLayout.childControlWidth = true;
+            actionsLayout.childForceExpandWidth = true;
+
+            // Rate Button
+            var rateLabel = UILanguage.Translate("HEMEN PUAN VER", "RATE NOW", "CALIFICAR AHORA");
+            GameObject rateBtn = UIManager.CreateActionButton(actions.transform, "RateBtn",
+                UILanguage.Translate("PUAN VER", "RATE NOW", "CALIFICAR"),
+                font, UIStyle.Action, UIStyle.ActionLight, 44, 20);
+            UIManager.BindButton(rateBtn.GetComponent<Button>(), onRate);
+
+            // Row for Later and Never
+            var row = new GameObject("Row");
+            row.transform.SetParent(actions.transform, false);
+            var rowLayout = row.AddComponent<HorizontalLayoutGroup>();
+            rowLayout.spacing = 8;
+            rowLayout.childControlWidth = true;
+            rowLayout.childForceExpandWidth = true;
+
+            var laterLabel = UILanguage.Translate("DAHA SONRA", "LATER", "MÁS TARDE");
+            var laterBtnGo = UIManager.CreateSecondaryButton(row.transform, "LaterBtn", laterLabel, font);
+            UIManager.BindButton(laterBtnGo.GetComponent<Button>(), onLater);
+
+            var neverLabel = UILanguage.Translate("BİR DAHA SORMA", "NEVER", "NUNCA");
+            var neverBtnGo = UIManager.CreateSecondaryButton(row.transform, "NeverBtn", neverLabel, font);
+            UIManager.BindButton(neverBtnGo.GetComponent<Button>(), onNever);
+        }
+    }
+
+    public sealed class NicknamePopupController : MonoBehaviour
+    {
+        private static readonly Vector4 SheetPanelSlice = new(220f, 220f, 220f, 220f);
+        private static readonly Vector4 SheetRowSlice = new(160f, 160f, 160f, 160f);
+        private static readonly Vector4 OrangeButtonSlice = new(150f, 130f, 150f, 130f);
+        private static readonly Vector4 PurpleButtonSlice = new(150f, 160f, 150f, 160f);
+
+        private Action<string, Action<bool, string>> onConfirm;
+        private InputField inputField;
+        private Button confirmButton;
+        private Image confirmButtonImage;
+        private Text confirmButtonLabel;
+        private Text helperText;
+        private Text counterText;
+        private bool isSubmitting;
+
+        public void Initialize(Font font, ThemeDefinition theme, Action<string, Action<bool, string>> onConfirmCallback)
+        {
+            onConfirm = onConfirmCallback;
+
+            foreach (Transform child in transform) { Destroy(child.gameObject); }
+
+            var overlay = UIManager.CreateImage(transform, "Overlay", new Color(UIStyle.MenuBg.r, UIStyle.MenuBg.g, UIStyle.MenuBg.b, 0.80f));
+            UIManager.Stretch(overlay.rectTransform);
+            overlay.raycastTarget = true;
+
+            var card = new GameObject("Card");
+            card.transform.SetParent(transform, false);
+            var cardRt = card.AddComponent<RectTransform>();
+            cardRt.anchorMin = new Vector2(0.08f, 0.32f);
+            cardRt.anchorMax = new Vector2(0.92f, 0.72f);
+            cardRt.offsetMin = Vector2.zero;
+            cardRt.offsetMax = Vector2.zero;
+            var cardImg = card.AddComponent<Image>();
+            SetupSheetPanel(cardImg);
+            cardImg.color = new Color(1f, 1f, 1f, 0.98f);
+
+            var cardLayout = card.AddComponent<VerticalLayoutGroup>();
+            cardLayout.padding = new RectOffset(20, 20, 18, 18);
+            cardLayout.spacing = 10;
+            cardLayout.childAlignment = TextAnchor.UpperCenter;
+            cardLayout.childControlWidth = true;
+            cardLayout.childControlHeight = true;
+            cardLayout.childForceExpandWidth = true;
+            cardLayout.childForceExpandHeight = false;
+
+            var titleRibbon = new GameObject("TitleRibbon");
+            titleRibbon.transform.SetParent(card.transform, false);
+            titleRibbon.AddComponent<LayoutElement>().preferredHeight = 52f;
+            var titleRibbonImg = titleRibbon.AddComponent<Image>();
+            SetupPurpleRibbon(titleRibbonImg);
+
+            Image titleIcon = UIManager.CreateImage("TitleIcon", titleRibbon.transform, Color.white);
+            Sprite titleSprite = UICandySkin.GetSprite("out_icon_flag", 100f);
+            if (titleSprite != null)
+            {
+                titleIcon.sprite = titleSprite;
+                titleIcon.type = Image.Type.Simple;
+                titleIcon.preserveAspect = true;
+            }
+            else
+            {
+                UICandySkin.ApplyCandyOrb(titleIcon);
+            }
+            UIManager.Stretch(titleIcon.rectTransform, new Vector2(0.05f, 0.18f), new Vector2(0.19f, 0.84f), Vector2.zero, Vector2.zero);
+            titleIcon.raycastTarget = false;
+
+            var title = UILanguage.Translate("LIDER ADINI SEC", "CHOOSE YOUR TAG", "ELIGE TU NOMBRE");
+            var titleTxt = UIManager.CreateText("Title", titleRibbon.transform, font, 21, TextAnchor.MiddleLeft, Color.white, UIFontRole.Popup);
+            titleTxt.text = title.ToUpperInvariant();
+            titleTxt.fontStyle = FontStyle.Bold;
+            titleTxt.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(titleTxt, 16, 21, UIFontRole.Popup);
+            UIManager.Stretch(titleTxt.rectTransform, new Vector2(0.20f, 0.08f), new Vector2(0.92f, 0.92f), new Vector2(6f, 0f), new Vector2(-12f, 0f));
+            Shadow titleShadow = titleTxt.gameObject.AddComponent<Shadow>();
+            titleShadow.effectColor = new Color(0.18f, 0.06f, 0.28f, 0.42f);
+            titleShadow.effectDistance = new Vector2(0f, -3f);
+
+            string subtitle = UILanguage.Translate(
+                "Skor tabelesinde bu isim gorunecek.",
+                "This name will appear on the global leaderboard.",
+                "Este nombre aparecera en la clasificacion global.");
+            var subtitleTxt = UIManager.CreateText("Subtitle", card.transform, font, 14, TextAnchor.MiddleCenter, UIStyle.PopupTextDim, UIFontRole.Popup);
+            subtitleTxt.text = subtitle;
+            subtitleTxt.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(subtitleTxt, 12, 14, UIFontRole.Popup);
+            subtitleTxt.horizontalOverflow = HorizontalWrapMode.Wrap;
+            subtitleTxt.alignment = TextAnchor.MiddleCenter;
+            subtitleTxt.gameObject.AddComponent<LayoutElement>().preferredHeight = 26f;
+
+            var logoShell = new GameObject("LogoShell");
+            logoShell.transform.SetParent(card.transform, false);
+            logoShell.AddComponent<LayoutElement>().preferredHeight = 180f;
+
+            var logoBacker = logoShell.AddComponent<Image>();
+            SetupSheetRow(logoBacker, new Color(0.98f, 0.97f, 1f, 0.96f));
+            Shadow logoBackerShadow = logoShell.AddComponent<Shadow>();
+            logoBackerShadow.effectColor = new Color(0.12f, 0.04f, 0.22f, 0.12f);
+            logoBackerShadow.effectDistance = new Vector2(0f, -4f);
+
+            Image logoImage = UIManager.CreateImage("TowerMazeLogo", logoShell.transform, Color.white);
+            Sprite logoSprite = UICandySkin.GetSprite("CandyTowerMazeLogo", 100f)
+                ?? UICandySkin.GetSprite("OrangeTowerMazeLogo", 100f)
+                ?? UICandySkin.GetSprite("TowerLogoOrange", 100f);
+            if (logoSprite != null)
+            {
+                logoImage.sprite = logoSprite;
+                logoImage.type = Image.Type.Simple;
+                logoImage.preserveAspect = true;
+                logoImage.color = Color.white;
+            }
+            UIManager.Stretch(logoImage.rectTransform, Vector2.zero, Vector2.one, new Vector2(-36f, -26f), new Vector2(36f, 26f));
+            logoImage.raycastTarget = false;
 
             var inputGo = new GameObject("NicknameInput");
             inputGo.transform.SetParent(card.transform, false);
+            inputGo.AddComponent<LayoutElement>().preferredHeight = 80f;
             var inputBg = inputGo.AddComponent<Image>();
-            inputBg.color = new Color(1, 1, 1, 0.15f);
-            inputGo.AddComponent<LayoutElement>().preferredHeight = 44;
+            SetupSheetRow(inputBg, new Color(1f, 1f, 1f, 0.96f));
+            Shadow inputShadow = inputGo.AddComponent<Shadow>();
+            inputShadow.effectColor = new Color(0.08f, 0.02f, 0.16f, 0.15f);
+            inputShadow.effectDistance = new Vector2(0f, -4f);
+
+            var fieldLabel = UIManager.CreateText("FieldLabel", inputGo.transform, font, 12, TextAnchor.MiddleLeft, UIStyle.PopupTextDim, UIFontRole.Popup);
+            fieldLabel.text = UILanguage.Translate("TAKMA AD", "NICKNAME", "APODO");
+            fieldLabel.fontStyle = FontStyle.Bold;
+            fieldLabel.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(fieldLabel, 10, 12, UIFontRole.Popup);
+            UIManager.Stretch(fieldLabel.rectTransform, new Vector2(0.08f, 0.60f), new Vector2(0.56f, 0.88f), Vector2.zero, Vector2.zero);
+
+            counterText = UIManager.CreateText("Counter", inputGo.transform, font, 11, TextAnchor.MiddleRight, UIStyle.PopupTextDim, UIFontRole.Popup);
+            counterText.fontStyle = FontStyle.Bold;
+            counterText.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(counterText, 9, 11, UIFontRole.Popup);
+            UIManager.Stretch(counterText.rectTransform, new Vector2(0.62f, 0.60f), new Vector2(0.92f, 0.88f), Vector2.zero, Vector2.zero);
 
             var textGo = new GameObject("Text");
             textGo.transform.SetParent(inputGo.transform, false);
             var inputText = textGo.AddComponent<Text>();
             inputText.font = font;
-            inputText.fontSize = 16;
+            inputText.fontSize = 18;
             inputText.fontStyle = FontStyle.Bold;
-            inputText.color = Color.white;
+            inputText.color = UIStyle.PopupText;
             inputText.alignment = TextAnchor.MiddleCenter;
             inputText.supportRichText = false;
-            UIManager.Stretch(inputText.rectTransform, 8, 8, 4, 4);
+            inputText.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(inputText, 15, 18, UIFontRole.Popup);
+            UIManager.Stretch(inputText.rectTransform, new Vector2(0.08f, 0.12f), new Vector2(0.92f, 0.62f), Vector2.zero, Vector2.zero);
 
             var placeholderGo = new GameObject("Placeholder");
             placeholderGo.transform.SetParent(inputGo.transform, false);
@@ -774,44 +1065,208 @@ namespace TowerMaze
             placeholder.font = font;
             placeholder.fontSize = 16;
             placeholder.fontStyle = FontStyle.Italic;
-            placeholder.color = new Color(1, 1, 1, 0.35f);
+            placeholder.color = new Color(UIStyle.PopupTextDim.r, UIStyle.PopupTextDim.g, UIStyle.PopupTextDim.b, 0.70f);
             placeholder.alignment = TextAnchor.MiddleCenter;
-            placeholder.text = UILanguage.Translate("TAKMA AD", "NICKNAME", "APODO");
-            UIManager.Stretch(placeholder.rectTransform, 8, 8, 4, 4);
+            placeholder.text = UILanguage.Translate("SEZO", "SEZO", "SEZO");
+            placeholder.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(placeholder, 14, 16, UIFontRole.Popup);
+            UIManager.Stretch(placeholder.rectTransform, new Vector2(0.08f, 0.12f), new Vector2(0.92f, 0.62f), Vector2.zero, Vector2.zero);
 
             inputField = inputGo.AddComponent<InputField>();
             inputField.textComponent = inputText;
             inputField.placeholder = placeholder;
             inputField.characterLimit = 12;
-            inputField.contentType = InputField.ContentType.Alphanumeric;
+            inputField.contentType = InputField.ContentType.Standard;
+            inputField.lineType = InputField.LineType.SingleLine;
+            inputField.customCaretColor = true;
+            inputField.caretColor = UIStyle.Action;
+            inputField.selectionColor = new Color(UIStyle.Action.r, UIStyle.Action.g, UIStyle.Action.b, 0.22f);
             inputField.onValueChanged.AddListener(OnInputChanged);
 
-            var confirmGo = UIManager.CreateActionButton(card.transform, "ConfirmBtn",
-                UILanguage.Translate("ONAYLA", "CONFIRM", "CONFIRMAR"),
-                font, UIStyle.Action, UIStyle.ActionLight, 44, 20);
-            confirmButton = confirmGo.GetComponent<Button>();
+            helperText = UIManager.CreateText("HelperText", card.transform, font, 12, TextAnchor.MiddleCenter, UIStyle.PopupTextDim, UIFontRole.Popup);
+            helperText.resizeTextForBestFit = true;
+            helperText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            UIManager.SetScaledBestFit(helperText, 10, 12, UIFontRole.Popup);
+            helperText.gameObject.AddComponent<LayoutElement>().preferredHeight = 28f;
+
+            var confirmSpacer = new GameObject("ConfirmSpacer");
+            confirmSpacer.transform.SetParent(card.transform, false);
+            confirmSpacer.AddComponent<LayoutElement>().preferredHeight = 12f;
+
+            var confirmGo = new GameObject("ConfirmBtn");
+            confirmGo.transform.SetParent(card.transform, false);
+            confirmGo.AddComponent<LayoutElement>().preferredHeight = 54f;
+            confirmButtonImage = confirmGo.AddComponent<Image>();
+            SetupActionButton(confirmButtonImage);
+            confirmButton = confirmGo.AddComponent<Button>();
+            confirmButton.targetGraphic = confirmButtonImage;
+            confirmButton.transition = Selectable.Transition.ColorTint;
+            confirmButton.navigation = new Navigation { mode = Navigation.Mode.None };
+            ColorBlock confirmColors = confirmButton.colors;
+            confirmColors.normalColor = Color.white;
+            confirmColors.highlightedColor = new Color(1f, 1f, 1f, 0.96f);
+            confirmColors.pressedColor = new Color(0.92f, 0.92f, 0.92f, 1f);
+            confirmColors.disabledColor = new Color(1f, 1f, 1f, 0.50f);
+            confirmButton.colors = confirmColors;
+
+            confirmButtonLabel = UIManager.CreateText("ConfirmLabel", confirmGo.transform, font, 20, TextAnchor.MiddleCenter, Color.white, UIFontRole.Button);
+            confirmButtonLabel.text = UILanguage.Translate("KAYDET VE GIR", "SAVE AND JOIN", "GUARDAR Y ENTRAR");
+            confirmButtonLabel.fontStyle = FontStyle.Bold;
+            confirmButtonLabel.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(confirmButtonLabel, 15, 20, UIFontRole.Button);
+            UIManager.Stretch(confirmButtonLabel.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+
             confirmButton.interactable = false;
             UIManager.BindButton(confirmButton, OnConfirmClicked);
+            UpdateInputState(string.Empty);
+            UIManager.ApplyPopupTextRoles(transform);
+            inputField.ActivateInputField();
         }
 
         private void OnInputChanged(string value)
         {
-            string cleaned = System.Text.RegularExpressions.Regex.Replace(value, @"[^A-Za-z0-9_]", "");
+            string cleaned = System.Text.RegularExpressions.Regex.Replace(value.ToUpperInvariant(), @"[^A-Z0-9_]", "");
             if (cleaned != value)
             {
                 inputField.text = cleaned;
                 return;
             }
 
-            confirmButton.interactable = cleaned.Length >= 2;
+            UpdateInputState(cleaned);
         }
 
         private void OnConfirmClicked()
         {
             string value = inputField.text.Trim().ToUpperInvariant();
-            if (value.Length < 2 || value.Length > 12) return;
-            onConfirm?.Invoke(value);
-            Destroy(gameObject);
+            if (isSubmitting || value.Length < 2 || value.Length > 12) return;
+
+            isSubmitting = true;
+            if (inputField != null)
+            {
+                inputField.interactable = false;
+            }
+
+            if (helperText != null)
+            {
+                helperText.text = UILanguage.Translate("ISIM KONTROL EDILIYOR...", "CHECKING NAME...", "COMPROBANDO NOMBRE...");
+                helperText.color = UIStyle.PopupTextDim;
+            }
+
+            if (confirmButtonLabel != null)
+            {
+                confirmButtonLabel.text = UILanguage.Translate("KONTROL EDILIYOR", "CHECKING", "VERIFICANDO");
+            }
+
+            UpdateInputState(value);
+
+            if (onConfirm != null)
+            {
+                onConfirm.Invoke(value, HandleConfirmResult);
+                return;
+            }
+
+            HandleConfirmResult(true, string.Empty);
+        }
+
+        private void HandleConfirmResult(bool success, string message)
+        {
+            if (success)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            isSubmitting = false;
+            if (inputField != null)
+            {
+                inputField.interactable = true;
+                inputField.ActivateInputField();
+            }
+
+            // FirebaseCloudManager encodes a duplicate-with-suggestion as
+            // "SUGGEST:USTAB42" in the error message — split it out here so we can
+            // populate the input with a one-tap accept instead of a flat reject.
+            if (!string.IsNullOrWhiteSpace(message) && message.StartsWith(FirebaseCloudManager.SuggestionPrefix))
+            {
+                string suggestion = message.Substring(FirebaseCloudManager.SuggestionPrefix.Length);
+                if (!string.IsNullOrWhiteSpace(suggestion))
+                {
+                    if (inputField != null)
+                    {
+                        inputField.text = suggestion;
+                    }
+                    UpdateInputState(suggestion);
+                    if (helperText != null)
+                    {
+                        helperText.text = string.Format(UILanguage.Translate(
+                            "BU ISIM ALINMIS. {0} UYGUN — ISTERSEN ONAYLA.",
+                            "TAKEN. {0} IS FREE — TAP CONFIRM TO USE IT.",
+                            "OCUPADO. {0} ESTA LIBRE — CONFIRMA PARA USARLO."), suggestion);
+                        helperText.color = UIStyle.Gold;
+                    }
+                    return;
+                }
+            }
+
+            UpdateInputState(inputField != null ? inputField.text.Trim().ToUpperInvariant() : string.Empty);
+            if (helperText != null && !string.IsNullOrWhiteSpace(message))
+            {
+                helperText.text = message;
+                helperText.color = UIStyle.Danger;
+            }
+        }
+
+        private void UpdateInputState(string currentValue)
+        {
+            int count = currentValue.Length;
+            bool isValid = count >= 2 && count <= 12;
+            confirmButton.interactable = isValid && !isSubmitting;
+
+            if (confirmButtonImage != null)
+            {
+                confirmButtonImage.color = isValid && !isSubmitting ? Color.white : new Color(1f, 1f, 1f, 0.52f);
+            }
+
+            if (confirmButtonLabel != null && !isSubmitting)
+            {
+                confirmButtonLabel.text = UILanguage.Translate("KAYDET VE GIR", "SAVE AND JOIN", "GUARDAR Y ENTRAR");
+                confirmButtonLabel.color = isValid ? Color.white : new Color(1f, 1f, 1f, 0.72f);
+            }
+
+            if (counterText != null)
+            {
+                counterText.text = $"{count}/12";
+                counterText.color = isValid || count == 0 ? UIStyle.PopupTextDim : UIStyle.Danger;
+            }
+
+            if (helperText != null && !isSubmitting)
+            {
+                helperText.text = isValid
+                    ? UILanguage.Translate("Skor tabelesinde bu isim gorunecek.", "This tag will show on the leaderboard.", "Este nombre aparecera en la clasificacion.")
+                    : UILanguage.Translate("2-12 karakter kullan. Harf, rakam ve _ desteklenir.", "Use 2-12 characters. Letters, numbers, and _ are allowed.", "Usa 2-12 caracteres. Se permiten letras, numeros y _.");
+                helperText.color = isValid || count == 0 ? UIStyle.PopupTextDim : UIStyle.Danger;
+            }
+        }
+
+        private static void SetupSheetPanel(Image image)
+        {
+            UICandySkin.ApplyCandyButton(image, "sheet_modal_panel", SheetPanelSlice, 220f);
+        }
+
+        private static void SetupSheetRow(Image image, Color tint)
+        {
+            UICandySkin.ApplyCandyButton(image, "sheet_modal_row", SheetRowSlice, 220f);
+            image.color = tint;
+        }
+
+        private static void SetupPurpleRibbon(Image image)
+        {
+            UICandySkin.ApplyCandyButton(image, "out_btn_purple", PurpleButtonSlice, 350f);
+        }
+
+        private static void SetupActionButton(Image image)
+        {
+            UICandySkin.ApplyCandyButton(image, "out_btn_orange", OrangeButtonSlice, 350f);
         }
     }
 }
