@@ -136,6 +136,9 @@ namespace TowerMaze
             AudioManager audioManager = null;
             BannerAdManager bannerAdManager = null;
             FirebaseCloudManager firebaseCloudManager = null;
+            LivesManager livesManager = null;
+            IAPManager iapManager = null;
+            PlayerProfileManager profileManager = null;
             RunManager runManager = null;
             ChapterManager chapterManager = null;
 
@@ -150,6 +153,9 @@ namespace TowerMaze
                 audioManager = EnsureComponent<AudioManager>(EnsureChild(managersRoot, "AudioManager"));
                 bannerAdManager = EnsureComponent<BannerAdManager>(EnsureChild(managersRoot, "BannerAdManager"));
                 firebaseCloudManager = EnsureComponent<FirebaseCloudManager>(EnsureChild(managersRoot, "FirebaseCloudManager"));
+                livesManager = EnsureComponent<LivesManager>(EnsureChild(managersRoot, "LivesManager"));
+                iapManager = EnsureComponent<IAPManager>(EnsureChild(managersRoot, "IAPManager"));
+                profileManager = EnsureComponent<PlayerProfileManager>(EnsureChild(managersRoot, "PlayerProfileManager"));
                 runManager = EnsureComponent<RunManager>(EnsureChild(managersRoot, "RunManager"));
                 chapterManager = EnsureComponent<ChapterManager>(EnsureChild(managersRoot, "ChapterManager"));
                 LogVerbose("[Bootstrapper] All Managers created");
@@ -217,6 +223,9 @@ namespace TowerMaze
                 playerController.Initialize(gameConfig, towerGenerator, towerRoot, themeDefinition, audioManager, cameraFollow);
                 scoreManager.Initialize(gameConfig);
                 economyManager.Initialize();
+                livesManager.Initialize(economyManager);
+                iapManager.Initialize(livesManager, economyManager);
+                profileManager.Initialize();
             } catch (System.Exception e) { Debug.LogError($"[Bootstrapper] System Init Error: {e.Message}"); }
             yield return null;
 
@@ -261,20 +270,21 @@ namespace TowerMaze
                     onPlayChapter: () => runManager.StartChapterRun(chapterManager.UnlockedUpTo),
                     onPlayEndless: runManager.StartRun,
                     onShowChapters: () => uiManager.ShowChapterSelect(chapterManager, (idx) => runManager.StartChapterRun(idx)),
-                    chapterManager: chapterManager);
+                    chapterManager: chapterManager,
+                    playerProfile: profileManager);
                 
                 runManager.Initialize(gameConfig, difficultyProfile, themeDefinition, towerGenerator, playerController, lavaController, scoreManager, economyManager, coinStoreManager, rewardedAdManager, audioManager, uiManager, backdropController, cameraFollow, inAppReviewManager, interstitialAdManager, chapterManager);
             } catch (System.Exception e) { Debug.LogError($"[Bootstrapper] UI/RunManager Error: {e.Message}"); }
             yield return null;
 
             // Step 7: Third-party systems
-            StartCoroutine(InitThirdPartySystemsRoutine(gameConfig, rewardedAdManager, interstitialAdManager, bannerAdManager, firebaseCloudManager, economyManager, scoreManager, coinStoreManager, uiManager));
+            StartCoroutine(InitThirdPartySystemsRoutine(gameConfig, rewardedAdManager, interstitialAdManager, bannerAdManager, firebaseCloudManager, economyManager, scoreManager, coinStoreManager, uiManager, chapterManager));
             
             initialized = true;
             LogVerbose("[Bootstrapper] BootstrapRoutine completed successfully.");
         }
 
-        private IEnumerator InitThirdPartySystemsRoutine(GameConfig config, RewardedAdManager rewarded, InterstitialAdManager interstitial, BannerAdManager banner, FirebaseCloudManager firebase, EconomyManager economy, ScoreManager score, CoinStoreManager coinStore, UIManager ui)
+        private IEnumerator InitThirdPartySystemsRoutine(GameConfig config, RewardedAdManager rewarded, InterstitialAdManager interstitial, BannerAdManager banner, FirebaseCloudManager firebase, EconomyManager economy, ScoreManager score, CoinStoreManager coinStore, UIManager ui, ChapterManager chapterManager)
         {
             // Initial delay to allow UI and game world to be fully visible
             yield return new WaitForSeconds(0.2f);
@@ -307,14 +317,10 @@ namespace TowerMaze
                             });
                         }
                     };
-                    // First-launch onboarding: if no nickname is cached locally, fire
-                    // the popup proactively now (instead of waiting for the player to
-                    // post a score). Idempotent within the session via the existing
-                    // nicknamePromptRequestedThisSession flag.
-                    if (string.IsNullOrEmpty(PlayerPrefs.GetString("TowerMaze.Firebase.Nickname", string.Empty)))
-                    {
-                        firebase.RequestNicknameNow();
-                    }
+                    // First-launch onboarding lives in ProfileSetupPopup now (avatar +
+                    // name + Firebase nickname write in one screen). The reactive
+                    // RequestNicknameIfNeeded path remains as a safety net for legacy
+                    // saves that have a profile but no synced cloud nickname.
                 }
             } 
             catch (System.Exception ex) 

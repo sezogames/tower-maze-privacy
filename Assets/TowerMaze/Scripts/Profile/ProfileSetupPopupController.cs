@@ -10,6 +10,7 @@ namespace TowerMaze
     {
         [SerializeField] private PlayerProfileManager profileManager;
         [SerializeField] private EconomyManager economyManager;
+        [SerializeField] private FirebaseCloudManager firebaseCloud;
         [SerializeField] private TMP_InputField nameInput;
         [SerializeField] private Transform avatarGridParent;
         [SerializeField] private AvatarSelectionButton avatarButtonPrefab;
@@ -22,6 +23,7 @@ namespace TowerMaze
         private List<AvatarData> avatarData = new();
         private Action onCompleted;
         private bool layoutBuilt;
+        private bool submissionInProgress;
 
         // Guarantee CanvasGroup exists before any external script (UIManager,
         // ProfileBootstrap, parent canvas wiring) tries to read it. BuildLayout still
@@ -57,6 +59,13 @@ namespace TowerMaze
             if (economyManager == null)
             {
                 economyManager = FindAnyObjectByType<EconomyManager>();
+            }
+
+            // Cloud nickname is optional — if Firebase isn't wired we just skip the
+            // profanity / duplicate / suggestion path and only do local profile setup.
+            if (firebaseCloud == null)
+            {
+                firebaseCloud = FindAnyObjectByType<FirebaseCloudManager>();
             }
 
             onCompleted = completedCallback;
@@ -189,6 +198,8 @@ namespace TowerMaze
 
         public void OnContinueClicked()
         {
+            if (submissionInProgress) return;
+
             if (profileManager == null)
             {
                 ShowError("Profile system is not ready.");
@@ -202,7 +213,86 @@ namespace TowerMaze
                 return;
             }
 
-            if (!profileManager.SetPlayerName(requestedName))
+            // Local profanity gate: even when Firebase is offline, never allow a
+            // bad name through. The blocklist runs against the normalized form
+            // (uppercase, A-Z/0-9/_) so leetspeak roots still match the entries
+            // ProfanityFilter knows about.
+            string normalizedForFilter = NormalizeForProfanity(requestedName);
+            if (ProfanityFilter.IsProfane(normalizedForFilter))
+            {
+                ShowError("This name isn't allowed. Try another one.");
+                return;
+            }
+
+            if (firebaseCloud == null)
+            {
+                // No cloud wiring — fall back to the original local-only flow.
+                FinalizeProfileSetup(requestedName);
+                return;
+            }
+
+            // Online path: ask Firebase to reserve the nickname. The same call
+            // surfaces "SUGGEST:USTAB42" on duplicates so we can offer a one-tap
+            // alternative without forcing the player to invent a new name.
+            submissionInProgress = true;
+            SetContinueButtonInteractable(false);
+            ShowMessage("Checking name...", new Color(0.78f, 0.88f, 1f, 0.92f));
+
+            firebaseCloud.TrySetNickname(requestedName, (success, message) =>
+            {
+                submissionInProgress = false;
+                SetContinueButtonInteractable(true);
+
+                if (success)
+                {
+                    FinalizeProfileSetup(requestedName);
+                    return;
+                }
+
+                if (!string.IsNullOrEmpty(message) && message.StartsWith(FirebaseCloudManager.SuggestionPrefix))
+                {
+                    string suggestion = message.Substring(FirebaseCloudManager.SuggestionPrefix.Length);
+                    if (!string.IsNullOrEmpty(suggestion))
+                    {
+                        if (nameInput != null)
+                        {
+                            nameInput.text = suggestion;
+                        }
+                        ShowMessage($"Taken. {suggestion} is free — tap continue to use it.", new Color(1f, 0.84f, 0.42f, 1f));
+                        return;
+                    }
+                }
+
+                ShowError(string.IsNullOrEmpty(message) ? "Name not available. Try another one." : message);
+            });
+        }
+
+        // Mirror of FirebaseCloudManager.NormalizeNickname so the profanity check
+        // sees the same string Firebase will see (uppercase, alphanumeric + underscore).
+        private static string NormalizeForProfanity(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+            string upper = value.Trim().ToUpperInvariant();
+            System.Text.StringBuilder sb = new System.Text.StringBuilder(upper.Length);
+            for (int i = 0; i < upper.Length; i++)
+            {
+                char c = upper[i];
+                if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')
+                {
+                    sb.Append(c);
+                }
+            }
+            return sb.ToString();
+        }
+
+        private void SetContinueButtonInteractable(bool interactable)
+        {
+            if (continueButton != null) continueButton.interactable = interactable;
+        }
+
+        private void FinalizeProfileSetup(string playerName)
+        {
+            if (!profileManager.SetPlayerName(playerName))
             {
                 ShowError("Enter a name between 2-14 characters.");
                 return;
