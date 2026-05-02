@@ -501,7 +501,7 @@ namespace TowerMaze
             inputText.raycastTarget = false;
 
             string placeholderText = UILanguage.Translate("Ismini gir", "Enter your name", "Escribe tu nombre");
-            TextMeshProUGUI placeholder = CreateTMPText("Placeholder", viewport.transform, placeholderText, 32f, FontStyles.BoldItalic, TextAlignmentOptions.MidlineLeft, new Color(1f, 1f, 1f, 0.32f));
+            TextMeshProUGUI placeholder = CreateTMPText("Placeholder", viewport.transform, placeholderText, 32f, FontStyles.Bold | FontStyles.Italic, TextAlignmentOptions.MidlineLeft, new Color(1f, 1f, 1f, 0.32f));
             Stretch(placeholder.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             placeholder.raycastTarget = false;
 
@@ -594,7 +594,7 @@ namespace TowerMaze
             text.fontStyle = style;
             text.alignment = alignment;
             text.color = color;
-            text.enableWordWrapping = true;
+            text.textWrappingMode = TextWrappingModes.Normal;
             text.raycastTarget = false;
             return text;
         }

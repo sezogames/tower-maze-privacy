@@ -221,7 +221,7 @@ namespace TowerMaze
             Stretch(currentAvatarImage.rectTransform, new Vector2(0.08f, 0.08f), new Vector2(0.92f, 0.92f), Vector2.zero, Vector2.zero);
 
             currentNameText = CreateTMPText("CurrentName", preview.transform, "Player", 34f, FontStyles.Bold, TextAlignmentOptions.Left, Color.white);
-            currentNameText.enableWordWrapping = false;
+            currentNameText.textWrappingMode = TextWrappingModes.NoWrap;
             AddLayout(currentNameText.gameObject, 520f, 120f);
 
             nameInput = CreateInputField(card.transform);
@@ -523,7 +523,7 @@ namespace TowerMaze
             text.fontStyle = style;
             text.alignment = alignment;
             text.color = color;
-            text.enableWordWrapping = true;
+            text.textWrappingMode = TextWrappingModes.Normal;
             text.raycastTarget = false;
             return text;
         }
