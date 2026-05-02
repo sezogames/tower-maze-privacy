@@ -119,8 +119,13 @@ namespace TowerMaze
         private Coroutine ownRowPulseRoutine;
         private IReadOnlyList<LeaderboardEntry> cachedLeaderboardEntries = Array.Empty<LeaderboardEntry>();
         // Cached chapter-mode leaderboard rows (height field carries chapter number).
-        // Wired through but the visible tab toggle ships in a follow-up commit.
         private IReadOnlyList<LeaderboardEntry> cachedChapterLeaderboardEntries = Array.Empty<LeaderboardEntry>();
+        private enum LeaderboardMode { Endless, Chapter }
+        private LeaderboardMode currentLeaderboardMode = LeaderboardMode.Endless;
+        private Image leaderboardTabEndlessBg;
+        private Image leaderboardTabChapterBg;
+        private Text leaderboardTabEndlessLabel;
+        private Text leaderboardTabChapterLabel;
         private IReadOnlyList<DailyMissionState> cachedDailyMissions = Array.Empty<DailyMissionState>();
         private static readonly Color LogoCandyChipActive = new Color(0.06f, 0.73f, 0.51f, 1f);   // Jelly Green (UIStyle.Owned)
         private static readonly Color LogoCandyChipInactive = new Color(0.94f, 0.27f, 0.27f, 1f); // Jelly Red (UIStyle.Danger)
@@ -1325,12 +1330,15 @@ namespace TowerMaze
             RefreshLeaderboardRows(resetPosition: false);
         }
 
-        // Chapter-mode leaderboard cache. The visible tab toggle is added in the
-        // follow-up commit; for now the data is held server-fresh so the toggle
-        // can render instantly when wired.
+        // Chapter-mode leaderboard cache. Refresh rows immediately if the chapter tab
+        // is currently visible so live Firestore updates appear without re-opening.
         public void UpdateChapterLeaderboardData(IReadOnlyList<LeaderboardEntry> entries)
         {
             cachedChapterLeaderboardEntries = entries ?? Array.Empty<LeaderboardEntry>();
+            if (currentLeaderboardMode == LeaderboardMode.Chapter)
+            {
+                RefreshLeaderboardRows(resetPosition: false);
+            }
         }
 
         private void ShowMissionsSheet()
@@ -1439,6 +1447,8 @@ namespace TowerMaze
             subtitleChip.rectTransform.anchorMax = new Vector2(0.88f, 0.81f);
             subtitleChip.rectTransform.offsetMin = subtitleChip.rectTransform.offsetMax = Vector2.zero;
 
+            BuildLeaderboardTabStrip(cardGo.transform, font);
+
             leaderboardSubtitleText = UIManager.CreateText("Subtitle", cardGo.transform, font, 15, TextAnchor.MiddleLeft, UIStyle.PopupTextDim);
             leaderboardSubtitleText.text = "Sen: 0m - #--. sira";
             leaderboardSubtitleText.resizeTextForBestFit = true;
@@ -1449,8 +1459,9 @@ namespace TowerMaze
             GameObject viewportObject = new GameObject("LeaderboardViewport");
             viewportObject.transform.SetParent(cardGo.transform, false);
             RectTransform viewportRect = viewportObject.AddComponent<RectTransform>();
+            // Compressed top from 0.71 -> 0.65 to make room for the mode tab strip.
             viewportRect.anchorMin = new Vector2(0.10f, 0.17f);
-            viewportRect.anchorMax = new Vector2(0.90f, 0.71f);
+            viewportRect.anchorMax = new Vector2(0.90f, 0.65f);
             viewportRect.offsetMin = viewportRect.offsetMax = Vector2.zero;
             Image viewportImage = viewportObject.AddComponent<Image>();
             viewportImage.color = new Color(1f, 1f, 1f, 0.03f);
@@ -2125,7 +2136,14 @@ namespace TowerMaze
                 return;
             }
 
-            int targetRowCount = Mathf.Max(cachedLeaderboardEntries?.Count ?? 0, 4);
+            // Active list depends on the selected tab. Endless uses the cached cloud
+            // (or fallback local) entries; Chapter uses the dedicated cloud chapter list.
+            bool chapterMode = currentLeaderboardMode == LeaderboardMode.Chapter;
+            IReadOnlyList<LeaderboardEntry> activeEntries = chapterMode
+                ? cachedChapterLeaderboardEntries
+                : cachedLeaderboardEntries;
+
+            int targetRowCount = Mathf.Max(activeEntries?.Count ?? 0, 4);
             EnsureLeaderboardRowCount(targetRowCount);
 
             string localPlayerName = PlayerPrefs.GetString("TowerMaze.Firebase.Nickname", PlayerPrefs.GetString("PlayerName", ""));
@@ -2146,8 +2164,8 @@ namespace TowerMaze
                     continue;
                 }
 
-                bool hasEntry = cachedLeaderboardEntries != null && index < cachedLeaderboardEntries.Count;
-                LeaderboardEntry entry = hasEntry ? cachedLeaderboardEntries[index] : default;
+                bool hasEntry = activeEntries != null && index < activeEntries.Count;
+                LeaderboardEntry entry = hasEntry ? activeEntries[index] : default;
                 bool isOwnEntry = hasEntry &&
                                   !string.IsNullOrEmpty(localPlayerName) &&
                                   string.Equals(entry.label, localPlayerName, StringComparison.OrdinalIgnoreCase);
@@ -2211,7 +2229,11 @@ namespace TowerMaze
                     ? (string.IsNullOrWhiteSpace(entry.label) ? GetLeaderboardPlaceholderName(index + 1) : entry.label)
                     : "---";
                 leaderboardNameTexts[index].color = hasEntry ? (isOwnEntry ? Color.white : UIStyle.PopupText) : UIStyle.PopupTextDim;
-                leaderboardScoreTexts[index].text = hasEntry ? $"{entry.height:0}m" : "0m";
+                // In chapter mode the height field carries the chapter number — the
+                // formatter renders "CH 247" instead of the endless "247m".
+                leaderboardScoreTexts[index].text = hasEntry
+                    ? (chapterMode ? $"CH {entry.height:0}" : $"{entry.height:0}m")
+                    : (chapterMode ? "CH --" : "0m");
                 leaderboardScoreTexts[index].color = hasEntry
                     ? (isOwnEntry ? new Color(1f, 0.95f, 0.75f, 1f) : LogoCandyAqua)
                     : LogoCandyMint;
@@ -2231,6 +2253,77 @@ namespace TowerMaze
             if (resetPosition && leaderboardScrollRect != null)
             {
                 leaderboardScrollRect.verticalNormalizedPosition = 1f;
+            }
+        }
+
+        private void BuildLeaderboardTabStrip(Transform parent, Font font)
+        {
+            // Two-button tab strip slotted between the subtitle chip (anchor 0.73-0.81)
+            // and the viewport (anchor 0.17-0.65). Both buttons share the strip evenly.
+            GameObject stripGo = new GameObject("LeaderboardTabStrip");
+            stripGo.transform.SetParent(parent, false);
+            RectTransform stripRt = stripGo.AddComponent<RectTransform>();
+            stripRt.anchorMin = new Vector2(0.10f, 0.66f);
+            stripRt.anchorMax = new Vector2(0.90f, 0.72f);
+            stripRt.offsetMin = stripRt.offsetMax = Vector2.zero;
+
+            leaderboardTabEndlessBg = UIManager.CreateImage("TabEndless", stripGo.transform, Color.white);
+            ApplyCandySectionRow(leaderboardTabEndlessBg, SheetSectionTint);
+            leaderboardTabEndlessBg.rectTransform.anchorMin = new Vector2(0f, 0f);
+            leaderboardTabEndlessBg.rectTransform.anchorMax = new Vector2(0.49f, 1f);
+            leaderboardTabEndlessBg.rectTransform.offsetMin = leaderboardTabEndlessBg.rectTransform.offsetMax = Vector2.zero;
+            leaderboardTabEndlessLabel = UIManager.CreateText("Label", leaderboardTabEndlessBg.transform, font, 16, TextAnchor.MiddleCenter, UIStyle.PopupText, UIFontRole.Popup);
+            leaderboardTabEndlessLabel.fontStyle = FontStyle.Bold;
+            UIManager.Stretch(leaderboardTabEndlessLabel.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            UIManager.SetScaledBestFit(leaderboardTabEndlessLabel, 12, 16, UIFontRole.Popup);
+            Button endlessBtn = leaderboardTabEndlessBg.gameObject.AddComponent<Button>();
+            endlessBtn.targetGraphic = leaderboardTabEndlessBg;
+            UIManager.BindButton(endlessBtn, () => SetLeaderboardMode(LeaderboardMode.Endless), null);
+
+            leaderboardTabChapterBg = UIManager.CreateImage("TabChapter", stripGo.transform, Color.white);
+            ApplyCandySectionRow(leaderboardTabChapterBg, SheetSectionTint);
+            leaderboardTabChapterBg.rectTransform.anchorMin = new Vector2(0.51f, 0f);
+            leaderboardTabChapterBg.rectTransform.anchorMax = new Vector2(1f, 1f);
+            leaderboardTabChapterBg.rectTransform.offsetMin = leaderboardTabChapterBg.rectTransform.offsetMax = Vector2.zero;
+            leaderboardTabChapterLabel = UIManager.CreateText("Label", leaderboardTabChapterBg.transform, font, 16, TextAnchor.MiddleCenter, UIStyle.PopupText, UIFontRole.Popup);
+            leaderboardTabChapterLabel.fontStyle = FontStyle.Bold;
+            UIManager.Stretch(leaderboardTabChapterLabel.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            UIManager.SetScaledBestFit(leaderboardTabChapterLabel, 12, 16, UIFontRole.Popup);
+            Button chapterBtn = leaderboardTabChapterBg.gameObject.AddComponent<Button>();
+            chapterBtn.targetGraphic = leaderboardTabChapterBg;
+            UIManager.BindButton(chapterBtn, () => SetLeaderboardMode(LeaderboardMode.Chapter), null);
+
+            ApplyLeaderboardTabVisuals();
+        }
+
+        private void SetLeaderboardMode(LeaderboardMode mode)
+        {
+            if (currentLeaderboardMode == mode) return;
+            currentLeaderboardMode = mode;
+            ApplyLeaderboardTabVisuals();
+            RefreshLeaderboardRows(resetPosition: true);
+        }
+
+        private void ApplyLeaderboardTabVisuals()
+        {
+            bool endless = currentLeaderboardMode == LeaderboardMode.Endless;
+            if (leaderboardTabEndlessLabel != null)
+            {
+                leaderboardTabEndlessLabel.text = UILanguage.Translate("ENDLESS", "ENDLESS", "INFINITO");
+                leaderboardTabEndlessLabel.color = endless ? Color.white : LogoCandyChipInactiveText;
+            }
+            if (leaderboardTabChapterLabel != null)
+            {
+                leaderboardTabChapterLabel.text = UILanguage.Translate("BOLUM", "CHAPTER", "NIVEL");
+                leaderboardTabChapterLabel.color = endless ? LogoCandyChipInactiveText : Color.white;
+            }
+            if (leaderboardTabEndlessBg != null)
+            {
+                leaderboardTabEndlessBg.color = endless ? LogoCandyChipActive : LogoCandyChipInactive;
+            }
+            if (leaderboardTabChapterBg != null)
+            {
+                leaderboardTabChapterBg.color = endless ? LogoCandyChipInactive : LogoCandyChipActive;
             }
         }
 
