@@ -598,7 +598,7 @@ namespace TowerMaze
 
         public bool ClaimShopCoinBoost()
         {
-            GrantEmber(ShopCoinBoostReward);
+            GrantEmber(ShopCoinBoostReward, source: "shop_boost");
             return true;
         }
 
@@ -858,7 +858,7 @@ namespace TowerMaze
                 int reward = mission.rewardEmber;
                 if (reward > 0)
                 {
-                    GrantEmber(reward);
+                    GrantEmber(reward, source: "daily_mission");
                 }
                 SaveDailyState();
                 return new DailyMissionRewardResult(reward, 1);
@@ -927,7 +927,7 @@ namespace TowerMaze
 
             int reward = GetChestReward(today, false);
             lastFreeChestClaimDateKey = today;
-            GrantEmber(reward);
+            GrantEmber(reward, source: "daily_chest_free");
             SaveDailyState();
             return reward;
         }
@@ -943,7 +943,7 @@ namespace TowerMaze
 
             int reward = GetChestReward(today, true);
             lastBonusChestClaimDateKey = today;
-            GrantEmber(reward);
+            GrantEmber(reward, source: "daily_chest_bonus");
             SaveDailyState();
             return reward;
         }
@@ -3193,7 +3193,7 @@ namespace TowerMaze
             {
                 // User requested to halve the coin rewards for in-game collection
                 int halvedReward = Mathf.Max(1, reward / 2);
-                economyManager.GrantEmber(halvedReward);
+                economyManager.GrantEmber(halvedReward, source: "coin_pickup");
                 audioManager.PlayReward();
                 uiManager.SpawnCoinFloat(halvedReward);
             }
@@ -3606,7 +3606,7 @@ namespace TowerMaze
                     return;
                 }
 
-                economyManager.GrantEmber(pendingRunReward * 2);
+                economyManager.GrantEmber(pendingRunReward * 2, source: "rewarded_ad_double");
                 CommitPendingLeaderboardIfNeeded();
                 claimedRewardAmountThisFail = pendingRunReward * 2;
                 pendingRunReward = 0;
@@ -3927,11 +3927,13 @@ namespace TowerMaze
             int totalReward = challengeReward.RewardCoins;
             if (!rewardClaimedThisFail && pendingRunReward > 0)
             {
-                economyManager.GrantEmber((doubled ? pendingRunReward * 2 : pendingRunReward) + totalReward);
+                economyManager.GrantEmber(
+                    (doubled ? pendingRunReward * 2 : pendingRunReward) + totalReward,
+                    source: doubled ? "run_end_doubled" : "run_end");
             }
             else if (totalReward > 0)
             {
-                economyManager.GrantEmber(totalReward);
+                economyManager.GrantEmber(totalReward, source: "daily_challenge");
             }
 
             // Mission completed but reward not auto-granted — player must tap claim button.

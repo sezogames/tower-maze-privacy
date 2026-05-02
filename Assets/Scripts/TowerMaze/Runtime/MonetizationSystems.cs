@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Purchasing;
@@ -10,6 +11,88 @@ using GoogleMobileAds.Api;
 
 namespace TowerMaze
 {
+    internal sealed class AdCallbackDispatcher : MonoBehaviour
+    {
+        private static readonly Queue<Action> PendingActions = new Queue<Action>();
+        private static readonly object PendingActionsLock = new object();
+
+        private static AdCallbackDispatcher instance;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void ResetStatics()
+        {
+            lock (PendingActionsLock)
+            {
+                PendingActions.Clear();
+            }
+
+            instance = null;
+        }
+
+        public static void EnsureInstance()
+        {
+            if (instance != null)
+            {
+                return;
+            }
+
+            GameObject dispatcherObject = new GameObject("AdCallbackDispatcher");
+            DontDestroyOnLoad(dispatcherObject);
+            instance = dispatcherObject.AddComponent<AdCallbackDispatcher>();
+        }
+
+        public static void Enqueue(Action action)
+        {
+            if (action == null)
+            {
+                return;
+            }
+
+            lock (PendingActionsLock)
+            {
+                PendingActions.Enqueue(action);
+            }
+        }
+
+        private void Awake()
+        {
+            if (instance != null && instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+
+        private void Update()
+        {
+            while (true)
+            {
+                Action nextAction;
+                lock (PendingActionsLock)
+                {
+                    if (PendingActions.Count == 0)
+                    {
+                        return;
+                    }
+
+                    nextAction = PendingActions.Dequeue();
+                }
+
+                try
+                {
+                    nextAction.Invoke();
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogException(exception);
+                }
+            }
+        }
+    }
+
     public enum RewardedPlacement
     {
         DoubleRunReward = 0,
@@ -89,12 +172,18 @@ namespace TowerMaze
         public string lastFreeChestClaimDateKey;
         public string lastBonusChestClaimDateKey;
         public int rerollCount;
+        public int rewardPatternIndex;
     }
 
     public sealed class RewardedAdManager : MonoBehaviour
     {
+        private const string AndroidTestRewardedAdUnitId = "ca-app-pub-3940256099942544/5224354917";
+        private const string IosTestRewardedAdUnitId = "ca-app-pub-3940256099942544/1712485313";
+
         [SerializeField] private bool usingSimulatedProvider = true;
+#if GOOGLE_MOBILE_ADS
         [SerializeField] private bool adLoading;
+#endif
         [SerializeField] private bool adReady;
         [SerializeField] private bool adShowing;
 
@@ -112,18 +201,41 @@ namespace TowerMaze
         public void Initialize(GameConfig gameConfig)
         {
             config = gameConfig;
-            bool forceSimulationForEditor = Application.isEditor;
-            usingSimulatedProvider = forceSimulationForEditor || config == null || config.useSimulatedRewardedAds;
+            // Removed force simulation for editor to allow testing actual Google Test Ads
+            usingSimulatedProvider = (config != null && config.useSimulatedRewardedAds);
+            adShowing = false;
+            adReady = false;
 
-#if GOOGLE_MOBILE_ADS
-            if (!usingSimulatedProvider)
+            if (usingSimulatedProvider)
             {
-                MobileAds.Initialize(_ => LoadRewardedAd());
+                if (Debug.isDebugBuild) Debug.Log("[RewardedAdManager] Using SIMULATED provider.");
+                adReady = true;
                 return;
             }
-#endif
 
-            adReady = true;
+            string adUnitId = ResolveRewardedAdUnitId();
+            if (string.IsNullOrWhiteSpace(adUnitId))
+            {
+                Debug.LogWarning("[RewardedAdManager] Rewarded ads disabled: no ad unit ID resolved.");
+                return;
+            }
+
+            if (Debug.isDebugBuild) Debug.Log($"[RewardedAdManager] Initializing with Ad Unit: {adUnitId}");
+
+#if GOOGLE_MOBILE_ADS
+            AdCallbackDispatcher.EnsureInstance();
+            adLoading = false;
+            if (Debug.isDebugBuild) Debug.Log("[RewardedAdManager] Initializing Google Mobile Ads SDK...");
+            MobileAds.Initialize(status => {
+                AdCallbackDispatcher.Enqueue(() =>
+                {
+                    if (Debug.isDebugBuild) Debug.Log("[RewardedAdManager] SDK Initialized. Loading first ad...");
+                    LoadRewardedAd();
+                });
+            });
+#else
+            Debug.LogWarning("[RewardedAdManager] Rewarded ads disabled: Google Mobile Ads SDK is not installed or GOOGLE_MOBILE_ADS define is missing.");
+#endif
         }
 
         public void ShowRewarded(RewardedPlacement placement, Action<bool> onCompleted)
@@ -135,6 +247,7 @@ namespace TowerMaze
             }
 
             completionCallback = onCompleted;
+            AnalyticsManager.LogEvent("rewarded_ad_requested", new Dictionary<string, object> { { "placement", placement.ToString() } });
 
             if (usingSimulatedProvider)
             {
@@ -145,16 +258,24 @@ namespace TowerMaze
 #if GOOGLE_MOBILE_ADS
             if (rewardedAd == null || !rewardedAd.CanShowAd())
             {
+                Debug.LogWarning("[RewardedAdManager] Ad NOT ready! Firing failure callback and reloading.");
                 completionCallback?.Invoke(false);
                 completionCallback = null;
                 LoadRewardedAd();
                 return;
             }
 
+            if (Debug.isDebugBuild) Debug.Log("[RewardedAdManager] Showing REAL Rewarded Ad...");
             adShowing = true;
             adReady = false;
             rewardEarned = false;
-            rewardedAd.Show(_ => rewardEarned = true);
+            rewardedAd.Show(_ => {
+                AdCallbackDispatcher.Enqueue(() =>
+                {
+                    if (Debug.isDebugBuild) Debug.Log("[RewardedAdManager] Reward Earned callback received.");
+                    rewardEarned = true;
+                });
+            });
 #else
             completionCallback?.Invoke(false);
             completionCallback = null;
@@ -180,22 +301,31 @@ namespace TowerMaze
                 return;
             }
 
+            string adUnitId = ResolveRewardedAdUnitId();
+            if (string.IsNullOrWhiteSpace(adUnitId))
+            {
+                adReady = false;
+                return;
+            }
+
             adLoading = true;
             adReady = false;
-            string adUnitId = ResolveRewardedAdUnitId();
             AdRequest request = new();
             RewardedAd.Load(adUnitId, request, (RewardedAd ad, LoadAdError error) =>
             {
-                adLoading = false;
-                if (error != null || ad == null)
+                AdCallbackDispatcher.Enqueue(() =>
                 {
-                    adReady = false;
-                    return;
-                }
+                    adLoading = false;
+                    if (error != null || ad == null)
+                    {
+                        adReady = false;
+                        return;
+                    }
 
-                rewardedAd = ad;
-                RegisterRewardedCallbacks(rewardedAd);
-                adReady = true;
+                    rewardedAd = ad;
+                    RegisterRewardedCallbacks(rewardedAd);
+                    adReady = true;
+                });
             });
         }
 
@@ -203,36 +333,468 @@ namespace TowerMaze
         {
             ad.OnAdFullScreenContentClosed += () =>
             {
-                adShowing = false;
-                completionCallback?.Invoke(rewardEarned);
-                completionCallback = null;
-                LoadRewardedAd();
+                AdCallbackDispatcher.Enqueue(() =>
+                {
+                    adShowing = false;
+                    completionCallback?.Invoke(rewardEarned);
+                    completionCallback = null;
+                    LoadRewardedAd();
+                });
             };
 
             ad.OnAdFullScreenContentFailed += _ =>
             {
-                adShowing = false;
-                completionCallback?.Invoke(false);
-                completionCallback = null;
-                LoadRewardedAd();
+                AdCallbackDispatcher.Enqueue(() =>
+                {
+                    adShowing = false;
+                    completionCallback?.Invoke(false);
+                    completionCallback = null;
+                    LoadRewardedAd();
+                });
             };
         }
 
+#endif
+
         private string ResolveRewardedAdUnitId()
         {
+            if (config == null)
+            {
+                return string.Empty;
+            }
+
 #if UNITY_ANDROID
-            return string.IsNullOrWhiteSpace(config.androidRewardedAdUnitId)
-                ? "ca-app-pub-3940256099942544/5224354917"
-                : config.androidRewardedAdUnitId;
+            return NormalizeRewardedAdUnitId(config.androidRewardedAdUnitId, AndroidTestRewardedAdUnitId);
 #elif UNITY_IOS
-            return string.IsNullOrWhiteSpace(config.iosRewardedAdUnitId)
-                ? "ca-app-pub-3940256099942544/1712485313"
-                : config.iosRewardedAdUnitId;
+            return NormalizeRewardedAdUnitId(config.iosRewardedAdUnitId, IosTestRewardedAdUnitId);
 #else
-            return "unused-editor-rewarded";
+            return string.Empty;
 #endif
         }
+
+        private static string NormalizeRewardedAdUnitId(string configuredId, string testId)
+        {
+            string normalizedId = string.IsNullOrWhiteSpace(configuredId)
+                ? string.Empty
+                : configuredId.Trim();
+
+            if (Application.isEditor)
+            {
+                return string.IsNullOrWhiteSpace(normalizedId) ? testId : normalizedId;
+            }
+
+            if (string.IsNullOrWhiteSpace(normalizedId))
+            {
+                return string.Empty;
+            }
+
+            if (string.Equals(normalizedId, testId, StringComparison.Ordinal))
+            {
+                Debug.LogWarning("[RewardedAdManager] Rewarded ads disabled: Google test ad unit IDs are editor-only in device builds.");
+                return string.Empty;
+            }
+
+            return normalizedId;
+        }
+    }
+
+    public sealed class InterstitialAdManager : MonoBehaviour
+    {
+        private const string AndroidTestInterstitialAdUnitId = "ca-app-pub-3940256099942544/1033173712";
+        private const string IosTestInterstitialAdUnitId = "ca-app-pub-3940256099942544/4411468910";
+
+        [SerializeField] private bool usingSimulatedProvider = true;
+#if GOOGLE_MOBILE_ADS
+        [SerializeField] private bool adLoading;
 #endif
+        [SerializeField] private bool adReady;
+        [SerializeField] private bool adShowing;
+
+        private GameConfig config;
+        private CoinStoreManager coinStoreManager;
+        private Action<bool> completionCallback;
+
+#if GOOGLE_MOBILE_ADS
+        private InterstitialAd interstitialAd;
+#endif
+
+        public bool CanShowInterstitial => !IsInterstitialSuppressed && (usingSimulatedProvider || adReady);
+
+        private bool IsInterstitialSuppressed => coinStoreManager != null && coinStoreManager.HasNoAds;
+
+        public void Initialize(GameConfig gameConfig)
+        {
+            config = gameConfig;
+            coinStoreManager ??= FindAnyObjectByType<CoinStoreManager>();
+            // Removed force simulation for editor to allow testing actual Google Test Ads
+            usingSimulatedProvider = (config != null && config.useSimulatedRewardedAds);
+            adShowing = false;
+            adReady = false;
+
+            if (usingSimulatedProvider)
+            {
+                if (Debug.isDebugBuild) Debug.Log("[InterstitialAdManager] Using SIMULATED provider.");
+                adReady = true;
+                return;
+            }
+
+            string adUnitId = ResolveInterstitialAdUnitId();
+            if (string.IsNullOrWhiteSpace(adUnitId))
+            {
+                Debug.LogWarning("[InterstitialAdManager] Interstitial ads disabled: no production ad unit ID configured.");
+                return;
+            }
+
+#if GOOGLE_MOBILE_ADS
+            AdCallbackDispatcher.EnsureInstance();
+            adLoading = false;
+            MobileAds.Initialize(_ => AdCallbackDispatcher.Enqueue(LoadInterstitialAd));
+#else
+            Debug.LogWarning("[InterstitialAdManager] Interstitial ads disabled: Google Mobile Ads SDK is not installed.");
+#endif
+        }
+
+        public void ShowInterstitial(Action<bool> onCompleted)
+        {
+            if (IsInterstitialSuppressed)
+            {
+                onCompleted?.Invoke(false);
+                return;
+            }
+
+            if (adShowing)
+            {
+                onCompleted?.Invoke(false);
+                return;
+            }
+
+            completionCallback = onCompleted;
+
+            if (usingSimulatedProvider)
+            {
+                StartCoroutine(SimulateInterstitialFlow());
+                return;
+            }
+
+#if GOOGLE_MOBILE_ADS
+            if (interstitialAd == null || !interstitialAd.CanShowAd())
+            {
+                completionCallback?.Invoke(false);
+                completionCallback = null;
+                LoadInterstitialAd();
+                return;
+            }
+
+            adShowing = true;
+            adReady = false;
+            interstitialAd.Show();
+#else
+            completionCallback?.Invoke(false);
+            completionCallback = null;
+#endif
+        }
+
+        private IEnumerator SimulateInterstitialFlow()
+        {
+            adShowing = true;
+            adReady = false;
+            yield return new WaitForSecondsRealtime(Mathf.Max(0.15f, config != null ? config.simulatedRewardedDuration : 0.8f));
+            adShowing = false;
+            adReady = true;
+            completionCallback?.Invoke(true);
+            completionCallback = null;
+        }
+
+#if GOOGLE_MOBILE_ADS
+        private void LoadInterstitialAd()
+        {
+            if (usingSimulatedProvider || adLoading)
+            {
+                return;
+            }
+
+            string adUnitId = ResolveInterstitialAdUnitId();
+            if (string.IsNullOrWhiteSpace(adUnitId))
+            {
+                adReady = false;
+                return;
+            }
+
+            adLoading = true;
+            adReady = false;
+            AdRequest request = new();
+            InterstitialAd.Load(adUnitId, request, (InterstitialAd ad, LoadAdError error) =>
+            {
+                AdCallbackDispatcher.Enqueue(() =>
+                {
+                    adLoading = false;
+                    if (error != null || ad == null)
+                    {
+                        adReady = false;
+                        return;
+                    }
+
+                    interstitialAd = ad;
+                    RegisterInterstitialCallbacks(interstitialAd);
+                    adReady = true;
+                });
+            });
+        }
+
+        private void RegisterInterstitialCallbacks(InterstitialAd ad)
+        {
+            ad.OnAdFullScreenContentClosed += () =>
+            {
+                AdCallbackDispatcher.Enqueue(() =>
+                {
+                    adShowing = false;
+                    completionCallback?.Invoke(true);
+                    completionCallback = null;
+                    LoadInterstitialAd();
+                });
+            };
+
+            ad.OnAdFullScreenContentFailed += _ =>
+            {
+                AdCallbackDispatcher.Enqueue(() =>
+                {
+                    adShowing = false;
+                    completionCallback?.Invoke(false);
+                    completionCallback = null;
+                    LoadInterstitialAd();
+                });
+            };
+        }
+#endif
+
+        private string ResolveInterstitialAdUnitId()
+        {
+            if (config == null)
+            {
+                return string.Empty;
+            }
+
+#if UNITY_ANDROID
+            return NormalizeAdUnitId(config.androidInterstitialAdUnitId, AndroidTestInterstitialAdUnitId);
+#elif UNITY_IOS
+            return NormalizeAdUnitId(config.iosInterstitialAdUnitId, IosTestInterstitialAdUnitId);
+#else
+            return string.Empty;
+#endif
+        }
+
+        private static string NormalizeAdUnitId(string configuredId, string testId)
+        {
+            string normalizedId = string.IsNullOrWhiteSpace(configuredId)
+                ? string.Empty
+                : configuredId.Trim();
+
+            if (Application.isEditor)
+            {
+                return string.IsNullOrWhiteSpace(normalizedId) ? testId : normalizedId;
+            }
+
+            if (string.IsNullOrWhiteSpace(normalizedId))
+            {
+                return string.Empty;
+            }
+
+            if (string.Equals(normalizedId, testId, StringComparison.Ordinal))
+            {
+                Debug.LogWarning("[InterstitialAdManager] Interstitial ads disabled: Google test ad unit IDs are editor-only in device builds.");
+                return string.Empty;
+            }
+
+            return normalizedId;
+        }
+    }
+
+    public sealed class BannerAdManager : MonoBehaviour
+    {
+        private const string AndroidTestBannerAdUnitId = "ca-app-pub-3940256099942544/6300978111";
+        private const string IosTestBannerAdUnitId = "ca-app-pub-3940256099942544/2934735716";
+        private const float RetryBaseDelay = 30f;
+        private const float RetryMaxDelay = 300f;
+
+        private GameConfig config;
+#if GOOGLE_MOBILE_ADS
+        private BannerView bannerView;
+#endif
+        private bool isInitialized;
+        private bool isVisible;
+        private bool shouldBeVisible;
+        private bool isLoading;
+        private int retryCount;
+
+        public void Initialize(GameConfig gameConfig)
+        {
+            config = gameConfig;
+            isInitialized = false;
+            isVisible = false;
+            shouldBeVisible = false;
+
+            string adUnitId = ResolveBannerAdUnitId();
+            if (string.IsNullOrWhiteSpace(adUnitId))
+            {
+                return;
+            }
+
+#if GOOGLE_MOBILE_ADS
+            AdCallbackDispatcher.EnsureInstance();
+            MobileAds.Initialize(_ => {
+                AdCallbackDispatcher.Enqueue(() =>
+                {
+                    isInitialized = true;
+                    LoadBannerAd();
+                    if (shouldBeVisible)
+                    {
+                        ShowBanner();
+                    }
+                });
+            });
+#else
+            Debug.LogWarning("[BannerAdManager] Banner ads disabled: Google Mobile Ads SDK is not installed.");
+#endif
+        }
+
+        public void ShowBanner()
+        {
+            shouldBeVisible = true;
+            if (isVisible) return;
+            
+            if (!isInitialized)
+            {
+                return;
+            }
+
+#if GOOGLE_MOBILE_ADS
+            if (bannerView != null)
+            {
+                bannerView.Show();
+                isVisible = true;
+            }
+            else if (isInitialized && !isLoading)
+            {
+                LoadBannerAd();
+            }
+#endif
+        }
+
+        public void HideBanner()
+        {
+            shouldBeVisible = false;
+            if (!isVisible) return;
+
+#if GOOGLE_MOBILE_ADS
+            if (bannerView != null)
+            {
+                bannerView.Hide();
+            }
+#endif
+            isVisible = false;
+        }
+
+#if GOOGLE_MOBILE_ADS
+        private void LoadBannerAd()
+        {
+            if (isLoading) return;
+            isLoading = true;
+
+            if (bannerView != null)
+            {
+                bannerView.Destroy();
+            }
+
+            string adUnitId = ResolveBannerAdUnitId();
+            bannerView = new BannerView(adUnitId, AdSize.Banner, AdPosition.Bottom);
+
+            bannerView.OnBannerAdLoaded += () => {
+                AdCallbackDispatcher.Enqueue(() =>
+                {
+                    isLoading = false;
+                    retryCount = 0;
+                    if (shouldBeVisible)
+                    {
+                        bannerView.Show();
+                        isVisible = true;
+                    }
+                });
+            };
+            bannerView.OnBannerAdLoadFailed += (error) => {
+                AdCallbackDispatcher.Enqueue(() =>
+                {
+                    isLoading = false;
+                    float delay = Mathf.Min(RetryBaseDelay * Mathf.Pow(2, retryCount), RetryMaxDelay);
+                    retryCount++;
+                    Debug.LogWarning($"[BannerAdManager] Banner ad no fill, retrying in {delay:F0}s.");
+                    StartCoroutine(RetryLoadRoutine(delay));
+                });
+            };
+
+            AdRequest request = new AdRequest();
+            bannerView.LoadAd(request);
+
+            // Start hidden until explicitly shown
+            bannerView.Hide();
+        }
+
+        private IEnumerator RetryLoadRoutine(float delay)
+        {
+            yield return new WaitForSecondsRealtime(delay);
+            if (isInitialized && !isLoading)
+            {
+                LoadBannerAd();
+            }
+        }
+#endif
+
+        private void OnDestroy()
+        {
+#if GOOGLE_MOBILE_ADS
+            if (bannerView != null)
+            {
+                bannerView.Destroy();
+            }
+#endif
+        }
+
+        private string ResolveBannerAdUnitId()
+        {
+            if (config == null) return string.Empty;
+
+#if UNITY_ANDROID
+            return NormalizeAdUnitId(config.androidBannerAdUnitId, AndroidTestBannerAdUnitId);
+#elif UNITY_IOS
+            return NormalizeAdUnitId(config.iosBannerAdUnitId, IosTestBannerAdUnitId);
+#else
+            return string.Empty;
+#endif
+        }
+
+        private static string NormalizeAdUnitId(string configuredId, string testId)
+        {
+            string normalizedId = string.IsNullOrWhiteSpace(configuredId)
+                ? string.Empty
+                : configuredId.Trim();
+
+            if (Application.isEditor)
+            {
+                return string.IsNullOrWhiteSpace(normalizedId) ? testId : normalizedId;
+            }
+
+            if (string.IsNullOrWhiteSpace(normalizedId))
+            {
+                return string.Empty;
+            }
+
+            if (string.Equals(normalizedId, testId, StringComparison.Ordinal))
+            {
+                Debug.LogWarning("[BannerAdManager] Banner ads disabled: Google test ad unit IDs are editor-only in device builds.");
+                return string.Empty;
+            }
+
+            return normalizedId;
+        }
     }
 
     [Serializable]
@@ -360,17 +922,17 @@ namespace TowerMaze
             CoinPackOffer offer = GetOffer(packId);
             if (string.IsNullOrWhiteSpace(offer.id))
             {
-                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Failed, default, "PACK NOT FOUND");
+                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Failed, default, UILanguage.Translate("PAKET BULUNAMADI", "PACK NOT FOUND", "PAQUETE NO ENCONTRADO"));
             }
 
             if (offer.productType != ProductType.Consumable && offer.owned)
             {
-                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Failed, offer, "ALREADY OWNED");
+                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Failed, offer, UILanguage.Translate("ZATEN SAHIP", "ALREADY OWNED", "YA OBTENIDO"));
             }
 
             if (economyManager == null)
             {
-                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Failed, offer, $"{GetStoreDisplayName()} NOT READY");
+                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Failed, offer, $"{GetStoreDisplayName()} {UILanguage.Translate("HAZIR DEGIL", "NOT READY", "NO LISTO")}");
             }
 
             if (ShouldSimulatePurchase())
@@ -380,57 +942,58 @@ namespace TowerMaze
                 return new CoinPackPurchaseResult(
                     granted ? CoinPackPurchaseStatus.Succeeded : CoinPackPurchaseStatus.Failed,
                     updatedOffer,
-                    granted ? rewardMessage : "TEST PURCHASE FAILED");
+                    granted ? rewardMessage : UILanguage.Translate("TEST SATIN ALMA BASARISIZ", "TEST PURCHASE FAILED", "COMPRA DE PRUEBA FALLIDA"));
             }
 
             if (purchaseInProgress)
             {
-                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Failed, offer, "PURCHASE IN PROGRESS");
+                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Failed, offer, UILanguage.Translate("SATIN ALMA SURUYOR", "PURCHASE IN PROGRESS", "COMPRA EN CURSO"));
             }
 
             if (storeController == null)
             {
                 InitializeStoreController();
-                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Pending, offer, "STORE CONNECTING");
+                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Pending, offer, UILanguage.Translate("MAGAZA BAGLANIYOR", "STORE CONNECTING", "CONECTANDO LA TIENDA"));
             }
 
             if (!storeConnected)
             {
                 InitializeStoreController();
-                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Pending, offer, "STORE CONNECTING");
+                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Pending, offer, UILanguage.Translate("MAGAZA BAGLANIYOR", "STORE CONNECTING", "CONECTANDO LA TIENDA"));
             }
 
             if (!productsFetched)
             {
                 FetchProducts();
-                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Pending, offer, $"LOADING {GetStoreDisplayName()} PRICES");
+                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Pending, offer, $"{UILanguage.Translate("YUKLENIYOR", "LOADING", "CARGANDO")} {GetStoreDisplayName()} {UILanguage.Translate("FIYATLARI", "PRICES", "PRECIOS")}");
             }
 
             Product product = storeController.GetProductById(offer.productId);
             if (product == null)
             {
                 FetchProducts();
-                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Unavailable, offer, $"{GetStoreDisplayName()} PRODUCT NOT READY");
+                return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Unavailable, offer, $"{GetStoreDisplayName()} {UILanguage.Translate("URUN HAZIR DEGIL", "PRODUCT NOT READY", "PRODUCTO NO LISTO")}");
             }
 
             purchaseInProgress = true;
             pendingPackId = offer.id;
             pendingProductId = offer.productId;
+            AnalyticsManager.LogEvent("iap_initiated", new Dictionary<string, object> { { "product_id", offer.productId }, { "pack_id", offer.id } });
             storeController.PurchaseProduct(product);
-            return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Pending, offer, $"OPENING {GetStoreDisplayName()}");
+            return new CoinPackPurchaseResult(CoinPackPurchaseStatus.Pending, offer, $"{UILanguage.Translate("ACILIYOR", "OPENING", "ABRIENDO")} {GetStoreDisplayName()}");
         }
 
         public void RestoreTransactions()
         {
             if (ShouldSimulatePurchase())
             {
-                RestoreFinished?.Invoke(false, "TEST STORE HAS NOTHING TO RESTORE");
+                RestoreFinished?.Invoke(false, UILanguage.Translate("TEST MAGAZASINDA GERI YUKLENECEK OGESI YOK", "TEST STORE HAS NOTHING TO RESTORE", "LA TIENDA DE PRUEBA NO TIENE NADA QUE RESTAURAR"));
                 return;
             }
 
             if (purchaseInProgress)
             {
-                RestoreFinished?.Invoke(false, "WAIT FOR CURRENT PURCHASE");
+                RestoreFinished?.Invoke(false, UILanguage.Translate("MEVCUT SATIN ALMAYI BEKLE", "WAIT FOR CURRENT PURCHASE", "ESPERA A LA COMPRA ACTUAL"));
                 return;
             }
 
@@ -438,7 +1001,7 @@ namespace TowerMaze
             {
                 restoreRequested = true;
                 InitializeStoreController();
-                RestoreFinished?.Invoke(false, $"CONNECTING TO {GetStoreDisplayName()}");
+                RestoreFinished?.Invoke(false, $"{GetStoreDisplayName()} {UILanguage.Translate("BAGLANTISI KURULUYOR", "CONNECTING", "CONECTANDO")}");
                 return;
             }
 
@@ -478,7 +1041,7 @@ namespace TowerMaze
         {
             for (int i = 0; i < offers.Count; i++)
             {
-                if (offers[i].id == packId)
+                if (offers[i].id == packId || offers[i].productId == packId)
                 {
                     return offers[i];
                 }
@@ -565,7 +1128,8 @@ namespace TowerMaze
             for (int productIndex = 0; productIndex < products.Count; productIndex++)
             {
                 Product product = products[productIndex];
-                if (product?.metadata == null || string.IsNullOrWhiteSpace(product.metadata.localizedPriceString))
+                string resolvedUsdPriceLabel = ResolveUsdPriceLabel(product);
+                if (string.IsNullOrWhiteSpace(resolvedUsdPriceLabel))
                 {
                     continue;
                 }
@@ -577,12 +1141,12 @@ namespace TowerMaze
                 }
 
                 CoinPackOffer offer = offers[offerIndex];
-                if (offer.priceLabel == product.metadata.localizedPriceString)
+                if (offer.priceLabel == resolvedUsdPriceLabel)
                 {
                     continue;
                 }
 
-                offer.priceLabel = product.metadata.localizedPriceString;
+                offer.priceLabel = resolvedUsdPriceLabel;
                 offers[offerIndex] = offer;
                 changed = true;
             }
@@ -608,7 +1172,7 @@ namespace TowerMaze
                 purchaseInProgress = false;
                 pendingPackId = string.Empty;
                 pendingProductId = string.Empty;
-                PurchaseFinished?.Invoke(new CoinPackPurchaseResult(CoinPackPurchaseStatus.Failed, default, "UNKNOWN STORE PRODUCT"));
+                PurchaseFinished?.Invoke(new CoinPackPurchaseResult(CoinPackPurchaseStatus.Failed, default, UILanguage.Translate("BILINMEYEN MAGAZA URUNU", "UNKNOWN STORE PRODUCT", "PRODUCTO DE TIENDA DESCONOCIDO")));
                 return;
             }
 
@@ -624,7 +1188,7 @@ namespace TowerMaze
                 }
                 else
                 {
-                    successMessage = "PURCHASE RESTORED";
+                    successMessage = UILanguage.Translate("SATIN ALMA GERI YUKLENDI", "PURCHASE RESTORED", "COMPRA RESTAURADA");
                 }
             }
             else
@@ -637,11 +1201,12 @@ namespace TowerMaze
                 else
                 {
                     SyncOwnedOffer(offer.id);
-                    successMessage = "PURCHASE RESTORED";
+                    successMessage = UILanguage.Translate("SATIN ALMA GERI YUKLENDI", "PURCHASE RESTORED", "COMPRA RESTAURADA");
                 }
             }
 
             storeController?.ConfirmPurchase(order);
+            AnalyticsManager.LogEvent("iap_completed", new Dictionary<string, object> { { "product_id", offer.productId }, { "pack_id", offer.id } });
             PurchaseFinished?.Invoke(new CoinPackPurchaseResult(CoinPackPurchaseStatus.Succeeded, GetOffer(offer.id), successMessage));
         }
 
@@ -656,6 +1221,7 @@ namespace TowerMaze
         {
             purchaseInProgress = false;
             CoinPackOffer offer = GetOfferByProductId(GetFirstProductInOrder(order)?.definition.id ?? pendingProductId);
+            AnalyticsManager.LogEvent("iap_failed", new Dictionary<string, object> { { "product_id", offer.productId ?? pendingProductId }, { "reason", order.FailureReason.ToString() } });
             pendingPackId = string.Empty;
             pendingProductId = string.Empty;
             PurchaseFinished?.Invoke(new CoinPackPurchaseResult(CoinPackPurchaseStatus.Failed, offer, FormatPurchaseFailureMessage(order.FailureReason, order.Details)));
@@ -667,7 +1233,7 @@ namespace TowerMaze
             CoinPackOffer offer = GetOfferByProductId(GetFirstProductInOrder(order)?.definition.id ?? pendingProductId);
             pendingPackId = string.Empty;
             pendingProductId = string.Empty;
-            PurchaseFinished?.Invoke(new CoinPackPurchaseResult(CoinPackPurchaseStatus.Unavailable, offer, $"{GetStoreDisplayName()} NEEDS APPROVAL"));
+            PurchaseFinished?.Invoke(new CoinPackPurchaseResult(CoinPackPurchaseStatus.Unavailable, offer, $"{GetStoreDisplayName()} {UILanguage.Translate("ONAY BEKLIYOR", "NEEDS APPROVAL", "NECESITA APROBACION")}"));
         }
 
         private Product GetFirstProductInOrder(Order order)
@@ -699,7 +1265,7 @@ namespace TowerMaze
             if (storeController == null)
             {
                 restoreRequested = false;
-                RestoreFinished?.Invoke(false, $"{GetStoreDisplayName()} RESTORE FAILED");
+                RestoreFinished?.Invoke(false, $"{GetStoreDisplayName()} {UILanguage.Translate("GERI YUKLEME BASARISIZ", "RESTORE FAILED", "RESTAURACION FALLIDA")}");
                 return;
             }
 
@@ -717,17 +1283,17 @@ namespace TowerMaze
             string storeName = GetStoreDisplayName();
             return failureReason switch
             {
-                PurchaseFailureReason.PurchasingUnavailable => $"{storeName} BILLING UNAVAILABLE",
-                PurchaseFailureReason.ExistingPurchasePending => "ANOTHER PURCHASE IS ALREADY OPEN",
-                PurchaseFailureReason.ProductUnavailable => $"ITEM NOT AVAILABLE IN {storeName}",
-                PurchaseFailureReason.SignatureInvalid => "STORE RECEIPT INVALID",
-                PurchaseFailureReason.UserCancelled => "PURCHASE CANCELLED",
-                PurchaseFailureReason.PaymentDeclined => "PAYMENT DECLINED",
-                PurchaseFailureReason.DuplicateTransaction => "PURCHASE ALREADY PROCESSED",
-                PurchaseFailureReason.ValidationFailure => "PURCHASE VALIDATION FAILED",
-                PurchaseFailureReason.StoreNotConnected => $"{storeName} CONNECTION LOST",
-                PurchaseFailureReason.PurchaseMissing => "STORE DID NOT RETURN THE ORDER",
-                _ => string.IsNullOrWhiteSpace(details) ? $"{storeName} PURCHASE FAILED" : details.ToUpperInvariant()
+                PurchaseFailureReason.PurchasingUnavailable => $"{storeName} {UILanguage.Translate("ODEME KULLANILAMIYOR", "BILLING UNAVAILABLE", "FACTURACION NO DISPONIBLE")}",
+                PurchaseFailureReason.ExistingPurchasePending => UILanguage.Translate("BASKA BIR SATIN ALMA HALA ACIK", "ANOTHER PURCHASE IS ALREADY OPEN", "OTRA COMPRA YA ESTA ABIERTA"),
+                PurchaseFailureReason.ProductUnavailable => $"{UILanguage.Translate("URUN KULLANILAMIYOR", "ITEM NOT AVAILABLE IN", "OBJETO NO DISPONIBLE EN")} {storeName}",
+                PurchaseFailureReason.SignatureInvalid => UILanguage.Translate("MAGAZA MAKBUZU GECERSIZ", "STORE RECEIPT INVALID", "RECIBO DE TIENDA INVALIDO"),
+                PurchaseFailureReason.UserCancelled => UILanguage.Translate("SATIN ALMA IPTAL EDILDI", "PURCHASE CANCELLED", "COMPRA CANCELADA"),
+                PurchaseFailureReason.PaymentDeclined => UILanguage.Translate("ODEME REDDEDILDI", "PAYMENT DECLINED", "PAGO RECHAZADO"),
+                PurchaseFailureReason.DuplicateTransaction => UILanguage.Translate("SATIN ALMA ZATEN ISLENDI", "PURCHASE ALREADY PROCESSED", "LA COMPRA YA FUE PROCESADA"),
+                PurchaseFailureReason.ValidationFailure => UILanguage.Translate("SATIN ALMA DOGRULAMASI BASARISIZ", "PURCHASE VALIDATION FAILED", "LA VALIDACION DE LA COMPRA FALLO"),
+                PurchaseFailureReason.StoreNotConnected => $"{storeName} {UILanguage.Translate("BAGLANTISI KESILDI", "CONNECTION LOST", "CONEXION PERDIDA")}",
+                PurchaseFailureReason.PurchaseMissing => UILanguage.Translate("MAGAZA SIPARISI DONDURMEDI", "STORE DID NOT RETURN THE ORDER", "LA TIENDA NO DEVOLVIO EL PEDIDO"),
+                _ => string.IsNullOrWhiteSpace(details) ? $"{storeName} {UILanguage.Translate("SATIN ALMA BASARISIZ", "PURCHASE FAILED", "COMPRA FALLIDA")}" : details.ToUpperInvariant()
             };
         }
 
@@ -736,12 +1302,12 @@ namespace TowerMaze
             if (success)
             {
                 return string.IsNullOrWhiteSpace(message)
-                    ? $"{GetStoreDisplayName()} RESTORE CHECK COMPLETE"
+                    ? $"{GetStoreDisplayName()} {UILanguage.Translate("GERI YUKLEME KONTROLU TAMAM", "RESTORE CHECK COMPLETE", "COMPROBACION DE RESTAURACION COMPLETA")}"
                     : message.ToUpperInvariant();
             }
 
             return string.IsNullOrWhiteSpace(message)
-                ? $"{GetStoreDisplayName()} RESTORE FAILED"
+                ? $"{GetStoreDisplayName()} {UILanguage.Translate("GERI YUKLEME BASARISIZ", "RESTORE FAILED", "RESTAURACION FALLIDA")}"
                 : message.ToUpperInvariant();
         }
 
@@ -749,7 +1315,7 @@ namespace TowerMaze
         {
             if (economyManager == null)
             {
-                message = $"{GetStoreDisplayName()} NOT READY";
+                message = $"{GetStoreDisplayName()} {UILanguage.Translate("HAZIR DEGIL", "NOT READY", "NO LISTO")}";
                 return false;
             }
 
@@ -757,14 +1323,14 @@ namespace TowerMaze
             {
                 case StoreOfferKind.NoAds:
                     SetOfferOwned(offer.id, true);
-                    message = "ADS REMOVED";
+                    message = UILanguage.Translate("REKLAMLAR KALDIRILDI", "ADS REMOVED", "ANUNCIOS ELIMINADOS");
                     return true;
 
                 case StoreOfferKind.WelcomePack:
                 case StoreOfferKind.ExclusiveBundle:
                     if (offer.coinAmount > 0)
                     {
-                        economyManager.GrantEmber(offer.coinAmount);
+                        economyManager.GrantEmber(offer.coinAmount, source: "iap_bundle");
                     }
 
                     if (!string.IsNullOrWhiteSpace(offer.ballSkinId))
@@ -783,14 +1349,14 @@ namespace TowerMaze
                     }
 
                     message = offer.coinAmount > 0
-                        ? $"BUNDLE UNLOCKED  +{offer.coinAmount} COIN"
-                        : "BUNDLE UNLOCKED";
+                        ? $"{UILanguage.Translate("PAKET ACILDI", "BUNDLE UNLOCKED", "PAQUETE DESBLOQUEADO")}  +{offer.coinAmount} {UILanguage.Translate("COIN", "COIN", "MONEDA")}"
+                        : UILanguage.Translate("PAKET ACILDI", "BUNDLE UNLOCKED", "PAQUETE DESBLOQUEADO");
                     return true;
 
                 default:
                     if (offer.coinAmount > 0)
                     {
-                        economyManager.GrantEmber(offer.coinAmount);
+                        economyManager.GrantEmber(offer.coinAmount, source: "iap_coinpack");
                     }
 
                     if (offer.productType != ProductType.Consumable)
@@ -798,7 +1364,9 @@ namespace TowerMaze
                         SetOfferOwned(offer.id, true);
                     }
 
-                    message = offer.coinAmount > 0 ? $"+{offer.coinAmount} COIN" : "PURCHASE COMPLETE";
+                    message = offer.coinAmount > 0
+                        ? $"+{offer.coinAmount} {UILanguage.Translate("COIN", "COIN", "MONEDA")}"
+                        : UILanguage.Translate("SATIN ALMA TAMAMLANDI", "PURCHASE COMPLETE", "COMPRA COMPLETA");
                     return true;
             }
         }
@@ -902,8 +1470,42 @@ namespace TowerMaze
 #elif UNITY_IOS || UNITY_STANDALONE_OSX
             return "APP STORE";
 #else
-            return "STORE";
+            return UILanguage.Translate("MAGAZA", "STORE", "TIENDA");
 #endif
+        }
+
+        private static string ResolveUsdPriceLabel(Product product)
+        {
+            if (product?.metadata == null)
+            {
+                return null;
+            }
+
+            if (string.Equals(product.metadata.isoCurrencyCode, "USD", StringComparison.OrdinalIgnoreCase))
+            {
+                return FormatUsdPrice(product.metadata.localizedPrice);
+            }
+
+            string localized = product.metadata.localizedPriceString;
+            if (!string.IsNullOrWhiteSpace(localized))
+            {
+                return localized;
+            }
+
+            if (product.metadata.localizedPrice > 0m)
+            {
+                string symbol = product.metadata.isoCurrencyCode;
+                return string.IsNullOrWhiteSpace(symbol)
+                    ? product.metadata.localizedPrice.ToString("0.00", CultureInfo.InvariantCulture)
+                    : $"{product.metadata.localizedPrice.ToString("0.00", CultureInfo.InvariantCulture)} {symbol}";
+            }
+
+            return null;
+        }
+
+        private static string FormatUsdPrice(decimal amount)
+        {
+            return "$" + amount.ToString("0.00", CultureInfo.InvariantCulture);
         }
 
         private void BuildCatalog()
@@ -918,7 +1520,7 @@ namespace TowerMaze
                 "towermaze.bundle.welcome",
                 "WELCOME PACK",
                 2000,
-                "TRY 149.99",
+                FormatUsdPrice(4.99m),
                 "LIMITED",
                 "HAZARD NEON  |  OBSIDIAN GATE",
                 false,
@@ -931,7 +1533,7 @@ namespace TowerMaze
                 "towermaze.bundle.noads",
                 "NO ADS",
                 0,
-                "TRY 199.99",
+                FormatUsdPrice(19.99m),
                 "FOREVER",
                 "REMOVE POPUP ADS FOREVER",
                 false,
@@ -942,7 +1544,7 @@ namespace TowerMaze
                 "towermaze.bundle.neonrush",
                 "NEON RUSH BUNDLE",
                 2500,
-                "TRY 299.99",
+                FormatUsdPrice(9.99m),
                 "BUNDLE",
                 "HAZARD NEON  |  OBSIDIAN GATE",
                 false,
@@ -955,7 +1557,7 @@ namespace TowerMaze
                 "towermaze.bundle.frostreign",
                 "FROST REIGN BUNDLE",
                 5000,
-                "TRY 499.99",
+                FormatUsdPrice(14.99m),
                 "BUNDLE",
                 "VOID ICE  |  FROST KEEP",
                 false,
@@ -969,7 +1571,7 @@ namespace TowerMaze
                 "towermaze.skin.solar_crown",
                 "SOLAR CROWN",
                 0,
-                "TRY 2.500,00",
+                FormatUsdPrice(79.99m),
                 "PREMIUM",
                 "EXCLUSIVE BALL SKIN",
                 false,
@@ -982,7 +1584,7 @@ namespace TowerMaze
                 "towermaze.skin.dark_sovereign",
                 "DARK SOVEREIGN",
                 0,
-                "TRY 2.500,00",
+                FormatUsdPrice(79.99m),
                 "PREMIUM",
                 "EXCLUSIVE BALL SKIN",
                 false,
@@ -991,11 +1593,37 @@ namespace TowerMaze
                 "dark_sovereign",
                 ""));
             offers.Add(new CoinPackOffer(
+                "skin_silver_mirror",
+                "towermaze.skin.silver",
+                "SILVER MIRROR",
+                0,
+                FormatUsdPrice(149.99m),
+                "PREMIUM",
+                "EXCLUSIVE BALL SKIN",
+                false,
+                StoreOfferKind.ExclusiveBundle,
+                ProductType.NonConsumable,
+                "silver_mirror",
+                ""));
+            offers.Add(new CoinPackOffer(
+                "skin_golden_glory",
+                "towermaze.skin.gold",
+                "GOLDEN GLORY",
+                0,
+                FormatUsdPrice(149.99m),
+                "PREMIUM",
+                "EXCLUSIVE BALL SKIN",
+                false,
+                StoreOfferKind.ExclusiveBundle,
+                ProductType.NonConsumable,
+                "golden_glory",
+                ""));
+            offers.Add(new CoinPackOffer(
                 "skin_gilded_sanctum",
                 "towermaze.skin.gilded_sanctum",
                 "GILDED SANCTUM",
                 0,
-                "TRY 2.500,00",
+                FormatUsdPrice(79.99m),
                 "PREMIUM",
                 "EXCLUSIVE TOWER SKIN",
                 false,
@@ -1008,7 +1636,7 @@ namespace TowerMaze
                 "towermaze.skin.shadow_citadel",
                 "SHADOW CITADEL",
                 0,
-                "TRY 2.500,00",
+                FormatUsdPrice(79.99m),
                 "PREMIUM",
                 "EXCLUSIVE TOWER SKIN",
                 false,
@@ -1017,22 +1645,62 @@ namespace TowerMaze
                 "",
                 "shadow_citadel"));
             offers.Add(new CoinPackOffer(
+                "skin_silver_spire",
+                "towermaze.skin.silver_tower",
+                "SILVER SPIRE",
+                0,
+                FormatUsdPrice(149.99m),
+                "PREMIUM",
+                "EXCLUSIVE TOWER SKIN",
+                false,
+                StoreOfferKind.ExclusiveBundle,
+                ProductType.NonConsumable,
+                "",
+                "silver_spire"));
+            offers.Add(new CoinPackOffer(
+                "skin_golden_bastion",
+                "towermaze.skin.gold_tower",
+                "GOLDEN BASTION",
+                0,
+                FormatUsdPrice(149.99m),
+                "PREMIUM",
+                "EXCLUSIVE TOWER SKIN",
+                false,
+                StoreOfferKind.ExclusiveBundle,
+                ProductType.NonConsumable,
+                "",
+                "golden_bastion"));
+            // --- NEON PRO BUNDLE ---
+            offers.Add(new CoinPackOffer(
+                "bundle_neon_pro",
+                "towermaze.bundle.neon_pro",
+                "NEON PRO BUNDLE",
+                0,
+                FormatUsdPrice(99.99m),
+                "BUNDLE",
+                "NEON BALL  |  NEON TOWER",
+                false,
+                StoreOfferKind.ExclusiveBundle,
+                ProductType.NonConsumable,
+                "neon_ball",
+                "neon_tower"));
+            offers.Add(new CoinPackOffer(
                 "champion_pack",
                 "towermaze.coinpack.champion",
                 "CHAMPION PACK",
                 65000,
-                "TRY 4,999.99",
+                FormatUsdPrice(89.99m),
                 "BEST VALUE",
                 "+13 SAVE  |  +13 BOOST  |  +13 SKIP",
                 true,
                 StoreOfferKind.CoinPack,
                 ProductType.Consumable));
-            offers.Add(new CoinPackOffer("coin_pack_1000", "towermaze.coinpack.1000", "STARTER PACK", 1000, "TRY 99.99"));
-            offers.Add(new CoinPackOffer("coin_pack_5000", "towermaze.coinpack.5000", "SUPPORT PACK", 5000, "TRY 399.99"));
-            offers.Add(new CoinPackOffer("coin_pack_10000", "towermaze.coinpack.10000", "BOOST PACK", 10000, "TRY 799.99"));
-            offers.Add(new CoinPackOffer("coin_pack_25000", "towermaze.coinpack.25000", "MEGA PACK", 25000, "TRY 1,499.99"));
-            offers.Add(new CoinPackOffer("coin_pack_50000", "towermaze.coinpack.50000", "ULTRA PACK", 50000, "TRY 2,999.99"));
-            offers.Add(new CoinPackOffer("coin_pack_100000", "towermaze.coinpack.100000", "LEGEND PACK", 100000, "TRY 4,999.99"));
+            offers.Add(new CoinPackOffer("coin_pack_1000", "towermaze.coinpack.1000", "STARTER PACK", 1000, FormatUsdPrice(2.99m)));
+            offers.Add(new CoinPackOffer("coin_pack_5000", "towermaze.coinpack.5000", "SUPPORT PACK", 5000, FormatUsdPrice(12.99m)));
+            offers.Add(new CoinPackOffer("coin_pack_10000", "towermaze.coinpack.10000", "BOOST PACK", 10000, FormatUsdPrice(24.99m)));
+            offers.Add(new CoinPackOffer("coin_pack_25000", "towermaze.coinpack.25000", "MEGA PACK", 25000, FormatUsdPrice(44.99m)));
+            offers.Add(new CoinPackOffer("coin_pack_50000", "towermaze.coinpack.50000", "ULTRA PACK", 50000, FormatUsdPrice(89.99m)));
+            offers.Add(new CoinPackOffer("coin_pack_100000", "towermaze.coinpack.100000", "LEGEND PACK", 100000, FormatUsdPrice(149.99m)));
             OffersChanged?.Invoke();
         }
     }
@@ -1063,12 +1731,20 @@ namespace TowerMaze
         {
             AndroidJavaObject reviewManager = null;
             AndroidJavaObject reviewInfo = null;
+            AndroidJavaObject reviewContext = null;
+            AndroidJavaObject reviewActivity = null;
+            AndroidJavaObject launchTask = null;
             try
             {
-                using var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
-                using var activity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
+                reviewActivity = TryGetUnityJavaObject("currentActivity");
+                reviewContext = reviewActivity ?? TryGetUnityJavaObject("currentContext");
+                if (reviewContext == null)
+                {
+                    UnityEngine.Debug.LogWarning("[InAppReviewManager] Review skipped: Unity activity/context unavailable.");
+                    yield break;
+                }
                 using var factory = new AndroidJavaClass("com.google.android.play.core.review.ReviewManagerFactory");
-                reviewManager = factory.CallStatic<AndroidJavaObject>("create", activity);
+                reviewManager = factory.CallStatic<AndroidJavaObject>("create", reviewContext);
 
                 var requestTask = reviewManager.Call<AndroidJavaObject>("requestReviewFlow");
                 yield return WaitForTask(requestTask);
@@ -1081,23 +1757,60 @@ namespace TowerMaze
 
                 reviewInfo = requestTask.Call<AndroidJavaObject>("getResult");
 
-                using var unityPlayer2 = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
-                using var activity2 = unityPlayer2.GetStatic<AndroidJavaObject>("currentActivity");
-                var launchTask = reviewManager.Call<AndroidJavaObject>("launchReviewFlow", activity2, reviewInfo);
+                if (reviewActivity == null)
+                {
+                    UnityEngine.Debug.LogWarning("[InAppReviewManager] Review launch skipped: currentActivity unavailable.");
+                    yield break;
+                }
+
+                try
+                {
+                    launchTask = reviewManager.Call<AndroidJavaObject>("launchReviewFlow", reviewActivity, reviewInfo);
+                }
+                catch (Exception exception)
+                {
+                    UnityEngine.Debug.LogWarning($"[InAppReviewManager] launchReviewFlow failed: {exception.Message}");
+                    yield break;
+                }
+
                 yield return WaitForTask(launchTask);
                 // Başarı durumunda log yok — Google API dialog gösterip göstermemeyi kendisi karar verir.
             }
             finally
             {
+                launchTask?.Dispose();
                 reviewInfo?.Dispose();
                 reviewManager?.Dispose();
+                reviewActivity?.Dispose();
+                if (!ReferenceEquals(reviewContext, reviewActivity))
+                {
+                    reviewContext?.Dispose();
+                }
             }
         }
 
         private static System.Collections.IEnumerator WaitForTask(AndroidJavaObject task)
         {
+            if (task == null)
+            {
+                yield break;
+            }
+
             while (!task.Call<bool>("isComplete"))
                 yield return null;
+        }
+
+        private static AndroidJavaObject TryGetUnityJavaObject(string fieldName)
+        {
+            try
+            {
+                using var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+                return unityPlayer.GetStatic<AndroidJavaObject>(fieldName);
+            }
+            catch
+            {
+                return null;
+            }
         }
 #endif
     }
