@@ -115,66 +115,105 @@ namespace TowerMaze
             Stretch(root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             Image overlay = GetComponent<Image>() ?? gameObject.AddComponent<Image>();
-            overlay.color = new Color(0.025f, 0.012f, 0.07f, 0.86f);
+            overlay.color = new Color(0.015f, 0.008f, 0.04f, 0.92f);
             overlay.raycastTarget = true;
 
             CanvasGroup canvasGroup = GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
             canvasGroup.blocksRaycasts = true;
             canvasGroup.interactable = true;
 
+            // Card: deeper navy + warm gold rim. Bumped height from 1120 -> 1240 so the
+            // VerticalLayoutGroup can lay out children without clipping the bottom.
             GameObject card = CreateUIObject("ProfileCard", transform);
             RectTransform cardRect = card.GetComponent<RectTransform>();
             cardRect.anchorMin = new Vector2(0.5f, 0.5f);
             cardRect.anchorMax = new Vector2(0.5f, 0.5f);
             cardRect.pivot = new Vector2(0.5f, 0.5f);
-            cardRect.sizeDelta = new Vector2(860f, 1120f);
+            cardRect.sizeDelta = new Vector2(900f, 1240f);
             Image cardImage = card.AddComponent<Image>();
-            cardImage.color = new Color(0.105f, 0.067f, 0.235f, 0.98f);
+            cardImage.color = new Color(0.06f, 0.04f, 0.14f, 0.99f);
             cardImage.raycastTarget = true;
             Outline cardOutline = card.AddComponent<Outline>();
-            cardOutline.effectColor = new Color(1f, 0.72f, 0.22f, 0.72f);
+            cardOutline.effectColor = new Color(1f, 0.78f, 0.30f, 0.55f);
             cardOutline.effectDistance = new Vector2(3f, -3f);
             Shadow cardShadow = card.AddComponent<Shadow>();
-            cardShadow.effectColor = new Color(0f, 0f, 0f, 0.55f);
-            cardShadow.effectDistance = new Vector2(0f, -12f);
+            cardShadow.effectColor = new Color(0f, 0f, 0f, 0.65f);
+            cardShadow.effectDistance = new Vector2(0f, -16f);
+
+            // Soft warm glow inset for depth — premium feel without obscuring text.
+            GameObject glow = CreateUIObject("InnerGlow", card.transform);
+            Image glowImage = glow.AddComponent<Image>();
+            glowImage.color = new Color(1f, 0.62f, 0.18f, 0.06f);
+            glowImage.raycastTarget = false;
+            Stretch(glow.GetComponent<RectTransform>(), Vector2.zero, Vector2.one, new Vector2(28f, 28f), new Vector2(-28f, -28f));
 
             VerticalLayoutGroup vertical = card.AddComponent<VerticalLayoutGroup>();
-            vertical.padding = new RectOffset(54, 54, 52, 46);
-            vertical.spacing = 22f;
-            vertical.childControlHeight = false;
+            vertical.padding = new RectOffset(56, 56, 60, 50);
+            vertical.spacing = 24f;
+            // childControlHeight must be TRUE for LayoutElement.preferredHeight to be
+            // honored — otherwise VLG falls back to each child's RectTransform.sizeDelta
+            // which defaults to (100, 100) and breaks the layout.
+            vertical.childControlHeight = true;
             vertical.childControlWidth = true;
             vertical.childForceExpandHeight = false;
             vertical.childForceExpandWidth = true;
             vertical.childAlignment = TextAnchor.UpperCenter;
 
-            TextMeshProUGUI title = CreateTMPText("Title", card.transform, "Create Your Profile", 54f, FontStyles.Bold, TextAlignmentOptions.Center, new Color(1f, 0.95f, 0.78f, 1f));
-            AddLayout(title.gameObject, -1f, 74f);
+            TextMeshProUGUI title = CreateTMPText("Title", card.transform, GetTitleText(), 60f, FontStyles.Bold, TextAlignmentOptions.Center, new Color(1f, 0.86f, 0.38f, 1f));
+            Shadow titleShadow = title.gameObject.AddComponent<Shadow>();
+            titleShadow.effectColor = new Color(0.16f, 0.06f, 0.02f, 0.85f);
+            titleShadow.effectDistance = new Vector2(2f, -3f);
+            AddLayout(title.gameObject, -1f, 84f);
 
-            TextMeshProUGUI subtitle = CreateTMPText("Subtitle", card.transform, "Choose your name and avatar", 27f, FontStyles.Bold, TextAlignmentOptions.Center, new Color(0.78f, 0.88f, 1f, 0.92f));
+            TextMeshProUGUI subtitle = CreateTMPText("Subtitle", card.transform, GetSubtitleText(), 26f, FontStyles.Bold, TextAlignmentOptions.Center, new Color(0.85f, 0.92f, 1f, 0.88f));
             AddLayout(subtitle.gameObject, -1f, 44f);
 
             nameInput = CreateInputField(card.transform);
-            AddLayout(nameInput.gameObject, -1f, 92f);
+            AddLayout(nameInput.gameObject, -1f, 100f);
 
-            TextMeshProUGUI pickLabel = CreateTMPText("AvatarLabel", card.transform, "PICK YOUR AVATAR", 23f, FontStyles.Bold, TextAlignmentOptions.Left, new Color(1f, 0.74f, 0.22f, 1f));
-            AddLayout(pickLabel.gameObject, -1f, 34f);
+            TextMeshProUGUI pickLabel = CreateTMPText("AvatarLabel", card.transform, GetPickLabelText(), 22f, FontStyles.Bold, TextAlignmentOptions.Center, new Color(1f, 0.74f, 0.22f, 0.95f));
+            pickLabel.characterSpacing = 6f;
+            AddLayout(pickLabel.gameObject, -1f, 36f);
 
             GameObject grid = CreateUIObject("AvatarGrid", card.transform);
             avatarGridParent = grid.transform;
             GridLayoutGroup gridLayout = grid.AddComponent<GridLayoutGroup>();
-            gridLayout.cellSize = new Vector2(168f, 168f);
+            gridLayout.cellSize = new Vector2(170f, 170f);
             gridLayout.spacing = new Vector2(18f, 18f);
             gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             gridLayout.constraintCount = 4;
             gridLayout.childAlignment = TextAnchor.MiddleCenter;
-            AddLayout(grid, -1f, 540f);
+            AddLayout(grid, -1f, 546f);
 
-            continueButton = CreatePremiumButton("ContinueButton", card.transform, "CONTINUE", new Color(1f, 0.48f, 0.08f, 1f), new Color(1f, 0.92f, 0.64f, 1f));
-            AddLayout(continueButton.gameObject, -1f, 92f);
+            continueButton = CreatePremiumButton("ContinueButton", card.transform, GetContinueText(), new Color(1f, 0.55f, 0.10f, 1f), new Color(0.16f, 0.07f, 0.01f, 1f));
+            AddLayout(continueButton.gameObject, -1f, 104f);
 
-            errorText = CreateTMPText("ErrorText", card.transform, "Enter a name between 2-14 characters.", 23f, FontStyles.Bold, TextAlignmentOptions.Center, new Color(1f, 0.36f, 0.36f, 1f));
+            errorText = CreateTMPText("ErrorText", card.transform, string.Empty, 22f, FontStyles.Bold, TextAlignmentOptions.Center, new Color(1f, 0.42f, 0.42f, 1f));
             AddLayout(errorText.gameObject, -1f, 40f);
             HideError();
+        }
+
+        private static string GetTitleText()
+        {
+            return UILanguage.Translate("PROFILINI OLUSTUR", "CREATE YOUR PROFILE", "CREA TU PERFIL");
+        }
+
+        private static string GetSubtitleText()
+        {
+            return UILanguage.Translate(
+                "Isim ve avatar sec",
+                "Choose your name and avatar",
+                "Elige tu nombre y avatar");
+        }
+
+        private static string GetPickLabelText()
+        {
+            return UILanguage.Translate("AVATARINI SEC", "PICK YOUR AVATAR", "ELIGE TU AVATAR");
+        }
+
+        private static string GetContinueText()
+        {
+            return UILanguage.Translate("DEVAM", "CONTINUE", "CONTINUAR");
         }
 
         public void SelectAvatar(int index)
@@ -209,7 +248,10 @@ namespace TowerMaze
             string requestedName = nameInput != null ? nameInput.text : string.Empty;
             if (!ValidateName(requestedName))
             {
-                ShowError("Enter a name between 2-14 characters.");
+                ShowError(UILanguage.Translate(
+                    "2-14 karakter kullan.",
+                    "Use 2-14 characters.",
+                    "Usa 2-14 caracteres."));
                 return;
             }
 
@@ -220,7 +262,10 @@ namespace TowerMaze
             string normalizedForFilter = NormalizeForProfanity(requestedName);
             if (ProfanityFilter.IsProfane(normalizedForFilter))
             {
-                ShowError("This name isn't allowed. Try another one.");
+                ShowError(UILanguage.Translate(
+                    "BU ISIM UYGUN DEGIL. BASKA BIR ISIM DENE.",
+                    "THIS NAME ISN'T ALLOWED. TRY ANOTHER ONE.",
+                    "ESTE NOMBRE NO ESTA PERMITIDO. PRUEBA OTRO."));
                 return;
             }
 
@@ -236,7 +281,9 @@ namespace TowerMaze
             // alternative without forcing the player to invent a new name.
             submissionInProgress = true;
             SetContinueButtonInteractable(false);
-            ShowMessage("Checking name...", new Color(0.78f, 0.88f, 1f, 0.92f));
+            ShowMessage(
+                UILanguage.Translate("ISIM KONTROL EDILIYOR...", "CHECKING NAME...", "COMPROBANDO NOMBRE..."),
+                new Color(0.78f, 0.88f, 1f, 0.92f));
 
             firebaseCloud.TrySetNickname(requestedName, (success, message) =>
             {
@@ -258,12 +305,21 @@ namespace TowerMaze
                         {
                             nameInput.text = suggestion;
                         }
-                        ShowMessage($"Taken. {suggestion} is free — tap continue to use it.", new Color(1f, 0.84f, 0.42f, 1f));
+                        string suggestionTemplate = UILanguage.Translate(
+                            "ALINMIS. {0} UYGUN — DEVAM'A BAS",
+                            "TAKEN. {0} IS FREE — TAP CONTINUE",
+                            "OCUPADO. {0} ESTA LIBRE — PULSA CONTINUAR");
+                        ShowMessage(string.Format(suggestionTemplate, suggestion), new Color(1f, 0.86f, 0.42f, 1f));
                         return;
                     }
                 }
 
-                ShowError(string.IsNullOrEmpty(message) ? "Name not available. Try another one." : message);
+                ShowError(string.IsNullOrEmpty(message)
+                    ? UILanguage.Translate(
+                        "ISIM KULLANILAMIYOR. BASKA DENE.",
+                        "NAME NOT AVAILABLE. TRY ANOTHER ONE.",
+                        "NOMBRE NO DISPONIBLE. PRUEBA OTRO.")
+                    : message);
             });
         }
 
@@ -426,21 +482,26 @@ namespace TowerMaze
         {
             GameObject root = CreateUIObject("NameInput", parent);
             Image background = root.AddComponent<Image>();
-            background.color = new Color(0.035f, 0.11f, 0.2f, 1f);
+            background.color = new Color(0.025f, 0.06f, 0.14f, 1f);
             Outline outline = root.AddComponent<Outline>();
-            outline.effectColor = new Color(1f, 0.75f, 0.22f, 0.88f);
-            outline.effectDistance = new Vector2(3f, -3f);
+            outline.effectColor = new Color(1f, 0.78f, 0.30f, 0.65f);
+            outline.effectDistance = new Vector2(2f, -2f);
+            // Inner shadow for depth — makes the input feel inset rather than flat.
+            Shadow innerShadow = root.AddComponent<Shadow>();
+            innerShadow.effectColor = new Color(0f, 0f, 0f, 0.45f);
+            innerShadow.effectDistance = new Vector2(0f, -4f);
 
             GameObject viewport = CreateUIObject("Viewport", root.transform);
             RectTransform viewportRect = viewport.GetComponent<RectTransform>();
-            Stretch(viewportRect, Vector2.zero, Vector2.one, new Vector2(28f, 10f), new Vector2(-28f, -10f));
+            Stretch(viewportRect, Vector2.zero, Vector2.one, new Vector2(32f, 12f), new Vector2(-32f, -12f));
             viewport.AddComponent<RectMask2D>();
 
-            TextMeshProUGUI inputText = CreateTMPText("Text", viewport.transform, string.Empty, 34f, FontStyles.Bold, TextAlignmentOptions.Left, Color.white);
+            TextMeshProUGUI inputText = CreateTMPText("Text", viewport.transform, string.Empty, 36f, FontStyles.Bold, TextAlignmentOptions.MidlineLeft, new Color(1f, 0.98f, 0.92f, 1f));
             Stretch(inputText.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             inputText.raycastTarget = false;
 
-            TextMeshProUGUI placeholder = CreateTMPText("Placeholder", viewport.transform, "Enter name", 34f, FontStyles.Bold, TextAlignmentOptions.Left, new Color(1f, 1f, 1f, 0.36f));
+            string placeholderText = UILanguage.Translate("Ismini gir", "Enter your name", "Escribe tu nombre");
+            TextMeshProUGUI placeholder = CreateTMPText("Placeholder", viewport.transform, placeholderText, 32f, FontStyles.BoldItalic, TextAlignmentOptions.MidlineLeft, new Color(1f, 1f, 1f, 0.32f));
             Stretch(placeholder.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             placeholder.raycastTarget = false;
 
@@ -448,7 +509,7 @@ namespace TowerMaze
             input.textViewport = viewportRect;
             input.textComponent = inputText;
             input.placeholder = placeholder;
-            input.characterLimit = 18;
+            input.characterLimit = 14;
             input.lineType = TMP_InputField.LineType.SingleLine;
             return input;
         }
@@ -461,13 +522,22 @@ namespace TowerMaze
             Button button = root.AddComponent<Button>();
             ConfigureButtonColors(button);
             Shadow shadow = root.AddComponent<Shadow>();
-            shadow.effectColor = new Color(0f, 0f, 0f, 0.35f);
-            shadow.effectDistance = new Vector2(0f, -8f);
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.55f);
+            shadow.effectDistance = new Vector2(0f, -10f);
             Outline outline = root.AddComponent<Outline>();
-            outline.effectColor = new Color(1f, 0.85f, 0.35f, 0.9f);
+            outline.effectColor = new Color(1f, 0.92f, 0.42f, 0.95f);
             outline.effectDistance = new Vector2(3f, -3f);
 
-            TextMeshProUGUI text = CreateTMPText("Label", root.transform, label, 34f, FontStyles.Bold, TextAlignmentOptions.Center, textColor);
+            // Highlight overlay along the top to fake a glossy gradient. Lightweight,
+            // costs nothing more than an extra Image.
+            GameObject highlight = CreateUIObject("Highlight", root.transform);
+            Image highlightImage = highlight.AddComponent<Image>();
+            highlightImage.color = new Color(1f, 1f, 1f, 0.18f);
+            highlightImage.raycastTarget = false;
+            Stretch(highlight.GetComponent<RectTransform>(), new Vector2(0.04f, 0.55f), new Vector2(0.96f, 0.92f), Vector2.zero, Vector2.zero);
+
+            TextMeshProUGUI text = CreateTMPText("Label", root.transform, label, 38f, FontStyles.Bold, TextAlignmentOptions.Center, textColor);
+            text.characterSpacing = 8f;
             Stretch(text.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             return button;
         }
