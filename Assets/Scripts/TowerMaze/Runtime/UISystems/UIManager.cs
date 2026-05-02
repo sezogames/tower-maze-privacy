@@ -290,8 +290,20 @@ namespace TowerMaze
             }
         }
 
+        // Firebase reserved screen_view event — the 'screen_class' param keeps it grouped
+        // under MonoBehaviour so the Firebase Console funnel reports show this UI layer.
+        private static void LogScreenView(string screenName)
+        {
+            AnalyticsManager.LogEvent("screen_view", new Dictionary<string, object>
+            {
+                { "screen_name", screenName },
+                { "screen_class", "UIManager" },
+            });
+        }
+
         public void ShowStart(float bestScore, int emberBalance, IReadOnlyList<LeaderboardEntry> leaderboardEntries, IReadOnlyList<DailyMissionState> dailyMissions, DailyChestStatus chestStatus, DailyChallengeStatus challengeStatus, int missionRerollCost, bool soundEnabled, bool vibrationEnabled)
         {
+            LogScreenView("main_menu");
             if (!splashComplete)
             {
                 // Intentional overwrite: only the most-recent state matters for the start screen.
@@ -414,6 +426,7 @@ namespace TowerMaze
 
         public void ShowTierCelebration(int tierIndex, int bonusEmber, bool isLastChapter, System.Action onContinue)
         {
+            LogScreenView("tier_celebration");
             startScreenController.gameObject.SetActive(false);
             failScreenController.gameObject.SetActive(false);
             HideFailUpsell();
@@ -437,6 +450,7 @@ namespace TowerMaze
             int coinsRewarded, bool nextUnlocked, bool isLastChapter,
             System.Action onMenu, System.Action onNextChapter, System.Action onChapterSelect)
         {
+            LogScreenView("chapter_complete");
             startScreenController.gameObject.SetActive(false);
             failScreenController.gameObject.SetActive(false);
             hudController.gameObject.SetActive(false);
@@ -455,6 +469,7 @@ namespace TowerMaze
 
         public void ShowChapterFail(int chapterIndex, float reachedHeight, float targetHeight, int coinsRewarded, System.Action onReturn)
         {
+            LogScreenView("chapter_fail");
             startScreenController.gameObject.SetActive(false);
             failScreenController.gameObject.SetActive(false);
             hudController.gameObject.SetActive(false);
@@ -473,6 +488,7 @@ namespace TowerMaze
 
         public void ShowChapterSelect(ChapterManager chapterManager, System.Action<int> onChapterSelected)
         {
+            LogScreenView("chapter_select");
             startScreenController.gameObject.SetActive(false);
             failScreenController.gameObject.SetActive(false);
             hudController.gameObject.SetActive(false);
@@ -569,6 +585,7 @@ namespace TowerMaze
         public void ShowPause()
         {
             if (pauseScreenController == null) return;
+            LogScreenView("pause");
             pauseScreenController.gameObject.SetActive(true);
             bannerAdManager?.HideBanner();
         }

@@ -948,7 +948,7 @@ namespace TowerMaze
             return reward;
         }
 
-        public void GrantEmber(int amount)
+        public void GrantEmber(int amount, string source = "unknown")
         {
             if (amount <= 0)
             {
@@ -959,6 +959,15 @@ namespace TowerMaze
             PlayerPrefs.SetInt(EmberBalanceKey, EmberBalance);
             PlayerPrefs.Save();
             NotifyEmberBalanceChanged();
+            // Firebase reserved event — populates the Monetization > Virtual Currency
+            // dashboard. The custom source param lets us segment by acquisition channel
+            // (chapter_complete, tier_complete, daily_chest, ad_reward, etc.).
+            AnalyticsManager.LogEvent("earn_virtual_currency", new System.Collections.Generic.Dictionary<string, object>
+            {
+                { "virtual_currency_name", "ember" },
+                { "value", amount },
+                { "source", source ?? "unknown" },
+            });
         }
 
         public bool IsOwnedSkin(string skinId)
@@ -3021,6 +3030,10 @@ namespace TowerMaze
         private float nextRushTriggerTime;
         private float rushLockoutRemaining;
         private readonly HashSet<int> triggeredControlFlipZones = new();
+        private readonly ChapterAdScheduler chapterAdScheduler = new();
+        private float chapterRunStartTime;
+        // Cohort markers fired once-ever via PlayerPrefs flag.
+        private static readonly int[] ProgressionMilestones = { 5, 10, 25, 50, 100, 200, 500 };
         private float controlFlipStateRemaining;
         private float currentControlFlipDuration;
         private bool pendingLeaderboardCommit;
@@ -3100,6 +3113,14 @@ namespace TowerMaze
             Time.timeScale = 0f;
             AudioListener.pause = true;
             uiManager.ShowPause();
+            if (activeRunMode == RunMode.Chapter && chapterManager != null)
+            {
+                AnalyticsManager.LogEvent("chapter_pause", new System.Collections.Generic.Dictionary<string, object>
+                {
+                    { "chapter_index", chapterManager.ActiveChapterIndex },
+                    { "height_reached", Mathf.RoundToInt(playerController.HeightOnTower) },
+                });
+            }
         }
 
         public void ResumeRun()
@@ -3109,6 +3130,14 @@ namespace TowerMaze
             AudioListener.pause = false;
             Time.timeScale = 1f;
             isPaused = false;
+            if (activeRunMode == RunMode.Chapter && chapterManager != null)
+            {
+                AnalyticsManager.LogEvent("chapter_resume", new System.Collections.Generic.Dictionary<string, object>
+                {
+                    { "chapter_index", chapterManager.ActiveChapterIndex },
+                    { "height_reached", Mathf.RoundToInt(playerController.HeightOnTower) },
+                });
+            }
         }
 
         private void SetStaticModeActive(bool active)
@@ -3268,6 +3297,17 @@ namespace TowerMaze
             ResolvePendingFailedRun(false);
             PrepareFreshRun();
             BeginCountdown();
+            chapterRunStartTime = Time.realtimeSinceStartup;
+            int tierIndex = ChapterManager.ComputeTierIndex(chapterIndex);
+            AnalyticsManager.LogEvent("chapter_start", new System.Collections.Generic.Dictionary<string, object>
+            {
+                { "chapter_index", chapterIndex },
+                { "tier_index", tierIndex },
+            });
+            AnalyticsManager.LogEvent("level_start", new System.Collections.Generic.Dictionary<string, object>
+            {
+                { "level_name", "ch_" + chapterIndex },
+            });
         }
 
 
@@ -3429,6 +3469,18 @@ namespace TowerMaze
 
         public void ReturnToMainMenu()
         {
+            // Detect mid-run abandons before any state changes — Failed already covers
+            // legitimate fail / win flows where chapter_fail / chapter_complete fired.
+            if (state == RunState.Running && activeRunMode == RunMode.Chapter && chapterManager != null)
+            {
+                AnalyticsManager.LogEvent("chapter_quit", new System.Collections.Generic.Dictionary<string, object>
+                {
+                    { "chapter_index", chapterManager.ActiveChapterIndex },
+                    { "tier_index", ChapterManager.ComputeTierIndex(chapterManager.ActiveChapterIndex) },
+                    { "height_reached", Mathf.RoundToInt(playerController.HeightOnTower) },
+                });
+            }
+
             if (isPaused) ResumeRun();
 
             if (state == RunState.Failed)
@@ -3597,6 +3649,25 @@ namespace TowerMaze
                 int idx = chapterManager.ActiveChapterIndex;
                 float target = chapterManager.GetChapter(idx).TargetHeight;
                 chapterManager.RecordChapterBest(idx, scoreManager.CurrentScore);
+                int tierIndex = ChapterManager.ComputeTierIndex(idx);
+                float reachedHeight = scoreManager.CurrentScore;
+                AnalyticsManager.LogEvent("chapter_fail", new System.Collections.Generic.Dictionary<string, object>
+                {
+                    { "chapter_index", idx },
+                    { "tier_index", tierIndex },
+                    { "height_reached", Mathf.RoundToInt(reachedHeight) },
+                    { "target_height", Mathf.RoundToInt(target) },
+                });
+                AnalyticsManager.LogEvent("level_end", new System.Collections.Generic.Dictionary<string, object>
+                {
+                    { "level_name", "ch_" + idx },
+                    { "success", 0 },
+                });
+                AnalyticsManager.LogEvent("post_score", new System.Collections.Generic.Dictionary<string, object>
+                {
+                    { "score", Mathf.RoundToInt(reachedHeight) },
+                    { "level", idx },
+                });
                 uiManager.ShowChapterFail(idx, scoreManager.CurrentScore, target, pendingRunReward, ReturnToMainMenu);
                 return;
             }
@@ -3613,39 +3684,114 @@ namespace TowerMaze
 
             int idx = chapterManager.ActiveChapterIndex;
             float height = playerController.HeightOnTower;
+            // Detect first clear before RecordChapterComplete bumps UnlockedUpTo so we can
+            // tag the analytics event and skip interstitials on milestone reveals.
+            bool wasUnlockedAhead = chapterManager.UnlockedUpTo > idx;
+            float prevBest = chapterManager.GetBestHeight(idx);
+            float chapterTarget = chapterManager.GetChapter(idx).TargetHeight;
+            bool isFirstClear = !wasUnlockedAhead && prevBest < chapterTarget;
             chapterManager.RecordChapterComplete(idx, height);
 
             int emberReward = 100 * idx;
-            economyManager.GrantEmber(emberReward);
+            economyManager.GrantEmber(emberReward, source: "chapter_complete");
             audioManager.SetMusicMode(AudioManager.MusicMode.Menu);
 
             bool nextUnlocked = chapterManager.IsUnlocked(idx + 1);
             bool isLastChapter = idx >= ChapterManager.TotalChapters;
             bool isTierMilestone = (idx % ChapterManager.ChaptersPerTier) == 0;
+            int tierIndex = ChapterManager.ComputeTierIndex(idx);
+            float runSeconds = Mathf.Max(0f, Time.realtimeSinceStartup - chapterRunStartTime);
+
+            AnalyticsManager.LogEvent("chapter_complete", new System.Collections.Generic.Dictionary<string, object>
+            {
+                { "chapter_index", idx },
+                { "tier_index", tierIndex },
+                { "time_seconds", Mathf.RoundToInt(runSeconds) },
+                { "ember_reward", emberReward },
+                { "is_first_clear", isFirstClear ? 1 : 0 },
+            });
+            AnalyticsManager.LogEvent("level_end", new System.Collections.Generic.Dictionary<string, object>
+            {
+                { "level_name", "ch_" + idx },
+                { "success", 1 },
+            });
+            AnalyticsManager.LogEvent("post_score", new System.Collections.Generic.Dictionary<string, object>
+            {
+                { "score", Mathf.RoundToInt(height) },
+                { "level", idx },
+            });
+            FireProgressionMilestoneIfReached(idx);
 
             if (isTierMilestone)
             {
-                int tierIndex = idx / ChapterManager.ChaptersPerTier;
-                int tierBonus = tierIndex * 500;
-                economyManager.GrantEmber(tierBonus);
+                int milestoneTier = idx / ChapterManager.ChaptersPerTier;
+                int tierBonus = milestoneTier * 500;
+                economyManager.GrantEmber(tierBonus, source: "tier_complete");
+                AnalyticsManager.LogEvent("tier_complete", new System.Collections.Generic.Dictionary<string, object>
+                {
+                    { "tier_index", milestoneTier },
+                    { "tier_bonus_ember", tierBonus },
+                });
                 uiManager.ShowTierCelebration(
-                    tierIndex,
+                    milestoneTier,
                     tierBonus,
                     isLastChapter,
                     () => { if (!isLastChapter) ReturnToMainMenu(); else ReturnToMainMenu(); });
                 return;
             }
 
-            uiManager.ShowChapterComplete(
+            // Interstitial decision happens after analytics so the win event always fires
+            // even if the ad fails. UI is deferred until the ad closes (or skipped).
+            bool hasNoAds = coinStoreManager != null && coinStoreManager.HasNoAds;
+            bool shouldShowAd = chapterAdScheduler.ShouldShowInterstitial(
+                chapterIndex: idx,
+                isFirstClear: isFirstClear,
+                isFail: false,
+                isTierMilestone: false,
+                hasNoAds: hasNoAds,
+                nowRealtimeSinceStartup: Time.realtimeSinceStartup);
+
+            System.Action presentChapterComplete = () => uiManager.ShowChapterComplete(
                 idx,
                 height,
-                chapterManager.GetChapter(idx).TargetHeight,
+                chapterTarget,
                 emberReward,
                 nextUnlocked,
                 isLastChapter,
                 ReturnToMainMenu,
                 () => { if (!isLastChapter) StartChapterRun(idx + 1); else ReturnToMainMenu(); },
                 () => uiManager.ShowChapterSelect(chapterManager, StartChapterRun));
+
+            if (shouldShowAd && interstitialAdManager != null && interstitialAdManager.CanShowInterstitial)
+            {
+                chapterAdScheduler.NotifyShown(Time.realtimeSinceStartup);
+                AnalyticsManager.LogEvent("chapter_interstitial_shown", new System.Collections.Generic.Dictionary<string, object>
+                {
+                    { "chapter_index", idx },
+                });
+                interstitialAdManager.ShowInterstitial(_ => presentChapterComplete());
+            }
+            else
+            {
+                presentChapterComplete();
+            }
+        }
+
+        private static void FireProgressionMilestoneIfReached(int chapterIndex)
+        {
+            for (int i = 0; i < ProgressionMilestones.Length; i++)
+            {
+                int marker = ProgressionMilestones[i];
+                if (chapterIndex < marker) continue;
+                string key = "TowerMaze.ProgressionMilestone." + marker;
+                if (PlayerPrefs.GetInt(key, 0) == 1) continue;
+                PlayerPrefs.SetInt(key, 1);
+                PlayerPrefs.Save();
+                AnalyticsManager.LogEvent("progression_milestone", new System.Collections.Generic.Dictionary<string, object>
+                {
+                    { "milestone", marker },
+                });
+            }
         }
 
         private void SetSimulationActive(bool isActive)
