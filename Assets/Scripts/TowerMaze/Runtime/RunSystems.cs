@@ -42,13 +42,19 @@ namespace TowerMaze
         public float timeSeconds;
         public string label;
         public string avatarFrameId;
+        public int avatarIndex;
+        public bool hasProfileAvatar;
+        public string ownerId;
 
-        public LeaderboardEntry(float height, float timeSeconds, string label = "", string avatarFrameId = "")
+        public LeaderboardEntry(float height, float timeSeconds, string label = "", string avatarFrameId = "", int avatarIndex = -1, bool hasProfileAvatar = false, string ownerId = "")
         {
             this.height = height;
             this.timeSeconds = timeSeconds;
             this.label = label ?? string.Empty;
             this.avatarFrameId = avatarFrameId ?? string.Empty;
+            this.avatarIndex = avatarIndex;
+            this.hasProfileAvatar = hasProfileAvatar;
+            this.ownerId = ownerId ?? string.Empty;
         }
     }
 
@@ -354,6 +360,7 @@ namespace TowerMaze
         private const int ShopCoinBoostReward = 100;
         public const int ContinueCoinCost = 900;
         public const int MaxLifeCount = 3;
+        public const int PurchasedLifeStorageCap = 999;
         public const int LifeRefillCoinCost = 250;
         public const int LifeRefillAmount = 1;
         private static readonly TimeSpan LifeRechargeInterval = TimeSpan.FromHours(4);
@@ -432,7 +439,7 @@ namespace TowerMaze
             BuildCatalog();
             EmberBalance = Mathf.Max(0, PlayerPrefs.GetInt(EmberBalanceKey, 0));
             TotalRuns = Mathf.Max(0, PlayerPrefs.GetInt(TotalRunsKey, 0));
-            remainingLives = Mathf.Clamp(PlayerPrefs.GetInt(RemainingLivesKey, MaxLifeCount), 0, MaxLifeCount);
+            remainingLives = Mathf.Clamp(PlayerPrefs.GetInt(RemainingLivesKey, MaxLifeCount), 0, PurchasedLifeStorageCap);
             lifeRechargeStartTicks = long.TryParse(PlayerPrefs.GetString(LifeRechargeStartTicksKey, "0"), out long parsedTicks) ? parsedTicks : 0L;
             LoadOwnedSkins();
             LoadOwnedTowerSkins();
@@ -591,7 +598,7 @@ namespace TowerMaze
 
             EnsureCatalogBuilt();
             EmberBalance = Mathf.Max(0, saveData.emberBalance);
-            remainingLives = Mathf.Clamp(saveData.remainingLives, 0, MaxLifeCount);
+            remainingLives = Mathf.Clamp(saveData.remainingLives, 0, PurchasedLifeStorageCap);
             lifeRechargeStartTicks = Math.Max(0L, saveData.lifeRechargeStartTicks);
 
             ownedSkinIds.Clear();
@@ -706,6 +713,7 @@ namespace TowerMaze
             }
             SaveState();
             NotificationManager.ScheduleLivesFullNotification(DateTime.UtcNow + LifeRechargeInterval);
+            StateChanged?.Invoke();
             return true;
         }
 
@@ -732,6 +740,37 @@ namespace TowerMaze
                 NotificationManager.ScheduleLivesFullNotification(DateTime.UtcNow + LifeRechargeInterval);
             }
             SaveState();
+            StateChanged?.Invoke();
+        }
+
+        public void AddPurchasedLives(int amount, string source = "iap_lives_pack")
+        {
+            if (amount <= 0)
+            {
+                return;
+            }
+
+            RefreshLifeRegenIfNeeded();
+            remainingLives = Mathf.Clamp(remainingLives + amount, 0, PurchasedLifeStorageCap);
+            if (remainingLives >= MaxLifeCount)
+            {
+                lifeRechargeStartTicks = 0L;
+                NotificationManager.CancelLivesFullNotification();
+            }
+            else if (lifeRechargeStartTicks <= 0L)
+            {
+                lifeRechargeStartTicks = DateTime.UtcNow.Ticks;
+                NotificationManager.ScheduleLivesFullNotification(DateTime.UtcNow + LifeRechargeInterval);
+            }
+
+            SaveState();
+            StateChanged?.Invoke();
+            AnalyticsManager.LogEvent("earn_virtual_currency", new System.Collections.Generic.Dictionary<string, object>
+            {
+                { "virtual_currency_name", "lives" },
+                { "value", amount },
+                { "source", source ?? "iap_lives_pack" },
+            });
         }
 
         public bool TryBuyLifeRefill(out int spentCoins)
@@ -1056,6 +1095,32 @@ namespace TowerMaze
                 { "value", amount },
                 { "source", source ?? "unknown" },
             });
+        }
+
+        public bool TrySpendEmber(int amount, string source = "unknown")
+        {
+            amount = Mathf.Max(0, amount);
+            if (amount <= 0)
+            {
+                return true;
+            }
+
+            if (EmberBalance < amount)
+            {
+                return false;
+            }
+
+            EmberBalance -= amount;
+            PlayerPrefs.SetInt(EmberBalanceKey, EmberBalance);
+            PlayerPrefs.Save();
+            NotifyEmberBalanceChanged();
+            AnalyticsManager.LogEvent("spend_virtual_currency", new System.Collections.Generic.Dictionary<string, object>
+            {
+                { "virtual_currency_name", "ember" },
+                { "value", amount },
+                { "source", source ?? "unknown" },
+            });
+            return true;
         }
 
         public bool IsOwnedSkin(string skinId)
@@ -1415,14 +1480,14 @@ namespace TowerMaze
                     "silver_mirror",
                     "Silver Mirror",
                     0,
-                    new Color(0.92f, 0.94f, 0.98f, 1f),
-                    new Color(0.55f, 0.75f, 1f, 1f),
+                    new Color(0.96f, 0.98f, 1f, 1f),
+                    new Color(0.78f, 0.94f, 1f, 1f),
                     baseMapResourcePath: "TowerMaze/BallSkins/Silver/SilverBaseMap",
-                    textureScale: new Vector2(1f, 1f),
-                    metallic: 0.98f,
-                    smoothness: 0.98f,
+                    textureScale: new Vector2(1.15f, 1.15f),
+                    metallic: 0.42f,
+                    smoothness: 0.88f,
                     normalStrength: 0f,
-                    emissionIntensity: 0.7f,
+                    emissionIntensity: 1.35f,
                     iapProductId: "towermaze.skin.silver"));
 
                 skins.Add(new BallSkinDefinition(
@@ -1430,14 +1495,14 @@ namespace TowerMaze
                     "Golden Glory",
                     0,
                     new Color(1f, 0.78f, 0.18f, 1f),
-                    Color.black,
-                    baseMapResourcePath: "TowerMaze/BallSkins/Metal044A/Metal044A_2K-JPG_Color",
-                    normalMapResourcePath: "TowerMaze/BallSkins/Metal044A/Metal044A_2K-JPG_NormalGL",
-                    textureScale: new Vector2(2.2f, 2.2f),
-                    metallic: 0.95f,
-                    smoothness: 0.92f,
-                    normalStrength: 0.85f,
-                    emissionIntensity: 0.4f,
+                    new Color(1f, 0.64f, 0.16f, 1f),
+                    baseMapResourcePath: "TowerMaze/BallSkins/Gold/GoldBaseMap",
+                    normalMapResourcePath: "",
+                    textureScale: new Vector2(1.15f, 1.15f),
+                    metallic: 0.56f,
+                    smoothness: 0.9f,
+                    normalStrength: 0f,
+                    emissionIntensity: 1.15f,
                     iapProductId: "towermaze.skin.gold"));
 
                 skins.Add(new BallSkinDefinition(
@@ -1607,9 +1672,9 @@ namespace TowerMaze
                     new Color(0.8f, 0.8f, 0.85f, 1f),
                     unlockedByDefault: false,
                     useUnifiedTextureSet: true,
-                    wallBaseMapResourcePath: "TowerMaze/BallSkins/Silver/SilverBaseMap",
-                    pathBaseMapResourcePath: "TowerMaze/BallSkins/Silver/SilverBaseMap",
-                    mainPathBaseMapResourcePath: "TowerMaze/BallSkins/Silver/SilverBaseMap",
+                    wallBaseMapResourcePath: "TowerMaze/TowerSkins/SilverTowerBaseMap",
+                    pathBaseMapResourcePath: "TowerMaze/TowerSkins/SilverTowerBaseMap",
+                    mainPathBaseMapResourcePath: "TowerMaze/TowerSkins/SilverTowerBaseMap",
                     iapProductId: "towermaze.skin.silver_tower"));
 
                 towerSkins.Add(new TowerSkinDefinition(
@@ -1621,9 +1686,9 @@ namespace TowerMaze
                     new Color(0.8f, 0.6f, 0.05f, 1f),
                     unlockedByDefault: false,
                     useUnifiedTextureSet: true,
-                    wallBaseMapResourcePath: "TowerMaze/BallSkins/Gold/GoldBaseMap",
-                    pathBaseMapResourcePath: "TowerMaze/BallSkins/Gold/GoldBaseMap",
-                    mainPathBaseMapResourcePath: "TowerMaze/BallSkins/Gold/GoldBaseMap",
+                    wallBaseMapResourcePath: "TowerMaze/TowerSkins/GoldTowerBaseMap",
+                    pathBaseMapResourcePath: "TowerMaze/TowerSkins/GoldTowerBaseMap",
+                    mainPathBaseMapResourcePath: "TowerMaze/TowerSkins/GoldTowerBaseMap",
                     iapProductId: "towermaze.skin.gold_tower"));
 
                 towerSkins.Add(new TowerSkinDefinition(
@@ -2033,7 +2098,7 @@ namespace TowerMaze
         private void SaveState()
         {
             PlayerPrefs.SetInt(EmberBalanceKey, EmberBalance);
-            PlayerPrefs.SetInt(RemainingLivesKey, remainingLives);
+            PlayerPrefs.SetInt(RemainingLivesKey, Mathf.Clamp(remainingLives, 0, PurchasedLifeStorageCap));
             PlayerPrefs.SetString(LifeRechargeStartTicksKey, lifeRechargeStartTicks.ToString());
             PlayerPrefs.SetString(EquippedSkinKey, EquippedSkinId ?? string.Empty);
             PlayerPrefs.SetString(EquippedTowerSkinKey, EquippedTowerSkinId ?? string.Empty);
@@ -2144,7 +2209,7 @@ namespace TowerMaze
     {
         private const string BestScoreKey = "TowerMaze.BestScore";
         private const string LeaderboardKey = "TowerMaze.Leaderboard";
-        private const int MaxLeaderboardEntries = 5;
+        private const int MaxLeaderboardEntries = 100;
 
         private float persistedBestScore;
         private readonly List<LeaderboardEntry> leaderboardEntries = new();
@@ -2358,6 +2423,9 @@ namespace TowerMaze
 
         private AudioSource uiAudioSource;
         private AudioSource musicAudioSource;
+        // Secondary slot used to fade-in the new track while the primary fades
+        // out. The two sources alternate roles after each successful crossfade.
+        private AudioSource secondaryMusicSource;
         private AudioClip countdownTickClip;
         private AudioClip countdownGoClip;
         private AudioClip continueClip;
@@ -2372,15 +2440,33 @@ namespace TowerMaze
         private AudioClip rushAlarmClip;
         private AudioClip menuMusicClip;
         private AudioClip gameplayMusicClip;
+        // Indexed by (int)WeatherType: Sunny=0, Snow=1, Rain=2, Fog=3, StarryNight=4.
+        // Any null slot falls back to gameplayMusicClip so a missing asset can't
+        // silence the game.
+        private AudioClip[] gameplayMusicByWeather;
         private AudioSource alarmAudioSource;
         private MusicMode currentMusicMode = MusicMode.None;
+        private const float BaseMusicVolume = 0.20f;
+        private const float CrossfadeDuration = 1.5f;
+        private const float TensionPitchMax = 0.08f; // 1.00 -> 1.08 during rush
+        private TowerMaze.WeatherSystem.WeatherType pendingGameplayWeather = TowerMaze.WeatherSystem.WeatherType.Sunny;
+        private Coroutine activeCrossfade;
+        private Coroutine pitchLerpRoutine;
+        private float currentMusicPitch = 1f;
+        private float targetMusicPitch = 1f;
 
         public bool SoundEnabled { get; private set; } = true;
         public bool VibrationEnabled { get; private set; } = true;
         public float NearLavaIntensity { get; private set; }
 
+        // Lightweight singleton accessor so non-bootstrapper-wired callers
+        // (e.g. WeatherManager) can find this instance without paying for a
+        // FindAnyObjectByType every weather change.
+        public static AudioManager Instance { get; private set; }
+
         private void Awake()
         {
+            Instance = this;
             uiAudioSource = GetComponent<AudioSource>();
             if (uiAudioSource == null)
             {
@@ -2396,7 +2482,13 @@ namespace TowerMaze
             musicAudioSource.playOnAwake = false;
             musicAudioSource.loop = true;
             musicAudioSource.spatialBlend = 0f;
-            musicAudioSource.volume = 0.2f;
+            musicAudioSource.volume = BaseMusicVolume;
+
+            secondaryMusicSource = gameObject.AddComponent<AudioSource>();
+            secondaryMusicSource.playOnAwake = false;
+            secondaryMusicSource.loop = true;
+            secondaryMusicSource.spatialBlend = 0f;
+            secondaryMusicSource.volume = 0f;
 
             alarmAudioSource = gameObject.AddComponent<AudioSource>();
             alarmAudioSource.playOnAwake = false;
@@ -2418,6 +2510,15 @@ namespace TowerMaze
             rushAlarmClip   = CreateSirenClip("RushAlarm", 1.25f, 520f, 860f, 0.14f);
             menuMusicClip = Resources.Load<AudioClip>("TowerMaze/Music/empacotatron_menu");
             gameplayMusicClip = Resources.Load<AudioClip>("TowerMaze/Music/empacotatron_loop");
+            // Per-weather gameplay loops. Order MUST match WeatherType enum.
+            // Missing files fall back to gameplayMusicClip so the game never
+            // goes silent when a theme asset is absent.
+            gameplayMusicByWeather = new AudioClip[5];
+            gameplayMusicByWeather[(int)TowerMaze.WeatherSystem.WeatherType.Sunny]       = Resources.Load<AudioClip>("TowerMaze/Music/gameplay_sunny");
+            gameplayMusicByWeather[(int)TowerMaze.WeatherSystem.WeatherType.Snow]        = Resources.Load<AudioClip>("TowerMaze/Music/gameplay_snow");
+            gameplayMusicByWeather[(int)TowerMaze.WeatherSystem.WeatherType.Rain]        = Resources.Load<AudioClip>("TowerMaze/Music/gameplay_rain");
+            gameplayMusicByWeather[(int)TowerMaze.WeatherSystem.WeatherType.Fog]         = Resources.Load<AudioClip>("TowerMaze/Music/gameplay_fog");
+            gameplayMusicByWeather[(int)TowerMaze.WeatherSystem.WeatherType.StarryNight] = Resources.Load<AudioClip>("TowerMaze/Music/gameplay_night");
             alarmAudioSource.clip = rushAlarmClip;
         }
 
@@ -2428,7 +2529,9 @@ namespace TowerMaze
             {
                 uiAudioSource.Stop();
                 musicAudioSource.Stop();
+                if (secondaryMusicSource != null) secondaryMusicSource.Stop();
                 alarmAudioSource.Stop();
+                if (activeCrossfade != null) { StopCoroutine(activeCrossfade); activeCrossfade = null; }
                 return;
             }
 
@@ -2544,29 +2647,166 @@ namespace TowerMaze
             if (!SoundEnabled)
             {
                 musicAudioSource.Stop();
+                if (secondaryMusicSource != null) secondaryMusicSource.Stop();
+                if (activeCrossfade != null) { StopCoroutine(activeCrossfade); activeCrossfade = null; }
                 return;
             }
 
             AudioClip targetClip = currentMusicMode switch
             {
                 MusicMode.Menu => menuMusicClip,
-                MusicMode.Gameplay => gameplayMusicClip,
+                MusicMode.Gameplay => ResolveGameplayClip(),
                 _ => null,
             };
 
             if (targetClip == null)
             {
-                musicAudioSource.Stop();
+                StopAllMusic();
                 return;
             }
 
+            CrossfadeTo(targetClip);
+        }
+
+        /// <summary>
+        /// Switches the gameplay loop to match the active weather theme. Cached
+        /// so a SetWeather call before the player enters gameplay still takes
+        /// effect when the mode flips to Gameplay.
+        /// </summary>
+        public void SetGameplayWeather(TowerMaze.WeatherSystem.WeatherType weather)
+        {
+            pendingGameplayWeather = weather;
+            if (currentMusicMode == MusicMode.Gameplay && SoundEnabled)
+            {
+                AudioClip target = ResolveGameplayClip();
+                if (target != null) CrossfadeTo(target);
+            }
+        }
+
+        /// <summary>
+        /// Drives the gameplay music's pitch up to TensionPitchMax during high-
+        /// pressure moments (rush events, control flips). 0..1 range; 0 returns
+        /// to neutral. Lerped over 0.6s so the change is felt, not jarring.
+        /// </summary>
+        public void SetTensionIntensity(float intensity01)
+        {
+            float clamped = Mathf.Clamp01(intensity01);
+            targetMusicPitch = 1f + clamped * TensionPitchMax;
+            if (pitchLerpRoutine != null) StopCoroutine(pitchLerpRoutine);
+            pitchLerpRoutine = StartCoroutine(LerpMusicPitch(0.6f));
+        }
+
+        private AudioClip ResolveGameplayClip()
+        {
+            if (gameplayMusicByWeather != null)
+            {
+                int idx = (int)pendingGameplayWeather;
+                if (idx >= 0 && idx < gameplayMusicByWeather.Length)
+                {
+                    AudioClip themed = gameplayMusicByWeather[idx];
+                    if (themed != null) return themed;
+                }
+            }
+            return gameplayMusicClip;
+        }
+
+        private void StopAllMusic()
+        {
+            if (activeCrossfade != null) { StopCoroutine(activeCrossfade); activeCrossfade = null; }
+            if (musicAudioSource != null) musicAudioSource.Stop();
+            if (secondaryMusicSource != null) secondaryMusicSource.Stop();
+        }
+
+        private void CrossfadeTo(AudioClip targetClip)
+        {
+            if (targetClip == null) return;
+
+            // Already playing the target on the primary slot — no-op (lets us
+            // call SetGameplayWeather idempotently without retriggering).
             if (musicAudioSource.clip == targetClip && musicAudioSource.isPlaying)
             {
                 return;
             }
 
-            musicAudioSource.clip = targetClip;
-            musicAudioSource.Play();
+            // Cold start: nothing playing, just start the primary at full volume.
+            if (!musicAudioSource.isPlaying && (secondaryMusicSource == null || !secondaryMusicSource.isPlaying))
+            {
+                musicAudioSource.clip = targetClip;
+                musicAudioSource.volume = BaseMusicVolume;
+                musicAudioSource.pitch = currentMusicPitch;
+                musicAudioSource.Play();
+                return;
+            }
+
+            if (activeCrossfade != null) StopCoroutine(activeCrossfade);
+            activeCrossfade = StartCoroutine(CrossfadeRoutine(targetClip, CrossfadeDuration));
+        }
+
+        private System.Collections.IEnumerator CrossfadeRoutine(AudioClip targetClip, float duration)
+        {
+            // Pick the inactive slot to host the incoming clip. The active slot
+            // (whichever is currently audible) fades out.
+            AudioSource incoming = (musicAudioSource.isPlaying && (secondaryMusicSource == null || !secondaryMusicSource.isPlaying))
+                ? secondaryMusicSource
+                : musicAudioSource;
+            AudioSource outgoing = (incoming == musicAudioSource) ? secondaryMusicSource : musicAudioSource;
+
+            if (incoming == null) yield break;
+
+            incoming.clip = targetClip;
+            incoming.volume = 0f;
+            incoming.pitch = currentMusicPitch;
+            incoming.Play();
+
+            float startVolumeOut = (outgoing != null && outgoing.isPlaying) ? outgoing.volume : 0f;
+            float t = 0f;
+            while (t < duration)
+            {
+                t += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(t / duration);
+                incoming.volume = Mathf.Lerp(0f, BaseMusicVolume, k);
+                if (outgoing != null) outgoing.volume = Mathf.Lerp(startVolumeOut, 0f, k);
+                yield return null;
+            }
+
+            incoming.volume = BaseMusicVolume;
+            if (outgoing != null) { outgoing.volume = 0f; outgoing.Stop(); }
+
+            // Keep musicAudioSource as the canonical "primary" reference for
+            // simplicity downstream — swap clips so it always points at what's
+            // currently audible.
+            if (incoming == secondaryMusicSource)
+            {
+                AudioClip activeClip = secondaryMusicSource.clip;
+                float activePitch = secondaryMusicSource.pitch;
+                secondaryMusicSource.Stop();
+                secondaryMusicSource.volume = 0f;
+                musicAudioSource.clip = activeClip;
+                musicAudioSource.pitch = activePitch;
+                musicAudioSource.volume = BaseMusicVolume;
+                musicAudioSource.Play();
+            }
+
+            activeCrossfade = null;
+        }
+
+        private System.Collections.IEnumerator LerpMusicPitch(float duration)
+        {
+            float start = currentMusicPitch;
+            float t = 0f;
+            while (t < duration)
+            {
+                t += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(t / duration);
+                currentMusicPitch = Mathf.Lerp(start, targetMusicPitch, k);
+                if (musicAudioSource != null) musicAudioSource.pitch = currentMusicPitch;
+                if (secondaryMusicSource != null) secondaryMusicSource.pitch = currentMusicPitch;
+                yield return null;
+            }
+            currentMusicPitch = targetMusicPitch;
+            if (musicAudioSource != null) musicAudioSource.pitch = currentMusicPitch;
+            if (secondaryMusicSource != null) secondaryMusicSource.pitch = currentMusicPitch;
+            pitchLerpRoutine = null;
         }
 
         private void TriggerVibration()
@@ -4458,6 +4698,9 @@ namespace TowerMaze
             currentRushMultiplier = config.rushWarningSpeedMultiplier;
             ApplySinkMultiplier();
             audioManager.StartRushAlarm();
+            // Tension layer: nudge gameplay music pitch up by the configured
+            // max so the player feels the urgency without an extra audio asset.
+            audioManager.SetTensionIntensity(1f);
             uiManager.SetRushState(true, false, 1f, 1f);
         }
 
@@ -4515,6 +4758,8 @@ namespace TowerMaze
             lavaController?.SetRushIntensity(0f);
             uiManager?.SetRushState(false, false, 0f, 0f);
             audioManager?.StopRushAlarm();
+            // Drop the music pitch back to neutral over the same lerp window.
+            audioManager?.SetTensionIntensity(0f);
         }
 
         private void StopControlFlipEffects()

@@ -1,6 +1,9 @@
 using System.Collections;
 using TowerMaze.BackgroundSystem;
 using UnityEngine;
+#if UNITY_EDITOR && ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 namespace TowerMaze.WeatherSystem
 {
@@ -53,13 +56,47 @@ namespace TowerMaze.WeatherSystem
         {
 #if UNITY_EDITOR
             // Editor-only debug keys — never compiled into the mobile build.
-            if (Input.GetKeyDown(KeyCode.Alpha1)) SetWeather(WeatherType.Sunny);
-            else if (Input.GetKeyDown(KeyCode.Alpha2)) SetWeather(WeatherType.Snow);
-            else if (Input.GetKeyDown(KeyCode.Alpha3)) SetWeather(WeatherType.Rain);
-            else if (Input.GetKeyDown(KeyCode.Alpha4)) SetWeather(WeatherType.Fog);
-            else if (Input.GetKeyDown(KeyCode.Alpha5)) SetWeather(WeatherType.StarryNight);
+            if (TryReadEditorWeatherHotkey(out WeatherType weather))
+            {
+                SetWeather(weather);
+            }
 #endif
         }
+
+#if UNITY_EDITOR
+        private static bool TryReadEditorWeatherHotkey(out WeatherType weather)
+        {
+            weather = WeatherType.Sunny;
+
+#if ENABLE_INPUT_SYSTEM
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard == null)
+            {
+                return false;
+            }
+
+            if (keyboard.digit1Key.wasPressedThisFrame || keyboard.numpad1Key.wasPressedThisFrame) weather = WeatherType.Sunny;
+            else if (keyboard.digit2Key.wasPressedThisFrame || keyboard.numpad2Key.wasPressedThisFrame) weather = WeatherType.Snow;
+            else if (keyboard.digit3Key.wasPressedThisFrame || keyboard.numpad3Key.wasPressedThisFrame) weather = WeatherType.Rain;
+            else if (keyboard.digit4Key.wasPressedThisFrame || keyboard.numpad4Key.wasPressedThisFrame) weather = WeatherType.Fog;
+            else if (keyboard.digit5Key.wasPressedThisFrame || keyboard.numpad5Key.wasPressedThisFrame) weather = WeatherType.StarryNight;
+            else return false;
+
+            return true;
+#elif ENABLE_LEGACY_INPUT_MANAGER
+            if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)) weather = WeatherType.Sunny;
+            else if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)) weather = WeatherType.Snow;
+            else if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3)) weather = WeatherType.Rain;
+            else if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4)) weather = WeatherType.Fog;
+            else if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5)) weather = WeatherType.StarryNight;
+            else return false;
+
+            return true;
+#else
+            return false;
+#endif
+        }
+#endif
 
         public void SetWeather(WeatherType weather)
         {
@@ -75,6 +112,17 @@ namespace TowerMaze.WeatherSystem
             ApplyWeatherEffects(weather);
             ApplyWeatherLighting(weather);
             ApplyBlockMaterial(weather);
+            ApplyWeatherMusic(weather);
+        }
+
+        private void ApplyWeatherMusic(WeatherType weather)
+        {
+            // Resolve AudioManager lazily so this script doesn't hard-depend on
+            // the bootstrapper having wired a serialized reference. AudioManager
+            // ignores the call when sound is muted or no themed clip exists.
+            AudioManager audio = AudioManager.Instance;
+            if (audio == null) audio = FindAnyObjectByType<AudioManager>();
+            if (audio != null) audio.SetGameplayWeather(weather);
         }
 
         public void UpdateWeatherByZone(int zone)
