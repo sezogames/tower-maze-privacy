@@ -9,6 +9,7 @@ namespace TowerMaze
     public sealed class StartScreenController : MonoBehaviour
     {
         private EconomyManager economyManager;
+        private PlayerProfileManager profileManager;
         private Action buttonClickSound;
         private Font runtimeFont;
         private Text bestScoreText;
@@ -26,6 +27,7 @@ namespace TowerMaze
         private RectTransform startButtonRt;
         private RectTransform bestScoreChipRt;
         private RectTransform startLifeBarRt;
+        private RectTransform profileAvatarRt;
         private RectTransform dailyChallengeButtonRt;
         private RectTransform endlessButtonRt;
         private RectTransform leaderboardButtonRt;
@@ -58,6 +60,9 @@ namespace TowerMaze
         private Text settingsVibToggleText;
         private Text privacyButtonText;
         private Text graphicsQualityButtonText;
+        private Image profileAvatarImage;
+        private Image profileAvatarFrameImage;
+        private Button profileAvatarButton;
         private GameObject privacyOverlay;
         private RectTransform privacySheet;
         private Text privacyTitleText;
@@ -102,6 +107,7 @@ namespace TowerMaze
         private Action storedOnPlayChapter;
         private Action storedOnPlayEndless;
         private Action storedOnShowChapters;
+        private Action storedOnOpenProfile;
         private ChapterManager cachedChapterManager;
         private readonly List<Outline> leaderboardRowOutlines = new();
         private readonly List<Image> leaderboardRowBgs = new();
@@ -110,6 +116,8 @@ namespace TowerMaze
         private readonly List<Text> leaderboardScoreTexts = new();
         private readonly List<Image> leaderboardAvatarIcons = new();
         private readonly List<Image> leaderboardAvatarFrames = new();
+        private readonly List<Image> leaderboardAvatarBackers = new();
+        private List<Sprite> profileAvatarSprites;
         private readonly string[] supportedLanguageCodes = UILanguage.SupportedCodes;
         private Image[] languageChipBackgrounds;
         private Text[] languageChipTexts;
@@ -135,27 +143,44 @@ namespace TowerMaze
         private static readonly Color LogoCandyOwnRowTint = new(0.64f, 0.42f, 0.92f, 1f);
         private static readonly Color LogoCandyRewardTint = new(1f, 0.94f, 0.80f, 1f);
         private static readonly Color SheetOverlayTint = new(UIStyle.MenuBg.r, UIStyle.MenuBg.g, UIStyle.MenuBg.b, 0.58f);
-        private static readonly Color SheetPanelTint = new(0.85f, 0.73f, 0.91f, 0.985f);
-        private static readonly Color SheetSectionTint = new(0.95f, 0.88f, 0.94f, 0.99f);
-        private static readonly Color SheetWarmTint = new(0.98f, 0.78f, 0.60f, 0.985f);
-        private static readonly Color SheetTitleRibbonTint = new(0.64f, 0.42f, 0.92f, 0.98f);
+        private static readonly Color SheetPanelTint = new(0.055f, 0.022f, 0.130f, 0.985f);
+        private static readonly Color SheetSectionTint = new(0.125f, 0.048f, 0.235f, 0.94f);
+        private static readonly Color SheetWarmTint = new(1.000f, 0.420f, 0.070f, 0.96f);
+        private static readonly Color SheetTitleRibbonTint = new(0.235f, 0.074f, 0.390f, 0.96f);
         private static readonly Color SheetTitleTextTint = new(1f, 1f, 1f, 1f);
         private static readonly Color SheetTitleShadowTint = new(1f, 0.84f, 0.42f, 0.26f);
         private static readonly Color SheetTitleOutlineTint = new(0.24f, 0.10f, 0.44f, 0.84f);
         private static readonly Color SheetChromeOutlineTint = new(0.36f, 0.22f, 0.58f, 0.30f);
         private static readonly Color SheetChromeShadowTint = new(0.08f, 0.04f, 0.15f, 0.24f);
         private static readonly Color LeaderboardRowTint = new(0.92f, 0.84f, 0.95f, 0.99f);
+        private static readonly Color LeaderboardPremiumOverlayTint = new(0.006f, 0.002f, 0.030f, 0.76f);
+        private static readonly Color LeaderboardPremiumPanelFallbackTint = new(0.028f, 0.018f, 0.084f, 0.985f);
+        private static readonly Color LeaderboardPremiumGold = new(1f, 0.80f, 0.28f, 1f);
+        private static readonly Color LeaderboardPremiumCyan = new(1.00f, 0.64f, 0.18f, 1f);
+        private static readonly Color LeaderboardPremiumText = new(1f, 0.94f, 0.82f, 1f);
+        private static readonly Color LeaderboardPremiumMutedText = new(0.78f, 0.67f, 0.86f, 0.86f);
+        private static readonly Color LeaderboardPremiumRowTint = new(0.135f, 0.045f, 0.245f, 0.92f);
+        private static readonly Color LeaderboardPremiumEmptyRowTint = new(0.070f, 0.026f, 0.135f, 0.70f);
+        private static readonly Color LeaderboardPremiumOwnRowTint = new(0.280f, 0.065f, 0.330f, 0.96f);
+        private static readonly Color LeaderboardPremiumActiveTabTint = new(1.000f, 0.365f, 0.080f, 0.96f);
+        private static readonly Color LeaderboardPremiumInactiveTabTint = new(0.145f, 0.055f, 0.255f, 0.90f);
+        private const float LeaderboardRowHeight = 54f;
+        private const float LeaderboardRowSpacing = 5f;
+        private const int LeaderboardContentBottomPadding = 8;
+        private static Sprite leaderboardAvatarMaskSprite;
+        private static Sprite leaderboardPremiumModalSprite;
 
         public void Initialize(Font font, ThemeDefinition theme, EconomyManager economy,
             Action onPlay, Action onPlayDailyChallenge, Action onOpenShop, Action onClaimChest,
             Action onToggleSound, Action onToggleVibration, Action onRerollMissions,
             Action onButtonClick = null, Action<string> onClaimMission = null,
             Action onPlayChapter = null, Action onPlayEndless = null, Action onShowChapters = null,
-            ChapterManager chapterManager = null)
+            Action onOpenProfile = null, ChapterManager chapterManager = null)
         {
             storedOnPlayChapter = onPlayChapter ?? onPlay;
             storedOnPlayEndless = onPlayEndless ?? onPlay;
             storedOnShowChapters = onShowChapters;
+            storedOnOpenProfile = onOpenProfile;
             cachedChapterManager = chapterManager;
             economyManager = economy;
             buttonClickSound = onButtonClick;
@@ -167,12 +192,13 @@ namespace TowerMaze
             Image bg = UIManager.CreateImage("StartBg", transform, UIStyle.MenuBg);
             UIManager.Stretch(bg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
+            GameObject profileAvatarGo = CreateProfileAvatarEntry(transform);
+            profileAvatarRt = profileAvatarGo.GetComponent<RectTransform>();
+
             GameObject lifeBarCardGo = new GameObject("StartLifeBarCard");
             lifeBarCardGo.transform.SetParent(transform, false);
             Image startLifeBarCard = lifeBarCardGo.AddComponent<Image>();
-            Texture2D lifeTex = Resources.Load<Texture2D>("TowerMaze/UITheme/out_btn_purple");
-            if (lifeTex != null)
-                startLifeBarCard.sprite = Sprite.Create(lifeTex, new Rect(0, 0, lifeTex.width, lifeTex.height), new Vector2(0.5f, 0.5f), 100f);
+            ApplyMainPremiumSurface(startLifeBarCard, "main_premium_button", "out_btn_purple", preserveAspect: false);
             
             startLifeBarCard.rectTransform.anchorMin = new Vector2(0.04f, 0.90f);
             startLifeBarCard.rectTransform.anchorMax = new Vector2(0.36f, 0.99f);
@@ -182,6 +208,8 @@ namespace TowerMaze
             startLifeBarUI.Initialize(font);
             startLifeBarUI.SetCompactHeaderLayout(true);
             startLifeBarUI.SetEconomyManager(economyManager);
+            WireProfileAvatarEvents();
+            RefreshProfileAvatarEntry();
             storedOnPlayDailyChallenge = onPlayDailyChallenge;
             GameObject dailyChallengeButtonGo = CreateDailyChallengeButton(transform, font,
                 ShowDailyChallengePopup, buttonClickSound);
@@ -233,9 +261,7 @@ namespace TowerMaze
             startBtnGo.transform.SetParent(transform, false);
             Button startBtn = startBtnGo.AddComponent<Button>();
             Image startImg = startBtnGo.AddComponent<Image>();
-            Texture2D startTex = Resources.Load<Texture2D>("TowerMaze/UITheme/out_btn_orange");
-            if (startTex != null)
-                startImg.sprite = Sprite.Create(startTex, new Rect(0, 0, startTex.width, startTex.height), new Vector2(0.5f, 0.5f), 100f);
+            ApplyMainPremiumSurface(startImg, "main_premium_cta", "out_btn_orange", preserveAspect: false);
             startBtn.targetGraphic = startImg;
             startButtonRt = startBtnGo.GetComponent<RectTransform>();
             startButtonRt.anchorMin = new Vector2(0.12f, 0.44f);
@@ -303,6 +329,8 @@ namespace TowerMaze
             if (startButtonRt == null) return;
             if (pulseCoroutine != null) StopCoroutine(pulseCoroutine);
             pulseCoroutine = StartCoroutine(UIStyle.Pulse(startButtonRt, 1f, 1.05f, 1.4f));
+            WireProfileAvatarEvents();
+            RefreshProfileAvatarEntry();
             ApplyPortraitLayout();
             ApplyLocalizedTexts();
             UpdateMissionCountdown(GetTimeUntilNextLocalDay());
@@ -314,6 +342,14 @@ namespace TowerMaze
             if (pulseCoroutine != null) { StopCoroutine(pulseCoroutine); pulseCoroutine = null; }
             if (settingsPanelRoutine != null) { StopCoroutine(settingsPanelRoutine); settingsPanelRoutine = null; }
             if (missionCountdownRoutine != null) { StopCoroutine(missionCountdownRoutine); missionCountdownRoutine = null; }
+        }
+
+        private void OnDestroy()
+        {
+            if (profileManager != null)
+            {
+                profileManager.ProfileChanged -= RefreshProfileAvatarEntry;
+            }
         }
 
         private void OnRectTransformDimensionsChange()
@@ -399,7 +435,7 @@ namespace TowerMaze
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             var img = go.AddComponent<Image>();
-            SetupCandyOrb(img);
+            ApplyMainPremiumSurface(img, "main_premium_icon_frame", "logo_jelly_orb", preserveAspect: true);
             var btn = go.AddComponent<Button>();
             UIManager.BindButton(btn, () => {
                 StartCoroutine(UIStyle.ButtonPress(go.GetComponent<RectTransform>())); onClick?.Invoke();
@@ -411,9 +447,77 @@ namespace TowerMaze
                 var iconImg = iconGo.AddComponent<Image>();
                 iconImg.sprite = iconSprite;
                 iconImg.preserveAspect = true;
-                UIManager.Stretch(iconGo.GetComponent<RectTransform>(), new Vector2(0.15f, 0.15f), new Vector2(0.85f, 0.85f), Vector2.zero, Vector2.zero);
+                UIManager.Stretch(iconGo.GetComponent<RectTransform>(), new Vector2(0.24f, 0.24f), new Vector2(0.76f, 0.76f), Vector2.zero, Vector2.zero);
             }
             return go;
+        }
+
+        private GameObject CreateProfileAvatarEntry(Transform parent)
+        {
+            GameObject go = new GameObject("ProfileAvatarEntry");
+            go.transform.SetParent(parent, false);
+            profileAvatarRt = go.AddComponent<RectTransform>();
+
+            Image hitArea = go.AddComponent<Image>();
+            hitArea.color = new Color(1f, 1f, 1f, 0.001f);
+            hitArea.raycastTarget = true;
+
+            profileAvatarButton = go.AddComponent<Button>();
+            profileAvatarButton.transition = Selectable.Transition.None;
+            profileAvatarButton.targetGraphic = hitArea;
+            UIManager.BindButton(profileAvatarButton, () =>
+            {
+                StartCoroutine(UIStyle.ButtonPress(profileAvatarRt));
+                storedOnOpenProfile?.Invoke();
+            }, buttonClickSound);
+
+            GameObject frameGo = new GameObject("PremiumFrame");
+            frameGo.transform.SetParent(go.transform, false);
+            profileAvatarFrameImage = frameGo.AddComponent<Image>();
+            ApplyMainPremiumSurface(profileAvatarFrameImage, "main_premium_avatar_frame", "frame_gold_premium", preserveAspect: true);
+            profileAvatarFrameImage.raycastTarget = false;
+            UIManager.Stretch(profileAvatarFrameImage.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+
+            GameObject avatarGo = new GameObject("SelectedAvatar");
+            avatarGo.transform.SetParent(go.transform, false);
+            profileAvatarImage = avatarGo.AddComponent<Image>();
+            profileAvatarImage.preserveAspect = true;
+            profileAvatarImage.raycastTarget = false;
+            UIManager.Stretch(profileAvatarImage.rectTransform, new Vector2(0.145f, 0.130f), new Vector2(0.855f, 0.835f), Vector2.zero, Vector2.zero);
+            avatarGo.transform.SetAsLastSibling();
+            return go;
+        }
+
+        private void WireProfileAvatarEvents()
+        {
+            profileManager = profileManager != null ? profileManager : PlayerProfileManager.Instance ?? FindAnyObjectByType<PlayerProfileManager>();
+            if (profileManager != null)
+            {
+                profileManager.ProfileChanged -= RefreshProfileAvatarEntry;
+                profileManager.ProfileChanged += RefreshProfileAvatarEntry;
+            }
+        }
+
+        private void RefreshProfileAvatarEntry()
+        {
+            if (profileAvatarImage == null)
+            {
+                return;
+            }
+
+            profileManager = profileManager != null ? profileManager : PlayerProfileManager.Instance ?? FindAnyObjectByType<PlayerProfileManager>();
+            EnsureProfileAvatarSprites();
+            Sprite selectedSprite = null;
+            if (profileManager != null && profileAvatarSprites != null && profileAvatarSprites.Count > 0)
+            {
+                int selectedIndex = Mathf.Clamp(profileManager.SelectedAvatarIndex, 0, profileAvatarSprites.Count - 1);
+                selectedSprite = profileAvatarSprites[selectedIndex];
+            }
+
+            selectedSprite ??= Resources.Load<Sprite>("TowerMaze/UITheme/icon_avatar_default");
+            profileAvatarImage.sprite = selectedSprite;
+            profileAvatarImage.color = selectedSprite != null ? Color.white : new Color(1f, 1f, 1f, 0.22f);
+            profileAvatarImage.enabled = selectedSprite != null;
         }
 
 
@@ -423,64 +527,28 @@ namespace TowerMaze
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
-            bool isShopButton = string.Equals(name, "ShopBtn", StringComparison.OrdinalIgnoreCase);
-            bool isMissionsButton = string.Equals(name, "MissionsBtn", StringComparison.OrdinalIgnoreCase);
             Image img = go.AddComponent<Image>();
-            if (isMissionsButton)
-            {
-                SetupCandyButton(img, "out_btn_purple", new Vector4(150f, 160f, 150f, 160f), 350f);
-            }
-            else
-            {
-                string btnTexName = isShopButton ? "out_btn_purple" : "out_btn_orange";
-                Vector4 btnSlice = isShopButton ? new Vector4(150f, 160f, 150f, 160f) : new Vector4(150f, 130f, 150f, 130f);
-                SetupCandyButton(img, btnTexName, btnSlice, 350f);
-            }
+            ApplyMainPremiumSurface(img, "main_premium_button", "out_btn_purple", preserveAspect: false);
             var btn = go.AddComponent<Button>();
             btn.targetGraphic = img;
             UIManager.BindButton(btn, () => {
                 StartCoroutine(UIStyle.ButtonPress(go.GetComponent<RectTransform>())); onClick?.Invoke();
             }, sound);
-            var lbl = UIManager.CreateText("Label", go.transform, font, 15,
+            var lbl = UIManager.CreateText("Label", go.transform, font, 17,
                 TextAnchor.MiddleCenter, Color.white, UIFontRole.Button);
             lbl.text = label;
             lbl.fontStyle = FontStyle.Bold;
             lbl.resizeTextForBestFit = true;
-            UIManager.SetScaledBestFit(lbl, 13, 15, UIFontRole.Button);
+            UIManager.SetScaledBestFit(lbl, 13, 18, UIFontRole.Button);
             UIManager.Stretch(lbl.rectTransform, Vector2.zero, Vector2.one,
-                new Vector2(8f, 0f), new Vector2(-8f, 0f));
+                new Vector2(14f, 0f), new Vector2(-14f, 0f));
+            Shadow labelShadow = lbl.gameObject.AddComponent<Shadow>();
+            labelShadow.effectColor = new Color(0.14f, 0.04f, 0.20f, 0.48f);
+            labelShadow.effectDistance = new Vector2(0f, -2f);
+            Outline labelOutline = lbl.gameObject.AddComponent<Outline>();
+            labelOutline.effectColor = new Color(1f, 0.94f, 0.70f, 0.22f);
+            labelOutline.effectDistance = new Vector2(1f, -1f);
 
-            if (isMissionsButton)
-            {
-                lbl.alignment = TextAnchor.MiddleCenter;
-                lbl.color = Color.white;
-                UIManager.SetScaledBestFit(lbl, 14, 17, UIFontRole.Button);
-                UIManager.Stretch(lbl.rectTransform, Vector2.zero, Vector2.one,
-                    new Vector2(8f, 0f), new Vector2(-8f, 0f));
-                Shadow missionsLabelShadow = lbl.gameObject.AddComponent<Shadow>();
-                missionsLabelShadow.effectColor = new Color(0.18f, 0.06f, 0.28f, 0.34f);
-                missionsLabelShadow.effectDistance = new Vector2(0f, -2f);
-                Outline missionsLabelOutline = lbl.gameObject.AddComponent<Outline>();
-                missionsLabelOutline.effectColor = new Color(1f, 0.95f, 0.82f, 0.18f);
-                missionsLabelOutline.effectDistance = new Vector2(1f, -1f);
-            }
-
-            if (isShopButton)
-            {
-                Sprite shopWordmark = UICandySkin.GetSprite("ShopWordmark", 100f);
-                if (shopWordmark != null)
-                {
-                    GameObject wordmarkObject = new GameObject("Wordmark");
-                    wordmarkObject.transform.SetParent(go.transform, false);
-                    Image wordmarkImage = wordmarkObject.AddComponent<Image>();
-                    wordmarkImage.sprite = shopWordmark;
-                    wordmarkImage.preserveAspect = true;
-                    wordmarkImage.raycastTarget = false;
-                    UIManager.Stretch(wordmarkImage.rectTransform, Vector2.zero, Vector2.one, new Vector2(-4f, -2f), new Vector2(4f, 2f));
-                    wordmarkImage.rectTransform.localScale = new Vector3(1.08f, 1.08f, 1f);
-                    lbl.gameObject.SetActive(false);
-                }
-            }
             return go;
         }
 
@@ -490,27 +558,7 @@ namespace TowerMaze
             go.transform.SetParent(parent, false);
 
             dailyChallengeButtonImage = go.AddComponent<Image>();
-            SetupCandyButton(dailyChallengeButtonImage, "out_btn_purple", new Vector4(150f, 160f, 150f, 160f), 350f);
-            ConfigureCandyChrome(
-                dailyChallengeButtonImage,
-                new Color(0.08f, 0.04f, 0.16f, 0.22f),
-                new Color(1f, 0.93f, 0.72f, 0.14f),
-                new Vector2(0f, -4f),
-                new Vector2(1f, -1f));
-            AddAmbientGloss(
-                dailyChallengeButtonImage.rectTransform,
-                "ChallengeGloss",
-                new Vector2(0.05f, 0.56f),
-                new Vector2(0.95f, 0.96f),
-                new Color(1f, 1f, 1f, 0.22f),
-                new Color(1f, 1f, 1f, 0f));
-            AddAmbientGloss(
-                dailyChallengeButtonImage.rectTransform,
-                "ChallengeWarmCore",
-                new Vector2(0.06f, 0.12f),
-                new Vector2(0.94f, 0.66f),
-                new Color(1f, 0.74f, 0.34f, 0.14f),
-                new Color(1f, 0.74f, 0.34f, 0f));
+            ApplyMainPremiumSurface(dailyChallengeButtonImage, "main_premium_button", "out_btn_purple", preserveAspect: false);
 
             dailyChallengeButton = go.AddComponent<Button>();
             dailyChallengeButton.targetGraphic = dailyChallengeButtonImage;
@@ -520,13 +568,13 @@ namespace TowerMaze
                 onClick?.Invoke();
             }, sound);
 
-            dailyChallengeTitleText = UIManager.CreateText("Title", go.transform, font, 15, TextAnchor.MiddleCenter, Color.white, UIFontRole.Button);
+            dailyChallengeTitleText = UIManager.CreateText("Title", go.transform, font, 17, TextAnchor.MiddleCenter, Color.white, UIFontRole.Button);
             dailyChallengeTitleText.fontStyle = FontStyle.Bold;
             dailyChallengeTitleText.resizeTextForBestFit = true;
             dailyChallengeTitleText.horizontalOverflow = HorizontalWrapMode.Wrap;
             dailyChallengeTitleText.verticalOverflow = VerticalWrapMode.Overflow;
-            UIManager.SetScaledBestFit(dailyChallengeTitleText, 10, 15, UIFontRole.Button);
-            UIManager.Stretch(dailyChallengeTitleText.rectTransform, new Vector2(0.08f, 0.18f), new Vector2(0.92f, 0.82f), Vector2.zero, Vector2.zero);
+            UIManager.SetScaledBestFit(dailyChallengeTitleText, 12, 17, UIFontRole.Button);
+            UIManager.Stretch(dailyChallengeTitleText.rectTransform, new Vector2(0.08f, 0.15f), new Vector2(0.92f, 0.85f), Vector2.zero, Vector2.zero);
             Shadow titleShadow = dailyChallengeTitleText.gameObject.AddComponent<Shadow>();
             titleShadow.effectColor = new Color(0.14f, 0.05f, 0.20f, 0.44f);
             titleShadow.effectDistance = new Vector2(0f, -3f);
@@ -543,16 +591,7 @@ namespace TowerMaze
             go.transform.SetParent(parent, false);
 
             Image img = go.AddComponent<Image>();
-            SetupCandyButton(img, "out_btn_purple", new Vector4(150f, 160f, 150f, 160f), 350f);
-            ConfigureCandyChrome(
-                img,
-                new Color(0.08f, 0.04f, 0.16f, 0.22f),
-                new Color(1f, 0.93f, 0.72f, 0.14f),
-                new Vector2(0f, -4f),
-                new Vector2(1f, -1f));
-            AddAmbientGloss(img.rectTransform, "EndlessGloss",
-                new Vector2(0.05f, 0.56f), new Vector2(0.95f, 0.96f),
-                new Color(1f, 1f, 1f, 0.22f), new Color(1f, 1f, 1f, 0f));
+            ApplyMainPremiumSurface(img, "main_premium_button", "out_btn_purple", preserveAspect: false);
 
             Button btn = go.AddComponent<Button>();
             btn.targetGraphic = img;
@@ -562,11 +601,11 @@ namespace TowerMaze
                 onClick?.Invoke();
             }, sound);
 
-            Text lbl = UIManager.CreateText("Title", go.transform, font, 15, TextAnchor.MiddleCenter, Color.white, UIFontRole.Button);
+            Text lbl = UIManager.CreateText("Title", go.transform, font, 17, TextAnchor.MiddleCenter, Color.white, UIFontRole.Button);
             lbl.fontStyle = FontStyle.Bold;
             lbl.resizeTextForBestFit = true;
-            UIManager.SetScaledBestFit(lbl, 10, 15, UIFontRole.Button);
-            UIManager.Stretch(lbl.rectTransform, new Vector2(0.08f, 0.18f), new Vector2(0.92f, 0.82f), Vector2.zero, Vector2.zero);
+            UIManager.SetScaledBestFit(lbl, 12, 17, UIFontRole.Button);
+            UIManager.Stretch(lbl.rectTransform, new Vector2(0.08f, 0.15f), new Vector2(0.92f, 0.85f), Vector2.zero, Vector2.zero);
             lbl.text = UILanguage.Translate("Endless Mode", "Endless Mode", "Endless Mode");
             Shadow shadow = lbl.gameObject.AddComponent<Shadow>();
             shadow.effectColor = new Color(0.14f, 0.05f, 0.20f, 0.44f);
@@ -635,6 +674,33 @@ namespace TowerMaze
             UICandySkin.ApplyCandyButton(img, textureName, slice, ppu);
         }
 
+        private void ApplyMainPremiumSurface(Image image, string premiumSpriteName, string fallbackTextureName, bool preserveAspect)
+        {
+            if (image == null)
+            {
+                return;
+            }
+
+            Sprite premiumSprite = UICandySkin.GetSprite(premiumSpriteName, 100f);
+            if (premiumSprite != null)
+            {
+                image.sprite = premiumSprite;
+                image.type = Image.Type.Simple;
+                image.preserveAspect = preserveAspect;
+                image.color = Color.white;
+                return;
+            }
+
+            Sprite fallbackSprite = UICandySkin.GetSprite(fallbackTextureName, 100f);
+            if (fallbackSprite != null)
+            {
+                image.sprite = fallbackSprite;
+                image.type = Image.Type.Simple;
+                image.preserveAspect = preserveAspect;
+                image.color = Color.white;
+            }
+        }
+
         private void SetupCandyPanel(Image img)
         {
             SetupCandyButton(img, "sheet_modal_panel", new Vector4(220f, 220f, 220f, 220f), 220f);
@@ -682,16 +748,105 @@ namespace TowerMaze
 
         private void ApplyCandySheetPanel(Image image)
         {
-            SetupCandyPanel(image);
-            image.color = SheetPanelTint;
-            ConfigureCandyChrome(image, SheetChromeShadowTint, SheetChromeOutlineTint, new Vector2(0f, -10f), new Vector2(2f, -2f));
+            ApplyMainPremiumSurface(image, "main_premium_panel", "sheet_modal_panel", preserveAspect: false);
+            image.color = Color.white;
+            ConfigureCandyChrome(image, new Color(0f, 0f, 0f, 0.36f), new Color(0.82f, 0.24f, 1f, 0.16f), new Vector2(0f, -12f), new Vector2(1f, -1f));
         }
 
         private void ApplyCandySectionRow(Image image, Color tint)
         {
-            SetupCandyRow(image);
+            Sprite pillSprite = GetFlatPillSprite();
+            if (pillSprite != null)
+            {
+                image.sprite = pillSprite;
+                image.type = Image.Type.Sliced;
+                image.pixelsPerUnitMultiplier = 1f;
+            }
+            else
+            {
+                image.sprite = null;
+                image.type = Image.Type.Simple;
+            }
             image.color = tint;
-            ConfigureCandyChrome(image, new Color(0.08f, 0.03f, 0.16f, 0.14f), new Color(0.48f, 0.35f, 0.76f, 0.18f), new Vector2(0f, -4f), new Vector2(1f, -1f));
+            ConfigureCandyChrome(image, new Color(0f, 0f, 0f, 0.22f), new Color(0.86f, 0.33f, 1f, 0.12f), new Vector2(0f, -3f), new Vector2(1f, -1f));
+        }
+
+        private bool TryApplyLeaderboardPremiumModalSprite(Image target)
+        {
+            if (target == null)
+            {
+                return false;
+            }
+
+            if (leaderboardPremiumModalSprite == null)
+            {
+                Texture2D texture = Resources.Load<Texture2D>("TowerMaze/UITheme/leaderboard_modal_premium_clean");
+                if (texture == null)
+                {
+                    return false;
+                }
+
+                leaderboardPremiumModalSprite = Sprite.Create(
+                    texture,
+                    new Rect(0f, 0f, texture.width, texture.height),
+                    new Vector2(0.5f, 0.5f),
+                    100f);
+                leaderboardPremiumModalSprite.name = "TowerMaze_LeaderboardPremiumModal";
+            }
+
+            target.sprite = leaderboardPremiumModalSprite;
+            target.type = Image.Type.Simple;
+            target.preserveAspect = false;
+            target.color = Color.white;
+            return true;
+        }
+
+        private void ApplyLeaderboardPremiumPanel(Image image)
+        {
+            ApplyMainPremiumSurface(image, "main_premium_panel", "sheet_modal_panel", preserveAspect: false);
+            image.color = Color.white;
+            ConfigureCandyChrome(image, new Color(0f, 0f, 0f, 0.48f), new Color(0.86f, 0.33f, 1f, 0.18f), new Vector2(0f, -16f), new Vector2(1f, -1f));
+        }
+
+        private void ApplyLeaderboardPremiumPlate(Image image, Color tint, Color outlineTint, Vector2 outlineDistance)
+        {
+            if (image == null)
+            {
+                return;
+            }
+
+            Sprite pillSprite = GetFlatPillSprite();
+            if (pillSprite != null)
+            {
+                image.sprite = pillSprite;
+                image.type = Image.Type.Sliced;
+                image.pixelsPerUnitMultiplier = 1f;
+            }
+            else
+            {
+                image.sprite = null;
+                image.type = Image.Type.Simple;
+            }
+            image.color = tint;
+            image.raycastTarget = true;
+            ConfigureCandyChrome(image, new Color(0f, 0f, 0f, 0.26f), new Color(0.86f, 0.33f, 1f, 0.12f), new Vector2(0f, -4f), new Vector2(1f, -1f));
+            AddAmbientGloss(image.rectTransform, "PremiumPlateGloss", new Vector2(0.035f, 0.64f), new Vector2(0.965f, 0.94f), new Color(1f, 1f, 1f, 0.07f), new Color(1f, 1f, 1f, 0f));
+        }
+
+        private static void AddLeaderboardTextChrome(Text text, Color shadowColor, Color outlineColor, Vector2 shadowDistance, Vector2 outlineDistance)
+        {
+            if (text == null)
+            {
+                return;
+            }
+
+            Shadow shadow = text.GetComponent<Shadow>() ?? text.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = shadowColor;
+            shadow.effectDistance = shadowDistance;
+
+            Outline outline = text.GetComponent<Outline>() ?? text.gameObject.AddComponent<Outline>();
+            outline.effectColor = outlineColor;
+            outline.effectDistance = outlineDistance;
         }
 
         private void AddAmbientGloss(RectTransform parent, string name, Vector2 anchorMin, Vector2 anchorMax, Color topColor, Color bottomColor)
@@ -747,30 +902,18 @@ namespace TowerMaze
             UIManager.Stretch(ribbon.rectTransform, anchorMin, anchorMax, Vector2.zero, Vector2.zero);
 
             GradientImage gloss = GetOrCreateGradient(ribbon.rectTransform, "Gloss");
-            gloss.colorTop = new Color(1f, 1f, 1f, 0.26f);
+            gloss.colorTop = new Color(1f, 1f, 1f, 0.14f);
             gloss.colorBottom = new Color(1f, 1f, 1f, 0f);
             UIManager.Stretch(gloss.rectTransform, new Vector2(0.03f, 0.54f), new Vector2(0.97f, 0.96f), Vector2.zero, Vector2.zero);
             gloss.rectTransform.SetAsFirstSibling();
             gloss.raycastTarget = false;
 
-            GradientImage warmRim = GetOrCreateGradient(ribbon.rectTransform, "WarmRim");
-            warmRim.colorTop = new Color(1f, 0.82f, 0.44f, 0.24f);
-            warmRim.colorBottom = new Color(1f, 0.82f, 0.44f, 0f);
-            UIManager.Stretch(warmRim.rectTransform, new Vector2(0.02f, 0.78f), new Vector2(0.98f, 0.98f), Vector2.zero, Vector2.zero);
-            warmRim.rectTransform.SetAsFirstSibling();
-            warmRim.raycastTarget = false;
-
-            Image orb = UIManager.CreateImage(name + "Orb", ribbon.transform, Color.white);
-            SetupCandyOrb(orb);
-            UIManager.Stretch(orb.rectTransform, new Vector2(0.03f, 0.16f), new Vector2(0.15f, 0.84f), Vector2.zero, Vector2.zero);
-            orb.raycastTarget = false;
-
-            Text title = UIManager.CreateText(name + "Text", ribbon.transform, font, fontSize, TextAnchor.MiddleLeft, SheetTitleTextTint);
+            Text title = UIManager.CreateText(name + "Text", ribbon.transform, font, fontSize, TextAnchor.MiddleCenter, SheetTitleTextTint);
             title.text = fallbackText;
             title.fontStyle = FontStyle.Bold;
             title.resizeTextForBestFit = true;
             UIManager.SetScaledBestFit(title, Mathf.Max(14, fontSize - 5), fontSize, UIFontRole.Popup);
-            UIManager.Stretch(title.rectTransform, new Vector2(0.16f, 0.06f), new Vector2(0.90f, 0.94f), new Vector2(4f, 0f), new Vector2(-8f, 0f));
+            UIManager.Stretch(title.rectTransform, new Vector2(0.08f, 0.06f), new Vector2(0.92f, 0.94f), Vector2.zero, Vector2.zero);
 
             Shadow titleShadow = title.GetComponent<Shadow>() ?? title.gameObject.AddComponent<Shadow>();
             titleShadow.effectColor = SheetTitleShadowTint;
@@ -911,6 +1054,7 @@ namespace TowerMaze
             }
 
             Button closeButton = UIManager.CreateCandyCloseButton("CloseBtn", card.transform, font, 16);
+            ApplyMainPremiumSurface(closeButton.targetGraphic as Image, "main_premium_icon_frame", "out_btn_purple", preserveAspect: true);
             UIManager.BindButton(closeButton, HideSettingsPanel, buttonClickSound);
             var closeRt = (RectTransform)closeButton.transform;
             closeRt.anchorMin = new Vector2(1f, 1f);
@@ -920,7 +1064,7 @@ namespace TowerMaze
             closeRt.sizeDelta = new Vector2(54f, 54f);
 
             Image controlsBacker = UIManager.CreateImage("ControlsBacker", card.transform, Color.white);
-            ApplyCandySectionRow(controlsBacker, new Color(SheetSectionTint.r, SheetSectionTint.g, SheetSectionTint.b, 0.56f));
+            ApplyCandySectionRow(controlsBacker, new Color(SheetSectionTint.r, SheetSectionTint.g, SheetSectionTint.b, 0.82f));
             controlsBacker.rectTransform.anchorMin = new Vector2(0.08f, 0.46f);
             controlsBacker.rectTransform.anchorMax = new Vector2(0.92f, 0.76f);
             controlsBacker.rectTransform.offsetMin = controlsBacker.rectTransform.offsetMax = Vector2.zero;
@@ -947,7 +1091,7 @@ namespace TowerMaze
                 () => { onToggleVibration?.Invoke(); });
 
             Image languageBacker = UIManager.CreateImage("LanguageBacker", card.transform, Color.white);
-            ApplyCandySectionRow(languageBacker, new Color(SheetSectionTint.r, SheetSectionTint.g, SheetSectionTint.b, 0.46f));
+            ApplyCandySectionRow(languageBacker, new Color(SheetSectionTint.r, SheetSectionTint.g, SheetSectionTint.b, 0.80f));
             languageBacker.rectTransform.anchorMin = new Vector2(0.08f, 0.18f);
             languageBacker.rectTransform.anchorMax = new Vector2(0.92f, 0.40f);
             languageBacker.rectTransform.offsetMin = languageBacker.rectTransform.offsetMax = Vector2.zero;
@@ -966,7 +1110,7 @@ namespace TowerMaze
             languageLabelText = langLabel;
 
             Image langCard = UIManager.CreateCard("LanguageCard", languageBacker.transform, Color.white, new Color(0f, 0f, 0f, 0f));
-            ApplyCandySectionRow(langCard, SheetSectionTint);
+            ApplyCandySectionRow(langCard, new Color(0.080f, 0.026f, 0.160f, 0.92f));
             langCard.rectTransform.anchorMin = new Vector2(0.05f, 0.12f);
             langCard.rectTransform.anchorMax = new Vector2(0.95f, 0.64f);
             langCard.rectTransform.offsetMin = langCard.rectTransform.offsetMax = Vector2.zero;
@@ -981,13 +1125,13 @@ namespace TowerMaze
 
             RefreshLanguageTabs();
 
-            Button privacyBtn = UIManager.CreateButton("PrivacyBtn", card.transform, font, "PRIVACY POLICY", Color.white, Color.white);
-            SetupCandyButton(privacyBtn.targetGraphic as Image, "out_btn_purple", new Vector4(150f, 160f, 150f, 160f), 350f);
+            Button privacyBtn = UIManager.CreateButton("PrivacyBtn", card.transform, font, "PRIVACY", Color.white, Color.white);
+            ApplyMainPremiumSurface(privacyBtn.targetGraphic as Image, "main_premium_button", "out_btn_purple", preserveAspect: false);
             RectTransform privacyRt = (RectTransform)privacyBtn.transform;
             privacyRt.anchorMin = new Vector2(0.08f, 0.05f);
-            privacyRt.anchorMax = new Vector2(0.49f, 0.13f);
+            privacyRt.anchorMax = new Vector2(0.48f, 0.13f);
             privacyRt.offsetMin = privacyRt.offsetMax = Vector2.zero;
-            AddAmbientGloss(privacyRt, "PrivacyButtonGloss", new Vector2(0.03f, 0.56f), new Vector2(0.97f, 0.95f), new Color(1f, 1f, 1f, 0.22f), new Color(1f, 1f, 1f, 0f));
+            AddAmbientGloss(privacyRt, "PrivacyButtonGloss", new Vector2(0.03f, 0.58f), new Vector2(0.97f, 0.94f), new Color(1f, 1f, 1f, 0.10f), new Color(1f, 1f, 1f, 0f));
             UIManager.StyleButtonLabel(privacyBtn, 14, TextAnchor.MiddleCenter, Vector2.zero, Vector2.zero);
             privacyButtonText = privacyBtn.GetComponentInChildren<Text>();
             if (privacyButtonText != null)
@@ -1000,12 +1144,12 @@ namespace TowerMaze
             UIManager.BindButton(privacyBtn, ShowPrivacyPolicySheet, buttonClickSound);
 
             Button qualityBtn = UIManager.CreateButton("QualityBtn", card.transform, font, "GRAPHICS", Color.white, Color.white);
-            SetupCandyButton(qualityBtn.targetGraphic as Image, "out_btn_purple", new Vector4(150f, 160f, 150f, 160f), 350f);
+            ApplyMainPremiumSurface(qualityBtn.targetGraphic as Image, "main_premium_button", "out_btn_purple", preserveAspect: false);
             RectTransform qualityRt = (RectTransform)qualityBtn.transform;
-            qualityRt.anchorMin = new Vector2(0.51f, 0.05f);
+            qualityRt.anchorMin = new Vector2(0.52f, 0.05f);
             qualityRt.anchorMax = new Vector2(0.92f, 0.13f);
             qualityRt.offsetMin = qualityRt.offsetMax = Vector2.zero;
-            AddAmbientGloss(qualityRt, "QualityButtonGloss", new Vector2(0.03f, 0.56f), new Vector2(0.97f, 0.95f), new Color(1f, 1f, 1f, 0.22f), new Color(1f, 1f, 1f, 0f));
+            AddAmbientGloss(qualityRt, "QualityButtonGloss", new Vector2(0.03f, 0.58f), new Vector2(0.97f, 0.94f), new Color(1f, 1f, 1f, 0.10f), new Color(1f, 1f, 1f, 0f));
             UIManager.StyleButtonLabel(qualityBtn, 14, TextAnchor.MiddleCenter, Vector2.zero, Vector2.zero);
             graphicsQualityButtonText = qualityBtn.GetComponentInChildren<Text>();
             if (graphicsQualityButtonText != null)
@@ -1079,7 +1223,7 @@ namespace TowerMaze
         {
             float rowHalfHeight = 0.15f;
             Image rowShell = UIManager.CreateImage(labelStr + "Row", parent, Color.white);
-            ApplyCandySectionRow(rowShell, new Color(1f, 1f, 1f, 0.92f));
+            ApplyCandySectionRow(rowShell, new Color(0.105f, 0.035f, 0.205f, 0.94f));
             rowShell.rectTransform.anchorMin = new Vector2(0.05f, anchorYMid - rowHalfHeight);
             rowShell.rectTransform.anchorMax = new Vector2(0.95f, anchorYMid + rowHalfHeight);
             rowShell.rectTransform.offsetMin = rowShell.rectTransform.offsetMax = Vector2.zero;
@@ -1097,7 +1241,7 @@ namespace TowerMaze
             iconImg.rectTransform.localScale = new Vector3(1.65f, 1.65f, 1f);
 
             var lbl = UIManager.CreateText("Lbl_" + labelStr, rowShell.transform, font, 18,
-                TextAnchor.MiddleLeft, UIStyle.PopupText);
+                TextAnchor.MiddleLeft, LeaderboardPremiumText);
             lbl.text = labelStr.ToUpperInvariant();
             lbl.fontStyle = FontStyle.Bold;
             lbl.resizeTextForBestFit = true;
@@ -1110,7 +1254,7 @@ namespace TowerMaze
             chipBg = go.AddComponent<Image>();
             chipBg.preserveAspect = true;
             chipBg.color = Color.white;
-            chipBg.sprite = Resources.Load<Sprite>("TowerMaze/UITheme/jelly_btn_off");
+            ApplyMainPremiumSurface(chipBg, "main_premium_button", "out_btn_purple", preserveAspect: true);
             ConfigureCandyChrome(
                 chipBg,
                 new Color(0.10f, 0.06f, 0.16f, 0.16f),
@@ -1151,8 +1295,7 @@ namespace TowerMaze
             var go = new GameObject($"Lang_{code}");
             go.transform.SetParent(parent, false);
             var img = go.AddComponent<Image>();
-            img.sprite = Resources.Load<Sprite>("TowerMaze/UITheme/jelly_btn_off");
-            img.preserveAspect = true;
+            ApplyMainPremiumSurface(img, "main_premium_button", "out_btn_purple", preserveAspect: true);
             img.color = Color.white;
             
             var rt = go.GetComponent<RectTransform>();
@@ -1362,7 +1505,7 @@ namespace TowerMaze
                 QualityOverrideMode.High => TranslateText("YUKSEK", "HIGH", "ALTO"),
                 _ => TranslateText("OTO", "AUTO", "AUTO"),
             };
-            string prefix = TranslateText("GRAFIK", "GRAPHICS", "GRAFICOS");
+            string prefix = TranslateText("GFX", "GFX", "GFX");
             graphicsQualityButtonText.text = $"{prefix}: {modeWord}";
         }
 
@@ -1414,17 +1557,17 @@ namespace TowerMaze
             leaderboardOverlay.transform.SetParent(transform, false);
             RectTransform overlayRt = leaderboardOverlay.AddComponent<RectTransform>();
             UIManager.Stretch(overlayRt, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            leaderboardOverlay.AddComponent<Image>().color = SheetOverlayTint;
+            leaderboardOverlay.AddComponent<Image>().color = LeaderboardPremiumOverlayTint;
             leaderboardOverlay.AddComponent<CanvasGroup>().alpha = 1f;
 
             GameObject cardGo = new GameObject("LeaderboardCard");
             cardGo.transform.SetParent(leaderboardOverlay.transform, false);
             leaderboardSheet = cardGo.AddComponent<RectTransform>();
-            leaderboardSheet.anchorMin = new Vector2(0.05f, 0.12f);
-            leaderboardSheet.anchorMax = new Vector2(0.95f, 0.87f);
+            leaderboardSheet.anchorMin = new Vector2(0.08f, 0.13f);
+            leaderboardSheet.anchorMax = new Vector2(0.92f, 0.90f);
             leaderboardSheet.offsetMin = leaderboardSheet.offsetMax = Vector2.zero;
             Image cardImage = cardGo.AddComponent<Image>();
-            ApplyCandySheetPanel(cardImage);
+            ApplyLeaderboardPremiumPanel(cardImage);
             cardGo.AddComponent<CanvasGroup>().alpha = 0f;
 
             Image handle = UIManager.CreateImage("Handle", cardGo.transform, Color.clear);
@@ -1433,38 +1576,40 @@ namespace TowerMaze
             handle.rectTransform.offsetMin = handle.rectTransform.offsetMax = Vector2.zero;
             handle.raycastTarget = false;
 
-            leaderboardTitleText = CreateCandyTitleRibbon(cardGo.transform, font, "LeaderboardTitle", "TOP RUNS", new Vector2(0.08f, 0.82f), new Vector2(0.92f, 0.95f), 21);
-            Texture2D leaderboardOrbTexture = Resources.Load<Texture2D>("TowerMaze/UITheme/out_icon_flag");
-            if (leaderboardOrbTexture != null)
-            {
-                Sprite leaderboardOrbSprite = Sprite.Create(leaderboardOrbTexture, new Rect(0, 0, leaderboardOrbTexture.width, leaderboardOrbTexture.height), new Vector2(0.5f, 0.5f), 100f);
-                ApplyTitleOrbSprite(cardGo.transform, "LeaderboardTitle", leaderboardOrbSprite);
-            }
+            leaderboardTitleText = UIManager.CreateText("LeaderboardTitle", cardGo.transform, font, 24, TextAnchor.MiddleCenter, LeaderboardPremiumGold, UIFontRole.Popup);
+            leaderboardTitleText.text = "LEADERBOARD";
+            leaderboardTitleText.fontStyle = FontStyle.Bold;
+            leaderboardTitleText.resizeTextForBestFit = true;
+            UIManager.SetScaledBestFit(leaderboardTitleText, 18, 24, UIFontRole.Popup);
+            UIManager.Stretch(leaderboardTitleText.rectTransform, new Vector2(0.14f, 0.842f), new Vector2(0.86f, 0.908f), Vector2.zero, Vector2.zero);
+            AddLeaderboardTextChrome(leaderboardTitleText, new Color(0f, 0f, 0f, 0.52f), new Color(1f, 0.58f, 0.16f, 0.24f), new Vector2(0f, -2.2f), new Vector2(1.2f, -1.2f));
 
             Image subtitleChip = UIManager.CreateImage("SubtitleChip", cardGo.transform, Color.white);
-            ApplyCandySectionRow(subtitleChip, SheetSectionTint);
-            subtitleChip.rectTransform.anchorMin = new Vector2(0.12f, 0.73f);
-            subtitleChip.rectTransform.anchorMax = new Vector2(0.88f, 0.81f);
+            ApplyLeaderboardPremiumPlate(subtitleChip, new Color(0.070f, 0.025f, 0.085f, 0.92f), new Color(1f, 0.66f, 0.18f, 0.34f), new Vector2(1f, -1f));
+            subtitleChip.raycastTarget = false;
+            subtitleChip.rectTransform.anchorMin = new Vector2(0.145f, 0.690f);
+            subtitleChip.rectTransform.anchorMax = new Vector2(0.855f, 0.730f);
             subtitleChip.rectTransform.offsetMin = subtitleChip.rectTransform.offsetMax = Vector2.zero;
 
             BuildLeaderboardTabStrip(cardGo.transform, font);
 
-            leaderboardSubtitleText = UIManager.CreateText("Subtitle", cardGo.transform, font, 15, TextAnchor.MiddleLeft, UIStyle.PopupTextDim);
+            leaderboardSubtitleText = UIManager.CreateText("Subtitle", cardGo.transform, font, 13, TextAnchor.MiddleLeft, LeaderboardPremiumMutedText);
             leaderboardSubtitleText.text = "Sen: 0m - #--. sira";
+            leaderboardSubtitleText.fontStyle = FontStyle.Bold;
             leaderboardSubtitleText.resizeTextForBestFit = true;
-            UIManager.SetScaledBestFit(leaderboardSubtitleText, 13, 15, UIFontRole.Popup);
+            UIManager.SetScaledBestFit(leaderboardSubtitleText, 11, 13, UIFontRole.Popup);
             leaderboardSubtitleText.rectTransform.SetParent(subtitleChip.transform, false);
-            UIManager.Stretch(leaderboardSubtitleText.rectTransform, Vector2.zero, Vector2.one, new Vector2(16f, 0f), new Vector2(-16f, 0f));
+            UIManager.Stretch(leaderboardSubtitleText.rectTransform, Vector2.zero, Vector2.one, new Vector2(20f, 0f), new Vector2(-20f, 0f));
+            AddLeaderboardTextChrome(leaderboardSubtitleText, new Color(0f, 0f, 0f, 0.30f), new Color(0f, 0f, 0f, 0.16f), new Vector2(0f, -1.2f), new Vector2(0.6f, -0.6f));
 
             GameObject viewportObject = new GameObject("LeaderboardViewport");
             viewportObject.transform.SetParent(cardGo.transform, false);
             RectTransform viewportRect = viewportObject.AddComponent<RectTransform>();
-            // Compressed top from 0.71 -> 0.65 to make room for the mode tab strip.
-            viewportRect.anchorMin = new Vector2(0.10f, 0.17f);
-            viewportRect.anchorMax = new Vector2(0.90f, 0.65f);
+            viewportRect.anchorMin = new Vector2(0.120f, 0.205f);
+            viewportRect.anchorMax = new Vector2(0.880f, 0.600f);
             viewportRect.offsetMin = viewportRect.offsetMax = Vector2.zero;
             Image viewportImage = viewportObject.AddComponent<Image>();
-            viewportImage.color = new Color(1f, 1f, 1f, 0.03f);
+            viewportImage.color = new Color(0.025f, 0.010f, 0.038f, 0.30f);
             viewportImage.raycastTarget = true;
             Mask viewportMask = viewportObject.AddComponent<Mask>();
             viewportMask.showMaskGraphic = false;
@@ -1490,30 +1635,34 @@ namespace TowerMaze
             UIManager.Stretch(leaderboardContentRect, new Vector2(0f, 1f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
             leaderboardContentRect.pivot = new Vector2(0.5f, 1f);
             VerticalLayoutGroup layout = contentObject.AddComponent<VerticalLayoutGroup>();
-            layout.spacing = 12f;
+            layout.spacing = LeaderboardRowSpacing;
             layout.childAlignment = TextAnchor.UpperCenter;
             layout.childControlWidth = true;
             layout.childControlHeight = false;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
-            layout.padding = new RectOffset(0, 0, 0, 8);
+            layout.padding = new RectOffset(0, 0, 0, LeaderboardContentBottomPadding);
             ContentSizeFitter fitter = contentObject.AddComponent<ContentSizeFitter>();
             fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             leaderboardScrollRect.content = leaderboardContentRect;
 
             Button closeBtn = UIManager.CreateButton("CloseBtn", cardGo.transform, font, "KAPAT", Color.white, Color.white);
-            SetupCandyButton(closeBtn.targetGraphic as Image, "out_btn_purple", new Vector4(150f, 160f, 150f, 160f), 350f);
+            ApplyMainPremiumSurface(closeBtn.targetGraphic as Image, "main_premium_cta", "out_btn_orange", preserveAspect: false);
             RectTransform closeRt = (RectTransform)closeBtn.transform;
-            closeRt.anchorMin = new Vector2(0.12f, 0.04f);
-            closeRt.anchorMax = new Vector2(0.88f, 0.13f);
+            closeRt.anchorMin = new Vector2(0.20f, 0.085f);
+            closeRt.anchorMax = new Vector2(0.80f, 0.145f);
             closeRt.offsetMin = closeRt.offsetMax = Vector2.zero;
             UIManager.StyleButtonLabel(closeBtn, 16, TextAnchor.MiddleCenter, Vector2.zero, Vector2.zero);
             leaderboardCloseButtonText = closeBtn.GetComponentInChildren<Text>();
             if (leaderboardCloseButtonText != null)
             {
+                leaderboardCloseButtonText.color = Color.white;
+                leaderboardCloseButtonText.fontStyle = FontStyle.Bold;
                 leaderboardCloseButtonText.resizeTextForBestFit = true;
                 UIManager.SetScaledBestFit(leaderboardCloseButtonText, 14, 16, UIFontRole.Button);
+                UIManager.Stretch(leaderboardCloseButtonText.rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 1.5f), new Vector2(0f, -0.5f));
+                AddLeaderboardTextChrome(leaderboardCloseButtonText, new Color(0f, 0f, 0f, 0.46f), new Color(1f, 0.88f, 0.34f, 0.24f), new Vector2(0f, -2f), new Vector2(0.8f, -0.8f));
             }
             UIManager.BindButton(closeBtn, () => StartCoroutine(CloseSheet(leaderboardSheet, leaderboardOverlay)), buttonClickSound);
             RefreshLeaderboardRows(resetPosition: false);
@@ -1682,6 +1831,7 @@ namespace TowerMaze
             UIManager.Stretch(missionCountdownText.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 0f), new Vector2(-10f, 0f));
 
             Button closeButton = UIManager.CreateCandyCloseButton("CloseBtn", card.transform, font, 16);
+            ApplyMainPremiumSurface(closeButton.targetGraphic as Image, "main_premium_icon_frame", "out_btn_purple", preserveAspect: true);
             UIManager.BindButton(closeButton, () => StartCoroutine(CloseSheet(missionsSheet, missionsOverlay)), buttonClickSound);
             RectTransform closeRt = (RectTransform)closeButton.transform;
             closeRt.anchorMin = new Vector2(1f, 1f);
@@ -1720,7 +1870,7 @@ namespace TowerMaze
                 missionCard.rectTransform.anchorMax = new Vector2(1f, yTop);
                 missionCard.rectTransform.offsetMin = missionCard.rectTransform.offsetMax = Vector2.zero;
 
-                Text mTitle = UIManager.CreateText("Title", missionCard.transform, font, 18, TextAnchor.UpperLeft, UIStyle.PopupText);
+                Text mTitle = UIManager.CreateText("Title", missionCard.transform, font, 18, TextAnchor.UpperLeft, LeaderboardPremiumText);
                 mTitle.text = "Görev";
                 mTitle.fontStyle = FontStyle.Bold;
                 mTitle.resizeTextForBestFit = true;
@@ -1730,7 +1880,7 @@ namespace TowerMaze
                 mTitle.rectTransform.offsetMin = mTitle.rectTransform.offsetMax = Vector2.zero;
                 missionTitleTexts[i] = mTitle;
 
-                Text progress = UIManager.CreateText("Progress", missionCard.transform, font, 15, TextAnchor.UpperRight, UIStyle.PopupText);
+                Text progress = UIManager.CreateText("Progress", missionCard.transform, font, 15, TextAnchor.UpperRight, LeaderboardPremiumMutedText);
                 progress.text = "0/0 tamamlandı";
                 progress.resizeTextForBestFit = true;
                 UIManager.SetScaledBestFit(progress, 12, 15, UIFontRole.Popup);
@@ -1748,7 +1898,7 @@ namespace TowerMaze
                     barTrack.type = Image.Type.Sliced;
                     barTrack.pixelsPerUnitMultiplier = 1f;
                 }
-                barTrack.color = new Color(0.18f, 0.13f, 0.30f, 0.95f);
+                barTrack.color = new Color(0.055f, 0.020f, 0.100f, 0.95f);
                 barTrack.rectTransform.anchorMin = new Vector2(0.04f, 0.39f);
                 barTrack.rectTransform.anchorMax = new Vector2(0.96f, 0.51f);
                 barTrack.rectTransform.offsetMin = barTrack.rectTransform.offsetMax = Vector2.zero;
@@ -1761,7 +1911,7 @@ namespace TowerMaze
                     barFill.type = Image.Type.Sliced;
                     barFill.pixelsPerUnitMultiplier = 1f;
                 }
-                barFill.color = UIStyle.MenuBg;
+                barFill.color = new Color(1f, 0.42f, 0.08f, 0.96f);
                 barFill.rectTransform.anchorMin = new Vector2(0f, 0f);
                 barFill.rectTransform.anchorMax = new Vector2(0f, 1f);
                 barFill.rectTransform.offsetMin = barFill.rectTransform.offsetMax = Vector2.zero;
@@ -1769,7 +1919,7 @@ namespace TowerMaze
                 missionProgressFills[i] = barFill;
 
                 Image rewardBg = UIManager.CreateImage("RewardBg", missionCard.transform, new Color(0f, 0f, 0f, 0.4f));
-                SetupCandyButton(rewardBg, "out_btn_orange", new Vector4(150f, 130f, 150f, 130f), 350f);
+                ApplyMainPremiumSurface(rewardBg, "main_premium_cta", "out_btn_orange", preserveAspect: false);
                 rewardBg.color = Color.white;
                 rewardBg.rectTransform.anchorMin = new Vector2(0.65f, 0.12f);
                 rewardBg.rectTransform.anchorMax = new Vector2(0.96f, 0.34f);
@@ -1794,7 +1944,7 @@ namespace TowerMaze
                 rewardText.raycastTarget = false;
                 missionRewardTexts[i] = rewardText;
 
-                Text statusText = UIManager.CreateText("Status", missionCard.transform, font, 16, TextAnchor.MiddleLeft, UIStyle.PopupTextDim);
+                Text statusText = UIManager.CreateText("Status", missionCard.transform, font, 16, TextAnchor.MiddleLeft, LeaderboardPremiumMutedText);
                 statusText.text = "DEVAM";
                 statusText.resizeTextForBestFit = true;
                 UIManager.SetScaledBestFit(statusText, 13, 16, UIFontRole.Popup);
@@ -1804,7 +1954,7 @@ namespace TowerMaze
                 missionStatusTexts[i] = statusText;
 
                 Button claimBtn = UIManager.CreateButton("ClaimBtn", missionCard.transform, font, "CLAIM \u2713", Color.white, Color.white);
-                SetupCandyButton(claimBtn.targetGraphic as Image, "out_btn_orange", new Vector4(150f, 130f, 150f, 130f), 350f);
+                ApplyMainPremiumSurface(claimBtn.targetGraphic as Image, "main_premium_cta", "out_btn_orange", preserveAspect: false);
                 RectTransform claimBtnRt = (RectTransform)claimBtn.transform;
                 claimBtnRt.anchorMin = new Vector2(0.04f, 0.10f);
                 claimBtnRt.anchorMax = new Vector2(0.64f, 0.32f);
@@ -2146,7 +2296,10 @@ namespace TowerMaze
             int targetRowCount = Mathf.Max(activeEntries?.Count ?? 0, 4);
             EnsureLeaderboardRowCount(targetRowCount);
 
+            profileManager = profileManager != null ? profileManager : PlayerProfileManager.Instance ?? FindAnyObjectByType<PlayerProfileManager>();
+            string localProfileName = profileManager != null ? PlayerProfileManager.ToLeaderboardNickname(profileManager.PlayerName) : string.Empty;
             string localPlayerName = PlayerPrefs.GetString("TowerMaze.Firebase.Nickname", PlayerPrefs.GetString("PlayerName", ""));
+            string localUid = PlayerPrefs.GetString("TowerMaze.Firebase.Uid", string.Empty);
             string ownRankText = "--";
 
             if (ownRowPulseRoutine != null)
@@ -2166,9 +2319,7 @@ namespace TowerMaze
 
                 bool hasEntry = activeEntries != null && index < activeEntries.Count;
                 LeaderboardEntry entry = hasEntry ? activeEntries[index] : default;
-                bool isOwnEntry = hasEntry &&
-                                  !string.IsNullOrEmpty(localPlayerName) &&
-                                  string.Equals(entry.label, localPlayerName, StringComparison.OrdinalIgnoreCase);
+                bool isOwnEntry = hasEntry && IsOwnLeaderboardEntry(entry, localUid, localProfileName, localPlayerName);
                 if (isOwnEntry)
                 {
                     ownRankText = (index + 1).ToString();
@@ -2176,20 +2327,35 @@ namespace TowerMaze
 
                 if (isOwnEntry)
                 {
-                    ownRowPulseRoutine = StartCoroutine(RowAlphaPulse(leaderboardRowBgs[index], LogoCandyOwnRowTint, 0.4f, 1f, 1.5f));
+                    ownRowPulseRoutine = StartCoroutine(RowAlphaPulse(leaderboardRowBgs[index], LeaderboardPremiumOwnRowTint, 0.58f, 0.92f, 1.5f));
                 }
                 else
                 {
-                    leaderboardRowBgs[index].color = LeaderboardRowTint;
+                    leaderboardRowBgs[index].color = hasEntry ? LeaderboardPremiumRowTint : LeaderboardPremiumEmptyRowTint;
                 }
                 leaderboardRankTexts[index].text = (index + 1).ToString();
-                leaderboardRankTexts[index].color = isOwnEntry ? Color.white : (index == 0 ? UIStyle.Gold : UIStyle.PopupTextDim);
+                leaderboardRankTexts[index].color = isOwnEntry
+                    ? Color.white
+                    : !hasEntry
+                        ? new Color(0.48f, 0.60f, 0.74f, 0.62f)
+                    : index switch
+                    {
+                        0 => LeaderboardPremiumGold,
+                        1 => new Color(0.78f, 0.88f, 1f, 0.95f),
+                        2 => new Color(1f, 0.55f, 0.24f, 0.95f),
+                        _ => LeaderboardPremiumMutedText
+                    };
+
+                if (index < leaderboardAvatarBackers.Count && leaderboardAvatarBackers[index] != null)
+                {
+                    leaderboardAvatarBackers[index].gameObject.SetActive(hasEntry);
+                }
 
                 Image avatarIcon = leaderboardAvatarIcons[index];
                 avatarIcon.enabled = hasEntry;
                 if (hasEntry)
                 {
-                    Sprite avatarSprite = Resources.Load<Sprite>("TowerMaze/UITheme/icon_avatar_default");
+                    Sprite avatarSprite = ResolveLeaderboardAvatar(entry, isOwnEntry);
                     if (avatarSprite != null)
                     {
                         avatarIcon.sprite = avatarSprite;
@@ -2226,21 +2392,25 @@ namespace TowerMaze
                 }
 
                 leaderboardNameTexts[index].text = hasEntry
-                    ? (string.IsNullOrWhiteSpace(entry.label) ? GetLeaderboardPlaceholderName(index + 1) : entry.label)
+                    ? GetLeaderboardDisplayName(entry, index + 1, isOwnEntry)
                     : "---";
-                leaderboardNameTexts[index].color = hasEntry ? (isOwnEntry ? Color.white : UIStyle.PopupText) : UIStyle.PopupTextDim;
+                leaderboardNameTexts[index].color = hasEntry ? (isOwnEntry ? Color.white : LeaderboardPremiumText) : LeaderboardPremiumMutedText;
+                leaderboardNameTexts[index].rectTransform.anchorMin = hasEntry ? new Vector2(0.300f, 0f) : new Vector2(0.220f, 0f);
+                leaderboardNameTexts[index].rectTransform.anchorMax = new Vector2(0.675f, 1f);
                 // In chapter mode the height field carries the chapter number — the
                 // formatter renders "CH 247" instead of the endless "247m".
                 leaderboardScoreTexts[index].text = hasEntry
                     ? (chapterMode ? $"CH {entry.height:0}" : $"{entry.height:0}m")
                     : (chapterMode ? "CH --" : "0m");
                 leaderboardScoreTexts[index].color = hasEntry
-                    ? (isOwnEntry ? new Color(1f, 0.95f, 0.75f, 1f) : LogoCandyAqua)
-                    : LogoCandyMint;
+                    ? (isOwnEntry ? LeaderboardPremiumGold : LeaderboardPremiumCyan)
+                    : new Color(0.84f, 0.62f, 0.92f, 0.72f);
                 leaderboardRowOutlines[index].effectColor = isOwnEntry
-                    ? new Color(0.44f, 0.22f, 0.72f, 0.80f)
-                    : new Color(0f, 0f, 0f, 0f);
+                    ? new Color(1f, 0.45f, 0.10f, 0.46f)
+                    : (hasEntry ? new Color(0.86f, 0.33f, 1f, 0.18f) : new Color(0.86f, 0.33f, 1f, 0.08f));
             }
+
+            RefreshLeaderboardContentHeight(targetRowCount, resetPosition);
 
             cachedOwnRankText = ownRankText;
             if (leaderboardSubtitleText != null)
@@ -2256,39 +2426,58 @@ namespace TowerMaze
             }
         }
 
+        private void RefreshLeaderboardContentHeight(int rowCount, bool resetPosition)
+        {
+            if (leaderboardContentRect == null || leaderboardScrollRect == null)
+            {
+                return;
+            }
+
+            float rowsHeight = rowCount > 0 ? rowCount * LeaderboardRowHeight : 0f;
+            float spacingHeight = rowCount > 1 ? (rowCount - 1) * LeaderboardRowSpacing : 0f;
+            float preferredHeight = rowsHeight + spacingHeight + LeaderboardContentBottomPadding;
+            float viewportHeight = leaderboardScrollRect.viewport != null ? leaderboardScrollRect.viewport.rect.height : 0f;
+            float contentHeight = Mathf.Max(preferredHeight, viewportHeight + 1f);
+            leaderboardContentRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, contentHeight);
+            if (resetPosition)
+            {
+                leaderboardContentRect.anchoredPosition = Vector2.zero;
+            }
+        }
+
         private void BuildLeaderboardTabStrip(Transform parent, Font font)
         {
-            // Two-button tab strip slotted between the subtitle chip (anchor 0.73-0.81)
-            // and the viewport (anchor 0.17-0.65). Both buttons share the strip evenly.
             GameObject stripGo = new GameObject("LeaderboardTabStrip");
             stripGo.transform.SetParent(parent, false);
             RectTransform stripRt = stripGo.AddComponent<RectTransform>();
-            stripRt.anchorMin = new Vector2(0.10f, 0.66f);
-            stripRt.anchorMax = new Vector2(0.90f, 0.72f);
+            stripRt.anchorMin = new Vector2(0.120f, 0.632f);
+            stripRt.anchorMax = new Vector2(0.880f, 0.678f);
             stripRt.offsetMin = stripRt.offsetMax = Vector2.zero;
 
             leaderboardTabEndlessBg = UIManager.CreateImage("TabEndless", stripGo.transform, Color.white);
-            ApplyCandySectionRow(leaderboardTabEndlessBg, SheetSectionTint);
+            ApplyLeaderboardPremiumPlate(leaderboardTabEndlessBg, LeaderboardPremiumActiveTabTint, new Color(1f, 0.74f, 0.22f, 0.62f), new Vector2(2f, -2f));
             leaderboardTabEndlessBg.rectTransform.anchorMin = new Vector2(0f, 0f);
-            leaderboardTabEndlessBg.rectTransform.anchorMax = new Vector2(0.49f, 1f);
+            leaderboardTabEndlessBg.rectTransform.anchorMax = new Vector2(0.48f, 1f);
             leaderboardTabEndlessBg.rectTransform.offsetMin = leaderboardTabEndlessBg.rectTransform.offsetMax = Vector2.zero;
-            leaderboardTabEndlessLabel = UIManager.CreateText("Label", leaderboardTabEndlessBg.transform, font, 16, TextAnchor.MiddleCenter, UIStyle.PopupText, UIFontRole.Popup);
+            leaderboardTabEndlessLabel = UIManager.CreateText("Label", leaderboardTabEndlessBg.transform, font, 15, TextAnchor.MiddleCenter, Color.white, UIFontRole.Popup);
             leaderboardTabEndlessLabel.fontStyle = FontStyle.Bold;
-            UIManager.Stretch(leaderboardTabEndlessLabel.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            UIManager.SetScaledBestFit(leaderboardTabEndlessLabel, 12, 16, UIFontRole.Popup);
+            UIManager.Stretch(leaderboardTabEndlessLabel.rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 2f), new Vector2(0f, -1f));
+            UIManager.SetScaledBestFit(leaderboardTabEndlessLabel, 12, 15, UIFontRole.Popup);
+            AddLeaderboardTextChrome(leaderboardTabEndlessLabel, new Color(0f, 0f, 0f, 0.35f), new Color(1f, 0.80f, 0.28f, 0.18f), new Vector2(0f, -1.5f), new Vector2(0.7f, -0.7f));
             Button endlessBtn = leaderboardTabEndlessBg.gameObject.AddComponent<Button>();
             endlessBtn.targetGraphic = leaderboardTabEndlessBg;
             UIManager.BindButton(endlessBtn, () => SetLeaderboardMode(LeaderboardMode.Endless), null);
 
             leaderboardTabChapterBg = UIManager.CreateImage("TabChapter", stripGo.transform, Color.white);
-            ApplyCandySectionRow(leaderboardTabChapterBg, SheetSectionTint);
-            leaderboardTabChapterBg.rectTransform.anchorMin = new Vector2(0.51f, 0f);
+            ApplyLeaderboardPremiumPlate(leaderboardTabChapterBg, LeaderboardPremiumInactiveTabTint, new Color(0.28f, 0.94f, 0.46f, 0.34f), new Vector2(2f, -2f));
+            leaderboardTabChapterBg.rectTransform.anchorMin = new Vector2(0.52f, 0f);
             leaderboardTabChapterBg.rectTransform.anchorMax = new Vector2(1f, 1f);
             leaderboardTabChapterBg.rectTransform.offsetMin = leaderboardTabChapterBg.rectTransform.offsetMax = Vector2.zero;
-            leaderboardTabChapterLabel = UIManager.CreateText("Label", leaderboardTabChapterBg.transform, font, 16, TextAnchor.MiddleCenter, UIStyle.PopupText, UIFontRole.Popup);
+            leaderboardTabChapterLabel = UIManager.CreateText("Label", leaderboardTabChapterBg.transform, font, 15, TextAnchor.MiddleCenter, Color.white, UIFontRole.Popup);
             leaderboardTabChapterLabel.fontStyle = FontStyle.Bold;
-            UIManager.Stretch(leaderboardTabChapterLabel.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            UIManager.SetScaledBestFit(leaderboardTabChapterLabel, 12, 16, UIFontRole.Popup);
+            UIManager.Stretch(leaderboardTabChapterLabel.rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 2f), new Vector2(0f, -1f));
+            UIManager.SetScaledBestFit(leaderboardTabChapterLabel, 12, 15, UIFontRole.Popup);
+            AddLeaderboardTextChrome(leaderboardTabChapterLabel, new Color(0f, 0f, 0f, 0.35f), new Color(1f, 0.56f, 0.18f, 0.14f), new Vector2(0f, -1.5f), new Vector2(0.7f, -0.7f));
             Button chapterBtn = leaderboardTabChapterBg.gameObject.AddComponent<Button>();
             chapterBtn.targetGraphic = leaderboardTabChapterBg;
             UIManager.BindButton(chapterBtn, () => SetLeaderboardMode(LeaderboardMode.Chapter), null);
@@ -2310,20 +2499,20 @@ namespace TowerMaze
             if (leaderboardTabEndlessLabel != null)
             {
                 leaderboardTabEndlessLabel.text = UILanguage.Translate("ENDLESS", "ENDLESS", "INFINITO");
-                leaderboardTabEndlessLabel.color = endless ? Color.white : LogoCandyChipInactiveText;
+                leaderboardTabEndlessLabel.color = endless ? Color.white : new Color(0.88f, 0.76f, 0.92f, 0.82f);
             }
             if (leaderboardTabChapterLabel != null)
             {
                 leaderboardTabChapterLabel.text = UILanguage.Translate("BOLUM", "CHAPTER", "NIVEL");
-                leaderboardTabChapterLabel.color = endless ? LogoCandyChipInactiveText : Color.white;
+                leaderboardTabChapterLabel.color = endless ? new Color(0.88f, 0.76f, 0.92f, 0.82f) : Color.white;
             }
             if (leaderboardTabEndlessBg != null)
             {
-                leaderboardTabEndlessBg.color = endless ? LogoCandyChipActive : LogoCandyChipInactive;
+                leaderboardTabEndlessBg.color = endless ? LeaderboardPremiumActiveTabTint : LeaderboardPremiumInactiveTabTint;
             }
             if (leaderboardTabChapterBg != null)
             {
-                leaderboardTabChapterBg.color = endless ? LogoCandyChipInactive : LogoCandyChipActive;
+                leaderboardTabChapterBg.color = endless ? LeaderboardPremiumInactiveTabTint : LeaderboardPremiumActiveTabTint;
             }
         }
 
@@ -2337,67 +2526,183 @@ namespace TowerMaze
             while (leaderboardRowBgs.Count < targetRowCount)
             {
                 int index = leaderboardRowBgs.Count;
-                Image row = UIManager.CreateCard($"Row{index}", leaderboardContentRect, Color.white, new Color(0f, 0f, 0f, 0f));
-                ApplyCandySectionRow(row, LeaderboardRowTint);
+                Image row = UIManager.CreateImage($"Row{index}", leaderboardContentRect, LeaderboardPremiumRowTint);
                 row.raycastTarget = false;
+                Shadow rowShadow = row.gameObject.AddComponent<Shadow>();
+                rowShadow.effectColor = new Color(0f, 0f, 0f, 0.36f);
+                rowShadow.effectDistance = new Vector2(0f, -3f);
                 LayoutElement rowLayout = row.gameObject.AddComponent<LayoutElement>();
-                rowLayout.preferredHeight = 96f;
+                rowLayout.preferredHeight = LeaderboardRowHeight;
 
                 Outline ownOutline = row.gameObject.AddComponent<Outline>();
-                ownOutline.effectColor = new Color(0f, 0f, 0f, 0f);
+                ownOutline.effectColor = new Color(1f, 0.64f, 0.18f, 0.24f);
                 ownOutline.effectDistance = new Vector2(2f, -2f);
 
-                Text rank = UIManager.CreateText("Rank", row.transform, runtimeFont, 15, TextAnchor.MiddleCenter, UIStyle.PopupText);
+                Text rank = UIManager.CreateText("Rank", row.transform, runtimeFont, 15, TextAnchor.MiddleCenter, LeaderboardPremiumMutedText);
                 rank.fontStyle = FontStyle.Bold;
                 rank.rectTransform.anchorMin = new Vector2(0.04f, 0f);
                 rank.rectTransform.anchorMax = new Vector2(0.14f, 1f);
                 rank.rectTransform.offsetMin = rank.rectTransform.offsetMax = Vector2.zero;
+                AddLeaderboardTextChrome(rank, new Color(0f, 0f, 0f, 0.32f), new Color(0f, 0f, 0f, 0.12f), new Vector2(0f, -1f), new Vector2(0.5f, -0.5f));
 
                 GameObject avatarGroup = new GameObject("AvatarGroup");
                 avatarGroup.transform.SetParent(row.transform, false);
                 RectTransform avatarRt = avatarGroup.AddComponent<RectTransform>();
-                avatarRt.anchorMin = new Vector2(0.16f, 0.15f);
-                avatarRt.anchorMax = new Vector2(0.26f, 0.85f);
+                avatarRt.anchorMin = new Vector2(0.150f, 0.10f);
+                avatarRt.anchorMax = new Vector2(0.265f, 0.90f);
                 avatarRt.offsetMin = avatarRt.offsetMax = Vector2.zero;
+                Image avatarBacker = avatarGroup.AddComponent<Image>();
+                avatarBacker.color = new Color(0.06f, 0.07f, 0.17f, 0.94f);
+                avatarBacker.raycastTarget = false;
+                Outline avatarBackerOutline = avatarGroup.AddComponent<Outline>();
+                avatarBackerOutline.effectColor = new Color(1f, 0.76f, 0.22f, 0.62f);
+                avatarBackerOutline.effectDistance = new Vector2(2f, -2f);
 
-                Image avatarIcon = UIManager.CreateImage("AvatarIcon", avatarRt, Color.white);
+                GameObject avatarClip = new GameObject("AvatarClip");
+                avatarClip.transform.SetParent(avatarRt, false);
+                RectTransform avatarClipRt = avatarClip.AddComponent<RectTransform>();
+                UIManager.Stretch(avatarClipRt, new Vector2(0.08f, 0.08f), new Vector2(0.92f, 0.92f), Vector2.zero, Vector2.zero);
+
+                Image avatarClipImage = avatarClip.AddComponent<Image>();
+                avatarClipImage.sprite = GetLeaderboardAvatarMaskSprite();
+                avatarClipImage.color = Color.white;
+                avatarClipImage.raycastTarget = false;
+
+                Mask avatarClipMask = avatarClip.AddComponent<Mask>();
+                avatarClipMask.showMaskGraphic = false;
+
+                Image avatarIcon = UIManager.CreateImage("AvatarIcon", avatarClipRt, Color.white);
                 avatarIcon.preserveAspect = true;
-                UIManager.Stretch(avatarIcon.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                UIManager.Stretch(avatarIcon.rectTransform, new Vector2(-0.06f, -0.06f), new Vector2(1.12f, 1.06f), Vector2.zero, Vector2.zero);
                 avatarIcon.color = new Color(1f, 1f, 1f, 0.3f); // Placeholder alpha
 
                 Image avatarFrame = UIManager.CreateImage("AvatarFrame", avatarRt, Color.white);
                 avatarFrame.preserveAspect = true;
-                avatarFrame.rectTransform.anchorMin = new Vector2(-0.1f, -0.1f);
-                avatarFrame.rectTransform.anchorMax = new Vector2(1.1f, 1.1f);
+                avatarFrame.rectTransform.anchorMin = new Vector2(-0.05f, -0.05f);
+                avatarFrame.rectTransform.anchorMax = new Vector2(1.05f, 1.05f);
                 avatarFrame.rectTransform.offsetMin = avatarFrame.rectTransform.offsetMax = Vector2.zero;
                 avatarFrame.enabled = false;
 
-                Text nameText = UIManager.CreateText("Name", row.transform, runtimeFont, 14, TextAnchor.MiddleLeft, UIStyle.PopupText);
+                Text nameText = UIManager.CreateText("Name", row.transform, runtimeFont, 14, TextAnchor.MiddleLeft, LeaderboardPremiumText);
+                nameText.fontStyle = FontStyle.Bold;
                 nameText.resizeTextForBestFit = true;
                 UIManager.SetScaledBestFit(nameText, 12, 14, UIFontRole.Popup);
-                nameText.rectTransform.anchorMin = new Vector2(0.28f, 0f);
-                nameText.rectTransform.anchorMax = new Vector2(0.68f, 1f);
+                nameText.rectTransform.anchorMin = new Vector2(0.300f, 0f);
+                nameText.rectTransform.anchorMax = new Vector2(0.675f, 1f);
                 nameText.rectTransform.offsetMin = nameText.rectTransform.offsetMax = Vector2.zero;
+                AddLeaderboardTextChrome(nameText, new Color(0f, 0f, 0f, 0.30f), new Color(0f, 0f, 0f, 0.14f), new Vector2(0f, -1f), new Vector2(0.5f, -0.5f));
 
-                Text scoreText = UIManager.CreateText("Score", row.transform, runtimeFont, 14, TextAnchor.MiddleRight, UIStyle.Gold);
+                Text scoreText = UIManager.CreateText("Score", row.transform, runtimeFont, 14, TextAnchor.MiddleRight, LeaderboardPremiumCyan);
                 scoreText.fontStyle = FontStyle.Bold;
-                scoreText.rectTransform.anchorMin = new Vector2(0.70f, 0f);
-                scoreText.rectTransform.anchorMax = new Vector2(0.95f, 1f);
+                scoreText.rectTransform.anchorMin = new Vector2(0.700f, 0f);
+                scoreText.rectTransform.anchorMax = new Vector2(0.940f, 1f);
                 scoreText.rectTransform.offsetMin = scoreText.rectTransform.offsetMax = Vector2.zero;
+                AddLeaderboardTextChrome(scoreText, new Color(0f, 0f, 0f, 0.32f), new Color(0.28f, 0.94f, 0.46f, 0.14f), new Vector2(0f, -1f), new Vector2(0.5f, -0.5f));
 
                 leaderboardRowBgs.Add(row);
                 leaderboardRowOutlines.Add(ownOutline);
                 leaderboardRankTexts.Add(rank);
                 leaderboardAvatarIcons.Add(avatarIcon);
                 leaderboardAvatarFrames.Add(avatarFrame);
+                leaderboardAvatarBackers.Add(avatarBacker);
                 leaderboardNameTexts.Add(nameText);
                 leaderboardScoreTexts.Add(scoreText);
             }
         }
 
+        private static Sprite GetLeaderboardAvatarMaskSprite()
+        {
+            if (leaderboardAvatarMaskSprite != null)
+            {
+                return leaderboardAvatarMaskSprite;
+            }
+
+            const int size = 96;
+            const float radius = (size - 2f) * 0.5f;
+            Vector2 center = new((size - 1f) * 0.5f, (size - 1f) * 0.5f);
+            Texture2D texture = new(size, size, TextureFormat.RGBA32, false)
+            {
+                name = "TowerMaze_LeaderboardAvatarMask",
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float distance = Vector2.Distance(new Vector2(x, y), center);
+                    float alpha = Mathf.Clamp01(radius - distance + 1f);
+                    texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                }
+            }
+
+            texture.Apply(false, true);
+            leaderboardAvatarMaskSprite = Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
+            leaderboardAvatarMaskSprite.name = "TowerMaze_LeaderboardAvatarMask";
+            return leaderboardAvatarMaskSprite;
+        }
+
         private string GetLeaderboardPlaceholderName(int rank)
         {
             return $"{TranslateText("Oyuncu", "Player", "Jugador")} {rank}";
+        }
+
+        private bool IsOwnLeaderboardEntry(LeaderboardEntry entry, string localUid, string localProfileName, string localPlayerName)
+        {
+            if (!string.IsNullOrWhiteSpace(localUid) &&
+                !string.IsNullOrWhiteSpace(entry.ownerId) &&
+                string.Equals(entry.ownerId, localUid, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(localProfileName) &&
+                string.Equals(entry.label, localProfileName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return !string.IsNullOrWhiteSpace(localPlayerName) &&
+                   string.Equals(entry.label, localPlayerName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private Sprite ResolveLeaderboardAvatar(LeaderboardEntry entry, bool isOwnEntry)
+        {
+            EnsureProfileAvatarSprites();
+            if (isOwnEntry && profileManager != null && profileAvatarSprites != null && profileAvatarSprites.Count > 0)
+            {
+                int selectedIndex = Mathf.Clamp(profileManager.SelectedAvatarIndex, 0, profileAvatarSprites.Count - 1);
+                return profileAvatarSprites[selectedIndex];
+            }
+
+            if (entry.hasProfileAvatar && profileAvatarSprites != null && profileAvatarSprites.Count > 0)
+            {
+                int avatarIndex = Mathf.Clamp(entry.avatarIndex, 0, profileAvatarSprites.Count - 1);
+                return profileAvatarSprites[avatarIndex];
+            }
+
+            return Resources.Load<Sprite>("TowerMaze/UITheme/icon_avatar_default");
+        }
+
+        private string GetLeaderboardDisplayName(LeaderboardEntry entry, int rank, bool isOwnEntry)
+        {
+            if (isOwnEntry && profileManager != null && !string.IsNullOrWhiteSpace(profileManager.PlayerName))
+            {
+                return profileManager.PlayerName.ToUpperInvariant();
+            }
+
+            return string.IsNullOrWhiteSpace(entry.label) ? GetLeaderboardPlaceholderName(rank) : entry.label;
+        }
+
+        private void EnsureProfileAvatarSprites()
+        {
+            if (profileAvatarSprites != null && profileAvatarSprites.Count > 0)
+            {
+                return;
+            }
+
+            profileAvatarSprites = ProfileAvatarLibrary.LoadSprites();
         }
 
         private string GetMissionProgressSuffix()
@@ -2481,12 +2786,12 @@ namespace TowerMaze
 
             if (leaderboardTitleText != null)
             {
-                leaderboardTitleText.text = TranslateText("En Iyi Kosular", "Top Runs", "Top Runs");
+                leaderboardTitleText.text = TranslateText("LIDERLIK", "LEADERBOARD", "RANKING");
             }
 
             if (leaderboardCloseButtonText != null)
             {
-                leaderboardCloseButtonText.text = TranslateText("Kapat", "Close", "Cerrar");
+                leaderboardCloseButtonText.text = TranslateText("KAPAT", "CLOSE", "CERRAR");
             }
 
             if (leaderboardSubtitleText != null)
@@ -2610,32 +2915,31 @@ namespace TowerMaze
 
         private void ApplySettingsToggleVisuals()
         {
-            Sprite toggleSprite = Resources.Load<Sprite>("TowerMaze/UITheme/jelly_btn_off");
-            Color onTint = new(0.62f, 1f, 0.34f, 1f);
-            Color offTint = Color.white;
+            Color onTint = new(1f, 0.48f, 0.10f, 1f);
+            Color offTint = new(0.54f, 0.22f, 0.82f, 0.78f);
 
             if (settingsSoundToggleBg != null)
             {
-                settingsSoundToggleBg.sprite = toggleSprite;
+                ApplyMainPremiumSurface(settingsSoundToggleBg, cachedSoundEnabled ? "main_premium_cta" : "main_premium_button", cachedSoundEnabled ? "out_btn_orange" : "out_btn_purple", preserveAspect: true);
                 settingsSoundToggleBg.color = cachedSoundEnabled ? onTint : offTint;
                 settingsSoundToggleBg.rectTransform.localScale = Vector3.one;
                 if (settingsSoundToggleText != null)
                 {
                     settingsSoundToggleText.text = cachedSoundEnabled ? TranslateText("ACIK", "ON", "ACTIVO") : TranslateText("KAPALI", "OFF", "INACTIVO");
-                    settingsSoundToggleText.color = cachedSoundEnabled ? Color.white : new Color(0.50f, 0.47f, 0.58f, 1f);
+                    settingsSoundToggleText.color = cachedSoundEnabled ? Color.white : new Color(1f, 1f, 1f, 0.72f);
                     settingsSoundToggleText.fontStyle = FontStyle.Bold;
                 }
             }
 
             if (settingsVibToggleBg != null)
             {
-                settingsVibToggleBg.sprite = toggleSprite;
+                ApplyMainPremiumSurface(settingsVibToggleBg, cachedVibrationEnabled ? "main_premium_cta" : "main_premium_button", cachedVibrationEnabled ? "out_btn_orange" : "out_btn_purple", preserveAspect: true);
                 settingsVibToggleBg.color = cachedVibrationEnabled ? onTint : offTint;
                 settingsVibToggleBg.rectTransform.localScale = Vector3.one;
                 if (settingsVibToggleText != null)
                 {
                     settingsVibToggleText.text = cachedVibrationEnabled ? TranslateText("ACIK", "ON", "ACTIVO") : TranslateText("KAPALI", "OFF", "INACTIVO");
-                    settingsVibToggleText.color = cachedVibrationEnabled ? Color.white : new Color(0.50f, 0.47f, 0.58f, 1f);
+                    settingsVibToggleText.color = cachedVibrationEnabled ? Color.white : new Color(1f, 1f, 1f, 0.72f);
                     settingsVibToggleText.fontStyle = FontStyle.Bold;
                 }
             }
@@ -2685,7 +2989,7 @@ namespace TowerMaze
 
         private string GetPrivacyPolicyButtonLabel()
         {
-            return TranslateText("GIZLILIK POLITIKASI", "PRIVACY POLICY", "POLITICA DE PRIVACIDAD");
+            return TranslateText("GIZLILIK", "PRIVACY", "PRIVACIDAD");
         }
 
         private string GetPrivacyPolicyBody()
@@ -2711,7 +3015,16 @@ namespace TowerMaze
                 "6. Politika degisiklikleri\n" +
                 "Bu gizlilik politikasi zaman zaman guncellenebilir. Oyunda gorunen son surum gecerli kabul edilir.\n\n" +
                 "Iletisim\n" +
-                "Gizlilik ile ilgili sorular icin oyunun magaza sayfasindaki destek kanalini kullanin.",
+                "Gizlilik ile ilgili sorular icin oyunun magaza sayfasindaki destek kanalini kullanin.\n\n" +
+                "─────────────\n" +
+                "Muzik Telifleri\n" +
+                "─────────────\n" +
+                "\"A Journey Awaits!\" - Pierre Bondoerffer (pbondoer) - CC-BY-SA 3.0\n" +
+                "\"Snow May Never End\" - Sindwiller - CC-BY-SA 3.0\n" +
+                "\"Early Rain\" - Pyoescd-Association - CC-BY 4.0\n" +
+                "\"Mysterious Ambience\" - cynicmusic - CC0\n" +
+                "\"Starfield Romance\" - Yoiyami - CC0\n" +
+                "Kaynak: opengameart.org",
                 "Privacy Policy\n\n" +
                 "Tower Maze may process limited data to run the game and support core player features.\n\n" +
                 "1. Data we may collect\n" +
@@ -2732,7 +3045,16 @@ namespace TowerMaze
                 "6. Changes to this policy\n" +
                 "This privacy policy may be updated from time to time. The latest version shown in the game is the active version.\n\n" +
                 "Contact\n" +
-                "For privacy questions, use the support contact listed on the game's store page.",
+                "For privacy questions, use the support contact listed on the game's store page.\n\n" +
+                "─────────────\n" +
+                "Music Credits\n" +
+                "─────────────\n" +
+                "\"A Journey Awaits!\" by Pierre Bondoerffer (pbondoer) - CC-BY-SA 3.0\n" +
+                "\"Snow May Never End\" by Sindwiller - CC-BY-SA 3.0\n" +
+                "\"Early Rain\" by Pyoescd-Association - CC-BY 4.0\n" +
+                "\"Mysterious Ambience\" by cynicmusic - CC0\n" +
+                "\"Starfield Romance\" by Yoiyami - CC0\n" +
+                "Source: opengameart.org",
                 "Politica de Privacidad\n\n" +
                 "Tower Maze puede procesar datos limitados para hacer funcionar el juego y sus funciones principales.\n\n" +
                 "1. Datos que pueden recopilarse\n" +
@@ -2753,7 +3075,16 @@ namespace TowerMaze
                 "6. Cambios en esta politica\n" +
                 "Esta politica puede actualizarse ocasionalmente. La ultima version mostrada en el juego sera la version vigente.\n\n" +
                 "Contacto\n" +
-                "Para consultas de privacidad, usa el canal de soporte indicado en la pagina de la tienda del juego.");
+                "Para consultas de privacidad, usa el canal de soporte indicado en la pagina de la tienda del juego.\n\n" +
+                "─────────────\n" +
+                "Creditos Musicales\n" +
+                "─────────────\n" +
+                "\"A Journey Awaits!\" por Pierre Bondoerffer (pbondoer) - CC-BY-SA 3.0\n" +
+                "\"Snow May Never End\" por Sindwiller - CC-BY-SA 3.0\n" +
+                "\"Early Rain\" por Pyoescd-Association - CC-BY 4.0\n" +
+                "\"Mysterious Ambience\" por cynicmusic - CC0\n" +
+                "\"Starfield Romance\" por Yoiyami - CC0\n" +
+                "Fuente: opengameart.org");
         }
 
         private void ApplyPortraitLayout()
@@ -2763,45 +3094,56 @@ namespace TowerMaze
             bool tallPortrait = aspect > 2.05f;
             float topRowMinY = compactPortrait ? 0.895f : 0.905f;
             float topRowMaxY = compactPortrait ? 0.98f : 0.985f;
-            float lifeBarMaxX = compactPortrait ? 0.34f : (tallPortrait ? 0.30f : 0.32f);
-            float leaderboardMinX = compactPortrait ? 0.70f : 0.73f;
-            float leaderboardMaxX = compactPortrait ? 0.86f : 0.875f;
-            float settingsMinX = compactPortrait ? 0.865f : 0.88f;
+            float avatarMinX = compactPortrait ? 0.020f : 0.025f;
+            float avatarMaxX = compactPortrait ? 0.205f : 0.200f;
+            float lifeBarMinX = compactPortrait ? 0.240f : 0.235f;
+            float lifeBarMaxX = compactPortrait ? 0.660f : 0.655f;
+            float sideButtonMaxX = compactPortrait ? 0.405f : (tallPortrait ? 0.385f : 0.395f);
+            float leaderboardMinX = compactPortrait ? 0.705f : 0.72f;
+            float leaderboardMaxX = compactPortrait ? 0.855f : 0.865f;
+            float settingsMinX = compactPortrait ? 0.865f : 0.875f;
             float settingsMaxX = compactPortrait ? 0.995f : 0.995f;
 
-            float dailyChallengeMinY = compactPortrait ? 0.832f : (tallPortrait ? 0.845f : 0.838f);
-            float dailyChallengeMaxY = compactPortrait ? 0.890f : (tallPortrait ? 0.899f : 0.892f);
+            float dailyChallengeMinY = compactPortrait ? 0.812f : (tallPortrait ? 0.828f : 0.818f);
+            float dailyChallengeMaxY = compactPortrait ? 0.872f : (tallPortrait ? 0.888f : 0.878f);
             float dcHeight = dailyChallengeMaxY - dailyChallengeMinY;
-            float endlessMaxY = dailyChallengeMinY - 0.005f;
+            float endlessMaxY = dailyChallengeMinY - 0.010f;
             float endlessMinY = endlessMaxY - dcHeight;
-            float logoMinY = compactPortrait ? 0.50f : (tallPortrait ? 0.52f : 0.51f);
-            float logoBaseMaxY = compactPortrait ? 0.83f : (tallPortrait ? 0.88f : 0.86f);
-            float logoMaxY = Mathf.Min(logoBaseMaxY, endlessMinY - (compactPortrait ? 0.012f : 0.014f));
-            float startMinY = compactPortrait ? 0.41f : (tallPortrait ? 0.45f : 0.44f);
-            float startMaxY = compactPortrait ? 0.50f : (tallPortrait ? 0.54f : 0.53f);
+            float logoMinY = compactPortrait ? 0.462f : (tallPortrait ? 0.492f : 0.480f);
+            float logoBaseMaxY = compactPortrait ? 0.835f : (tallPortrait ? 0.885f : 0.865f);
+            float logoMaxY = Mathf.Min(logoBaseMaxY, endlessMinY - (compactPortrait ? 0.008f : 0.010f));
+            float startMinY = compactPortrait ? 0.395f : (tallPortrait ? 0.432f : 0.420f);
+            float startMaxY = compactPortrait ? 0.508f : (tallPortrait ? 0.548f : 0.532f);
             float captionMinY = compactPortrait ? 0.35f : (tallPortrait ? 0.39f : 0.385f);
             float captionMaxY = compactPortrait ? 0.42f : (tallPortrait ? 0.46f : 0.445f);
-            float secondaryMinY = compactPortrait ? 0.27f : (tallPortrait ? 0.33f : 0.31f);
-            float secondaryMaxY = compactPortrait ? 0.33f : (tallPortrait ? 0.39f : 0.37f);
+            float secondaryMinY = compactPortrait ? 0.245f : (tallPortrait ? 0.305f : 0.285f);
+            float secondaryMaxY = compactPortrait ? 0.335f : (tallPortrait ? 0.405f : 0.385f);
             int logoFontSize = compactPortrait ? 116 : (tallPortrait ? 140 : 128);
+
+            if (profileAvatarRt != null)
+            {
+                profileAvatarRt.anchorMin = new Vector2(avatarMinX, topRowMinY - 0.018f);
+                profileAvatarRt.anchorMax = new Vector2(avatarMaxX, topRowMaxY + 0.004f);
+                profileAvatarRt.offsetMin = profileAvatarRt.offsetMax = Vector2.zero;
+            }
 
             if (startLifeBarRt != null)
             {
-                startLifeBarRt.anchorMin = new Vector2(0.03f, topRowMinY);
+                startLifeBarRt.anchorMin = new Vector2(lifeBarMinX, topRowMinY);
                 startLifeBarRt.anchorMax = new Vector2(lifeBarMaxX, topRowMaxY);
             }
 
             if (dailyChallengeButtonRt != null)
             {
                 dailyChallengeButtonRt.anchorMin = new Vector2(0.03f, dailyChallengeMinY);
-                dailyChallengeButtonRt.anchorMax = new Vector2(lifeBarMaxX, dailyChallengeMaxY);
+                dailyChallengeButtonRt.anchorMax = new Vector2(sideButtonMaxX, dailyChallengeMaxY);
                 dailyChallengeButtonRt.offsetMin = dailyChallengeButtonRt.offsetMax = Vector2.zero;
             }
 
             if (endlessButtonRt != null)
             {
                 endlessButtonRt.anchorMin = new Vector2(0.03f, endlessMinY);
-                endlessButtonRt.anchorMax = new Vector2(lifeBarMaxX, endlessMaxY);
+                endlessButtonRt.anchorMax = new Vector2(sideButtonMaxX, endlessMaxY);
                 endlessButtonRt.offsetMin = endlessButtonRt.offsetMax = Vector2.zero;
             }
 
@@ -2819,8 +3161,8 @@ namespace TowerMaze
 
             if (logoRt != null)
             {
-                logoRt.anchorMin = new Vector2(0.02f, logoMinY);
-                logoRt.anchorMax = new Vector2(0.98f, logoMaxY);
+                logoRt.anchorMin = new Vector2(-0.12f, logoMinY);
+                logoRt.anchorMax = new Vector2(1.12f, logoMaxY);
             }
 
             if (logoTextLayers.Count > 0)
@@ -2836,8 +3178,8 @@ namespace TowerMaze
 
             if (startButtonRt != null)
             {
-                startButtonRt.anchorMin = new Vector2(0.20f, startMinY);
-                startButtonRt.anchorMax = new Vector2(0.80f, startMaxY);
+                startButtonRt.anchorMin = new Vector2(0.205f, startMinY);
+                startButtonRt.anchorMax = new Vector2(0.795f, startMaxY);
             }
 
             if (captionText != null)
@@ -2848,8 +3190,8 @@ namespace TowerMaze
 
             if (secondaryRowRt != null)
             {
-                secondaryRowRt.anchorMin = new Vector2(0.20f, secondaryMinY);
-                secondaryRowRt.anchorMax = new Vector2(0.80f, secondaryMaxY);
+                secondaryRowRt.anchorMin = new Vector2(0.105f, secondaryMinY);
+                secondaryRowRt.anchorMax = new Vector2(0.895f, secondaryMaxY);
             }
 
             if (settingsPanelRt != null)
@@ -2860,8 +3202,8 @@ namespace TowerMaze
 
             if (leaderboardSheet != null)
             {
-                leaderboardSheet.anchorMin = compactPortrait ? new Vector2(0.05f, 0.11f) : new Vector2(0.08f, 0.14f);
-                leaderboardSheet.anchorMax = compactPortrait ? new Vector2(0.95f, 0.87f) : new Vector2(0.92f, 0.85f);
+                leaderboardSheet.anchorMin = compactPortrait ? new Vector2(0.060f, 0.130f) : new Vector2(0.16f, 0.12f);
+                leaderboardSheet.anchorMax = compactPortrait ? new Vector2(0.940f, 0.900f) : new Vector2(0.84f, 0.90f);
             }
 
             if (missionsSheet != null)
