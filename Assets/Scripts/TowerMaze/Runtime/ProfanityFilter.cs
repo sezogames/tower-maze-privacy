@@ -31,6 +31,10 @@ namespace TowerMaze
             "CHINGA", "CHING0", "CABRA",
             // Hate / slur stems (multi-language)
             "NAZI", "HITLER", "KKK", "K1KE",
+            // Sexual / NSFW family — catches SEXX, SEXY, SEX_GOD etc. via substring.
+            // SEX risks false positives like ESSEX/SEXTON, but the casual cover wins.
+            "SEX", "SEXY", "HENTAI", "NSFW", "BOOB", "BOOBS", "PORN", "ORGASM",
+            "HORNY", "MILF", "DILDO", "CUMSHOT", "JIZZ", "WANK",
         };
 
         public static bool IsProfane(string normalizedName)
