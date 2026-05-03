@@ -68,14 +68,18 @@ namespace TowerMaze.EditorTools
         {
             importer.forceToMono = true;
             importer.loadInBackground = false;
-            importer.preloadAudioData = false; // streaming is fine; smaller initial cost
 
+            // preloadAudioData moved into AudioImporterSampleSettings as a
+            // per-platform value in modern Unity; the importer-level property
+            // is obsolete. Setting it here in the struct propagates to default
+            // and per-platform overrides.
             AudioImporterSampleSettings settings = new AudioImporterSampleSettings
             {
                 loadType = AudioClipLoadType.CompressedInMemory,
                 compressionFormat = AudioCompressionFormat.Vorbis,
                 quality = 0.60f,
                 sampleRateSetting = AudioSampleRateSetting.OptimizeSampleRate,
+                preloadAudioData = false,
             };
 
             importer.defaultSampleSettings = settings;
