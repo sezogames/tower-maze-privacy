@@ -1254,7 +1254,7 @@ namespace TowerMaze
             chipBg = go.AddComponent<Image>();
             chipBg.preserveAspect = true;
             chipBg.color = Color.white;
-            ApplyMainPremiumSurface(chipBg, "main_premium_button", "out_btn_purple", preserveAspect: true);
+            ApplyMainPremiumSurface(chipBg, "main_premium_button", "out_btn_purple", preserveAspect: false);
             ConfigureCandyChrome(
                 chipBg,
                 new Color(0.10f, 0.06f, 0.16f, 0.16f),
@@ -1295,7 +1295,7 @@ namespace TowerMaze
             var go = new GameObject($"Lang_{code}");
             go.transform.SetParent(parent, false);
             var img = go.AddComponent<Image>();
-            ApplyMainPremiumSurface(img, "main_premium_button", "out_btn_purple", preserveAspect: true);
+            ApplyMainPremiumSurface(img, "main_premium_button", "out_btn_purple", preserveAspect: false);
             img.color = Color.white;
             
             var rt = go.GetComponent<RectTransform>();
@@ -1696,7 +1696,7 @@ namespace TowerMaze
             handle.rectTransform.offsetMin = handle.rectTransform.offsetMax = Vector2.zero;
             handle.raycastTarget = false;
 
-            privacyTitleText = UIManager.CreateText("Title", card.transform, font, 22, TextAnchor.MiddleLeft, UIStyle.PopupText);
+            privacyTitleText = UIManager.CreateText("Title", card.transform, font, 22, TextAnchor.MiddleLeft, LeaderboardPremiumText);
             privacyTitleText.fontStyle = FontStyle.Bold;
             privacyTitleText.resizeTextForBestFit = true;
             UIManager.SetScaledBestFit(privacyTitleText, 18, 22, UIFontRole.Popup);
@@ -1704,7 +1704,7 @@ namespace TowerMaze
             privacyTitleText.rectTransform.anchorMax = new Vector2(0.88f, 0.95f);
             privacyTitleText.rectTransform.offsetMin = privacyTitleText.rectTransform.offsetMax = Vector2.zero;
 
-            privacySubtitleText = UIManager.CreateText("Subtitle", card.transform, font, 14, TextAnchor.MiddleLeft, UIStyle.PopupTextDim);
+            privacySubtitleText = UIManager.CreateText("Subtitle", card.transform, font, 14, TextAnchor.MiddleLeft, LeaderboardPremiumMutedText);
             privacySubtitleText.resizeTextForBestFit = true;
             UIManager.SetScaledBestFit(privacySubtitleText, 12, 14, UIFontRole.Popup);
             privacySubtitleText.rectTransform.anchorMin = new Vector2(0.12f, 0.82f);
@@ -1712,6 +1712,7 @@ namespace TowerMaze
             privacySubtitleText.rectTransform.offsetMin = privacySubtitleText.rectTransform.offsetMax = Vector2.zero;
 
             Button closeButton = UIManager.CreateCandyCloseButton("CloseBtn", card.transform, font, 16);
+            ApplyMainPremiumSurface(closeButton.targetGraphic as Image, "main_premium_icon_frame", "out_btn_purple", preserveAspect: true);
             UIManager.BindButton(closeButton, () => StartCoroutine(CloseSheet(privacySheet, privacyOverlay)), buttonClickSound);
             RectTransform closeRt = (RectTransform)closeButton.transform;
             closeRt.anchorMin = new Vector2(1f, 1f);
@@ -1811,7 +1812,7 @@ namespace TowerMaze
             subtitleChip.rectTransform.anchorMax = new Vector2(0.56f, 0.79f);
             subtitleChip.rectTransform.offsetMin = subtitleChip.rectTransform.offsetMax = Vector2.zero;
 
-            Text subtitle = UIManager.CreateText("Subtitle", subtitleChip.transform, font, 16, TextAnchor.MiddleCenter, UIStyle.PopupTextDim);
+            Text subtitle = UIManager.CreateText("Subtitle", subtitleChip.transform, font, 16, TextAnchor.MiddleCenter, LeaderboardPremiumMutedText);
             subtitle.text = "Her gün sıfırlanır";
             subtitle.resizeTextForBestFit = true;
             UIManager.SetScaledBestFit(subtitle, 13, 16, UIFontRole.Popup);
@@ -2059,6 +2060,7 @@ namespace TowerMaze
                 "Daily Challenge", new Vector2(0.08f, 0.84f), new Vector2(0.92f, 0.97f), 22);
 
             Button closeButton = UIManager.CreateCandyCloseButton("CloseBtn", card.transform, font, 16);
+            ApplyMainPremiumSurface(closeButton.targetGraphic as Image, "main_premium_icon_frame", "out_btn_purple", preserveAspect: true);
             UIManager.BindButton(closeButton, () => StartCoroutine(CloseSheet(dailyChallengePopupSheet, dailyChallengePopupOverlay)), buttonClickSound);
             RectTransform closeRt = (RectTransform)closeButton.transform;
             closeRt.anchorMin = new Vector2(1f, 1f);
@@ -2075,7 +2077,7 @@ namespace TowerMaze
             targetRow.rectTransform.anchorMax = new Vector2(0.92f, 0.83f);
             targetRow.rectTransform.offsetMin = targetRow.rectTransform.offsetMax = Vector2.zero;
 
-            dailyChallengePopupTargetText = UIManager.CreateText("TargetText", targetRow.transform, font, 17, TextAnchor.MiddleCenter, UIStyle.PopupText);
+            dailyChallengePopupTargetText = UIManager.CreateText("TargetText", targetRow.transform, font, 17, TextAnchor.MiddleCenter, LeaderboardPremiumText);
             dailyChallengePopupTargetText.fontStyle = FontStyle.Bold;
             dailyChallengePopupTargetText.resizeTextForBestFit = true;
             UIManager.SetScaledBestFit(dailyChallengePopupTargetText, 14, 17, UIFontRole.Popup);
@@ -2101,14 +2103,14 @@ namespace TowerMaze
             modifierRow.rectTransform.anchorMax = new Vector2(0.92f, 0.55f);
             modifierRow.rectTransform.offsetMin = modifierRow.rectTransform.offsetMax = Vector2.zero;
 
-            dailyChallengePopupModifierText = UIManager.CreateText("ModifierText", modifierRow.transform, font, 15, TextAnchor.MiddleCenter, UIStyle.PopupText);
+            dailyChallengePopupModifierText = UIManager.CreateText("ModifierText", modifierRow.transform, font, 15, TextAnchor.MiddleCenter, LeaderboardPremiumText);
             dailyChallengePopupModifierText.fontStyle = FontStyle.Bold;
             dailyChallengePopupModifierText.resizeTextForBestFit = true;
             UIManager.SetScaledBestFit(dailyChallengePopupModifierText, 12, 15, UIFontRole.Popup);
             UIManager.Stretch(dailyChallengePopupModifierText.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 0f), new Vector2(-12f, 0f));
 
             // Status text
-            dailyChallengePopupStatusText = UIManager.CreateText("StatusText", card.transform, font, 14, TextAnchor.MiddleCenter, UIStyle.PopupTextDim);
+            dailyChallengePopupStatusText = UIManager.CreateText("StatusText", card.transform, font, 14, TextAnchor.MiddleCenter, LeaderboardPremiumMutedText);
             dailyChallengePopupStatusText.fontStyle = FontStyle.Bold;
             dailyChallengePopupStatusText.resizeTextForBestFit = true;
             UIManager.SetScaledBestFit(dailyChallengePopupStatusText, 11, 14, UIFontRole.Popup);
@@ -2123,7 +2125,7 @@ namespace TowerMaze
             dailyChallengePopupStatusText.rectTransform.offsetMin = dailyChallengePopupStatusText.rectTransform.offsetMax = Vector2.zero;
 
             // Disclaimer text (does not affect best score / leaderboard)
-            dailyChallengePopupDisclaimerText = UIManager.CreateText("DisclaimerText", card.transform, font, 12, TextAnchor.MiddleCenter, UIStyle.PopupTextDim);
+            dailyChallengePopupDisclaimerText = UIManager.CreateText("DisclaimerText", card.transform, font, 12, TextAnchor.MiddleCenter, LeaderboardPremiumMutedText);
             dailyChallengePopupDisclaimerText.fontStyle = FontStyle.Italic;
             dailyChallengePopupDisclaimerText.resizeTextForBestFit = true;
             dailyChallengePopupDisclaimerText.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -2140,7 +2142,7 @@ namespace TowerMaze
             playRt.anchorMax = new Vector2(0.85f, 0.18f);
             playRt.offsetMin = playRt.offsetMax = Vector2.zero;
             dailyChallengePopupPlayImage = playBtnGo.AddComponent<Image>();
-            SetupCandyButton(dailyChallengePopupPlayImage, "out_btn_orange", new Vector4(150f, 130f, 150f, 130f), 350f);
+            ApplyMainPremiumSurface(dailyChallengePopupPlayImage, "main_premium_cta", "out_btn_orange", preserveAspect: false);
             dailyChallengePopupPlayButton = playBtnGo.AddComponent<Button>();
             dailyChallengePopupPlayButton.targetGraphic = dailyChallengePopupPlayImage;
             UIManager.BindButton(dailyChallengePopupPlayButton, () =>
@@ -2850,7 +2852,7 @@ namespace TowerMaze
                     missionProgressFills[i].rectTransform.anchorMax = new Vector2(0f, 1f);
                     missionRewardTexts[i].text = $"+0 {GetCoinWord()}";
                     missionStatusTexts[i].text = TranslateText("PASIF", "INACTIVE", "INACTIVA");
-                    missionStatusTexts[i].color = UIStyle.PopupTextDim;
+                    missionStatusTexts[i].color = LeaderboardPremiumMutedText;
                     missionStatusTexts[i].gameObject.SetActive(true);
                     if (missionClaimBtns != null && i < missionClaimBtns.Length && missionClaimBtns[i] != null)
                     {
@@ -2876,7 +2878,7 @@ namespace TowerMaze
                 missionStatusTexts[i].text = claimed
                     ? TranslateText("ALINDI", "CLAIMED", "RECLAMADA")
                     : (completedUnclaimed ? TranslateText("HAZIR! TIKLA", "READY! TAP", "LISTA! TOCA") : TranslateText("DEVAM", "IN PROGRESS", "EN CURSO"));
-                missionStatusTexts[i].color = claimed ? UIStyle.PopupTextDim : (completedUnclaimed ? UIStyle.Owned : UIStyle.PopupTextDim);
+                missionStatusTexts[i].color = claimed ? LeaderboardPremiumMutedText : (completedUnclaimed ? UIStyle.ActionLight : LeaderboardPremiumMutedText);
                 missionStatusTexts[i].gameObject.SetActive(true);
 
                 // Hide the legacy separate claim button; we now use the orange reward
@@ -2920,7 +2922,7 @@ namespace TowerMaze
 
             if (settingsSoundToggleBg != null)
             {
-                ApplyMainPremiumSurface(settingsSoundToggleBg, cachedSoundEnabled ? "main_premium_cta" : "main_premium_button", cachedSoundEnabled ? "out_btn_orange" : "out_btn_purple", preserveAspect: true);
+                ApplyMainPremiumSurface(settingsSoundToggleBg, cachedSoundEnabled ? "main_premium_cta" : "main_premium_button", cachedSoundEnabled ? "out_btn_orange" : "out_btn_purple", preserveAspect: false);
                 settingsSoundToggleBg.color = cachedSoundEnabled ? onTint : offTint;
                 settingsSoundToggleBg.rectTransform.localScale = Vector3.one;
                 if (settingsSoundToggleText != null)
@@ -2933,7 +2935,7 @@ namespace TowerMaze
 
             if (settingsVibToggleBg != null)
             {
-                ApplyMainPremiumSurface(settingsVibToggleBg, cachedVibrationEnabled ? "main_premium_cta" : "main_premium_button", cachedVibrationEnabled ? "out_btn_orange" : "out_btn_purple", preserveAspect: true);
+                ApplyMainPremiumSurface(settingsVibToggleBg, cachedVibrationEnabled ? "main_premium_cta" : "main_premium_button", cachedVibrationEnabled ? "out_btn_orange" : "out_btn_purple", preserveAspect: false);
                 settingsVibToggleBg.color = cachedVibrationEnabled ? onTint : offTint;
                 settingsVibToggleBg.rectTransform.localScale = Vector3.one;
                 if (settingsVibToggleText != null)
@@ -2995,27 +2997,41 @@ namespace TowerMaze
         private string GetPrivacyPolicyBody()
         {
             return TranslateText(
-                "Tower Maze Gizlilik Politikasi\n\n" +
-                "Tower Maze, oyunun calismasi ve oyuncu deneyimini desteklemek icin sinirli veri isleyebilir.\n\n" +
+                "Tower Maze Gizlilik Politikasi\n" +
+                "Yururluk tarihi: 2026-05-04\n\n" +
+                "Tower Maze, oyunun calismasi ve oyuncu deneyimini desteklemek icin sinirli veri isleyebilir. Hedef yas grubu 13 ve uzeridir.\n\n" +
                 "1. Toplanan veriler\n" +
-                "- Cihazinizda saklanan ilerleme, ayarlar, can durumu, skinler ve oyun ekonomisi.\n" +
-                "- Odullu reklamlar ve uygulama ici satin alimlar icin gerekli teknik islem bilgileri.\n" +
-                "- Liderlik tablosu ve bulut kaydi aciksa skor, oyuncu etiketi ve senkronizasyon verileri.\n\n" +
+                "- Cihazinizda saklanan ilerleme, ayarlar, can, skinler ve oyun ekonomisi.\n" +
+                "- Profil verisi: secilen takma ad ve avatar.\n" +
+                "- Reklam tanimlayicilari (Android Advertising ID / iOS IDFA) odullu, banner ve gecis reklamlar icin Google AdMob tarafindan toplanir.\n" +
+                "- Skor, takma ad ve liderlik tablosu verileri (etkinse). Takma adiniz diger oyunculara liderlik tablosunda gorunur.\n" +
+                "- Uygulama ici satin alma islem fisleri ve teknik dogrulama verileri.\n" +
+                "- Anonim analitik olaylari (asagidaki bolume bkz).\n\n" +
                 "2. Verilerin kullanim amaci\n" +
-                "- Oyunu kaydetmek ve geri yuklemek.\n" +
+                "- Oyunu kaydetmek, geri yuklemek ve cihazlar arasi senkronize etmek.\n" +
                 "- Reklam odullerini ve satin alimlari islemek.\n" +
-                "- Liderlik tablosu, bulut kaydi ve hesap senkronizasyonu saglamak.\n" +
-                "- Guvenlik, hata ayiklama ve hizmet surekliligini desteklemek.\n\n" +
+                "- Liderlik tablosu, bulut kaydi ve hesap kimliklendirme saglamak.\n" +
+                "- Guvenlik, hata ayiklama, oyun dengeleme ve hizmet surekliligi.\n\n" +
                 "3. Ucuncu taraf servisler\n" +
-                "Oyun reklam, satin alma, platform servisleri ve bulut / leaderboard ozellikleri icin ucuncu taraf servisler kullanabilir. Bu servisler kendi gizlilik politikalarina tabi olabilir.\n\n" +
-                "4. Veri saklama\n" +
-                "Veriler cihazinizda ve ilgili servisler etkinse bulutta saklanabilir. Uygulamayi silmeniz, uygulama verilerini temizlemeniz veya bulut kaydini sifirlamaniz halinde bu veriler kaldirilabilir.\n\n" +
-                "5. Cocuklar ve ebeveynler\n" +
-                "Oyunun kullanimi yasadiginiz bolgedeki kurallara uygun olmalidir. Cocuk kullanicilar icin ebeveyn / veli gozetimi onerilir.\n\n" +
-                "6. Politika degisiklikleri\n" +
-                "Bu gizlilik politikasi zaman zaman guncellenebilir. Oyunda gorunen son surum gecerli kabul edilir.\n\n" +
-                "Iletisim\n" +
-                "Gizlilik ile ilgili sorular icin oyunun magaza sayfasindaki destek kanalini kullanin.\n\n" +
+                "- Google AdMob (reklamlar): https://policies.google.com/technologies/ads\n" +
+                "- Google Firebase (Authentication, Analytics, Firestore): https://firebase.google.com/support/privacy\n" +
+                "- Unity Technologies (Unity IAP): https://unity.com/legal/privacy-policy\n" +
+                "Bu servisler kendi gizlilik politikalarina tabidir.\n\n" +
+                "4. Analitik olaylari\n" +
+                "Oyun, anonim Firebase Analytics olaylariyla ilerlemeyi takip eder. Ornek: chapter_start / chapter_complete / chapter_fail, screen_view, level_start / level_end, earn_virtual_currency, progression_milestone, chapter_pause / chapter_resume. Bu veriler kisisel kimlik icermez; Firebase tarafindan atanan anonim kurulum ID ile iliskilendirilir.\n\n" +
+                "5. Veri saklama\n" +
+                "Veriler cihazinizda ve ilgili servisler etkinse bulutta saklanabilir. Uygulamayi silmek, uygulama verilerini temizlemek veya bulut kaydini sifirlamak yerel verileri kaldirir; bulut kayitlari icin asagidaki Iletisim adresinden silme talebinde bulunabilirsiniz.\n\n" +
+                "6. Reklamlar ve kisisellestirme\n" +
+                "Oyun, AdMob araciligiyla reklam gosterir. AB (GDPR) veya Kaliforniya (CCPA) kapsamindaysaniz, AdMob non-personalized (kisisellestirilmemis) reklam moduna gecmek icin onay (consent) ekrani gosterebilir. Cihaz ayarlarinizdan reklam tanimlayicinizi sifirlayabilir veya reklam izlemeyi sinirlayabilirsiniz (Android: Ayarlar > Google > Reklamlar; iOS: Ayarlar > Gizlilik > Apple Reklamciligi).\n\n" +
+                "7. Cocuklar (COPPA)\n" +
+                "Oyunun hedef yas grubu 13 ve uzeridir. 13 yas alti kullanicilarin oyuna ebeveyn / veli gozetiminde erismesi gerekir; bu durumda AdMob cocuga yonelik (TFUA) reklam politikasi uygulanir.\n\n" +
+                "8. Kullanici haklari\n" +
+                "GDPR ve CCPA gibi duzenlemeler kapsamindaysaniz; verilerinize erisim, duzeltme veya silme talep etme hakkina sahipsiniz. Talebinizi asagidaki Iletisim bilgileriyle iletebilirsiniz. Yerel verileri uygulamayi kaldirarak veya cihaz ayarlarindan uygulama verisini silerek anlik olarak yok edebilirsiniz.\n\n" +
+                "9. Politika degisiklikleri\n" +
+                "Bu gizlilik politikasi zaman zaman guncellenebilir. Oyunda gorunen son surum gecerli kabul edilir; onemli degisiklikler oyun ici bildirim ile duyurulabilir.\n\n" +
+                "10. Iletisim\n" +
+                "Gizlilik sorulari, veri silme talepleri ve digerleri icin: privacy@sezogames.com\n" +
+                "Alternatif: oyunun magaza sayfasindaki destek kanali.\n\n" +
                 "─────────────\n" +
                 "Muzik Telifleri\n" +
                 "─────────────\n" +
@@ -3025,27 +3041,41 @@ namespace TowerMaze
                 "\"Mysterious Ambience\" - cynicmusic - CC0\n" +
                 "\"Starfield Romance\" - Yoiyami - CC0\n" +
                 "Kaynak: opengameart.org",
-                "Privacy Policy\n\n" +
-                "Tower Maze may process limited data to run the game and support core player features.\n\n" +
+                "Privacy Policy\n" +
+                "Effective date: 2026-05-04\n\n" +
+                "Tower Maze may process limited data to run the game and support core player features. The intended audience is 13 and older.\n\n" +
                 "1. Data we may collect\n" +
                 "- Progress, settings, lives, skins, and economy data stored on your device.\n" +
-                "- Technical transaction data needed for rewarded ads and in app purchases.\n" +
-                "- Scores, player labels, and sync data when leaderboard or cloud save features are enabled.\n\n" +
+                "- Profile data: chosen nickname and avatar.\n" +
+                "- Advertising identifiers (Android Advertising ID / iOS IDFA) collected by Google AdMob for rewarded, banner and interstitial ads.\n" +
+                "- Scores, nickname, and leaderboard data when enabled. Your nickname is visible to other players on the leaderboard.\n" +
+                "- In-app purchase receipts and technical validation data.\n" +
+                "- Anonymous analytics events (see section below).\n\n" +
                 "2. Why this data is used\n" +
-                "- To save and restore your game.\n" +
+                "- To save, restore, and sync your game across devices.\n" +
                 "- To process rewarded ads and purchases.\n" +
-                "- To provide leaderboard, cloud save, and account sync features.\n" +
-                "- To support security, debugging, and service reliability.\n\n" +
+                "- To power leaderboard, cloud save, and account identification.\n" +
+                "- For security, debugging, balancing, and service reliability.\n\n" +
                 "3. Third party services\n" +
-                "The game may use third party services for ads, purchases, platform features, and cloud / leaderboard functions. Those services may handle data under their own privacy policies.\n\n" +
-                "4. Data storage\n" +
-                "Data may be stored on your device and, when enabled, in cloud services. Data may be removed if you delete the app, clear app data, or reset cloud save data.\n\n" +
-                "5. Children and parents\n" +
-                "Use of the game should follow the rules that apply in your region. Parent or guardian supervision is recommended for children.\n\n" +
-                "6. Changes to this policy\n" +
-                "This privacy policy may be updated from time to time. The latest version shown in the game is the active version.\n\n" +
-                "Contact\n" +
-                "For privacy questions, use the support contact listed on the game's store page.\n\n" +
+                "- Google AdMob (ads): https://policies.google.com/technologies/ads\n" +
+                "- Google Firebase (Authentication, Analytics, Firestore): https://firebase.google.com/support/privacy\n" +
+                "- Unity Technologies (Unity IAP): https://unity.com/legal/privacy-policy\n" +
+                "These services operate under their own privacy policies.\n\n" +
+                "4. Analytics events\n" +
+                "The game tracks progression with anonymous Firebase Analytics events. Examples: chapter_start / chapter_complete / chapter_fail, screen_view, level_start / level_end, earn_virtual_currency, progression_milestone, chapter_pause / chapter_resume. These events contain no personal identifiers; they are tied to a Firebase-assigned anonymous installation ID.\n\n" +
+                "5. Data storage\n" +
+                "Data may be stored on your device and, when enabled, in cloud services. Deleting the app, clearing app data, or resetting cloud save removes local data; for cloud-side deletion contact us using the address below.\n\n" +
+                "6. Ads and personalization\n" +
+                "The game shows ads via AdMob. If you are in the EU (GDPR) or California (CCPA), AdMob may show a consent screen letting you switch to non-personalized ads. You can also reset your advertising identifier or limit ad tracking from device settings (Android: Settings > Google > Ads; iOS: Settings > Privacy > Apple Advertising).\n\n" +
+                "7. Children (COPPA)\n" +
+                "The intended audience is 13 and older. Users under 13 should play under parent or guardian supervision; AdMob's child-directed (TFUA) ad policy applies in that case.\n\n" +
+                "8. User rights\n" +
+                "If you fall under regulations such as GDPR or CCPA you have the right to access, correct, or delete your data. Send requests through the contact below. Local data can be removed instantly by uninstalling the app or clearing app data from device settings.\n\n" +
+                "9. Changes to this policy\n" +
+                "This privacy policy may be updated from time to time. The latest version shown in the game is the active version; significant changes may be announced via in-game notice.\n\n" +
+                "10. Contact\n" +
+                "Privacy questions, data deletion requests, and other inquiries: privacy@sezogames.com\n" +
+                "Alternative: support contact listed on the game's store page.\n\n" +
                 "─────────────\n" +
                 "Music Credits\n" +
                 "─────────────\n" +
@@ -3055,27 +3085,41 @@ namespace TowerMaze
                 "\"Mysterious Ambience\" by cynicmusic - CC0\n" +
                 "\"Starfield Romance\" by Yoiyami - CC0\n" +
                 "Source: opengameart.org",
-                "Politica de Privacidad\n\n" +
-                "Tower Maze puede procesar datos limitados para hacer funcionar el juego y sus funciones principales.\n\n" +
+                "Politica de Privacidad\n" +
+                "Fecha de vigencia: 2026-05-04\n\n" +
+                "Tower Maze puede procesar datos limitados para hacer funcionar el juego y sus funciones principales. La audiencia objetivo es de 13 anos o mas.\n\n" +
                 "1. Datos que pueden recopilarse\n" +
                 "- Progreso, ajustes, vidas, aspectos y datos de economia guardados en tu dispositivo.\n" +
-                "- Datos tecnicos necesarios para anuncios con recompensa y compras dentro de la aplicacion.\n" +
-                "- Puntuaciones, nombre del jugador y datos de sincronizacion cuando se usan tablas de clasificacion o guardado en la nube.\n\n" +
+                "- Datos de perfil: nombre y avatar elegidos.\n" +
+                "- Identificadores publicitarios (Android Advertising ID / iOS IDFA) recopilados por Google AdMob para anuncios con recompensa, banners e intersticiales.\n" +
+                "- Puntuaciones, nombre y datos de la tabla de clasificacion cuando estan activos. Tu nombre es visible para otros jugadores en la tabla.\n" +
+                "- Recibos de compras dentro de la aplicacion y datos tecnicos de validacion.\n" +
+                "- Eventos analiticos anonimos (ver seccion a continuacion).\n\n" +
                 "2. Para que se usan\n" +
-                "- Para guardar y restaurar tu partida.\n" +
+                "- Para guardar, restaurar y sincronizar tu partida entre dispositivos.\n" +
                 "- Para procesar anuncios con recompensa y compras.\n" +
-                "- Para ofrecer tablas de clasificacion, guardado en la nube y sincronizacion.\n" +
-                "- Para seguridad, depuracion y estabilidad del servicio.\n\n" +
+                "- Para ofrecer clasificaciones, guardado en la nube e identificacion de cuenta.\n" +
+                "- Para seguridad, depuracion, equilibrio del juego y estabilidad del servicio.\n\n" +
                 "3. Servicios de terceros\n" +
-                "El juego puede usar servicios de terceros para anuncios, compras, funciones de plataforma y servicios de nube / clasificacion. Esos servicios pueden tratar datos segun sus propias politicas.\n\n" +
-                "4. Almacenamiento de datos\n" +
-                "Los datos pueden guardarse en tu dispositivo y, si esta activo, en servicios en la nube. Pueden eliminarse al borrar la app, limpiar los datos o reiniciar el guardado en la nube.\n\n" +
-                "5. Menores y familias\n" +
-                "El uso del juego debe respetar las reglas aplicables en tu region. Se recomienda supervision de padres o tutores para menores.\n\n" +
-                "6. Cambios en esta politica\n" +
-                "Esta politica puede actualizarse ocasionalmente. La ultima version mostrada en el juego sera la version vigente.\n\n" +
-                "Contacto\n" +
-                "Para consultas de privacidad, usa el canal de soporte indicado en la pagina de la tienda del juego.\n\n" +
+                "- Google AdMob (anuncios): https://policies.google.com/technologies/ads\n" +
+                "- Google Firebase (Authentication, Analytics, Firestore): https://firebase.google.com/support/privacy\n" +
+                "- Unity Technologies (Unity IAP): https://unity.com/legal/privacy-policy\n" +
+                "Estos servicios operan bajo sus propias politicas de privacidad.\n\n" +
+                "4. Eventos analiticos\n" +
+                "El juego registra el progreso con eventos anonimos de Firebase Analytics. Ejemplos: chapter_start / chapter_complete / chapter_fail, screen_view, level_start / level_end, earn_virtual_currency, progression_milestone, chapter_pause / chapter_resume. Estos eventos no contienen identificadores personales; se asocian a un ID anonimo de instalacion asignado por Firebase.\n\n" +
+                "5. Almacenamiento de datos\n" +
+                "Los datos pueden guardarse en tu dispositivo y, si esta activo, en servicios en la nube. Borrar la app, limpiar los datos o reiniciar el guardado en la nube elimina los datos locales; para eliminacion en la nube usa el contacto a continuacion.\n\n" +
+                "6. Anuncios y personalizacion\n" +
+                "El juego muestra anuncios a traves de AdMob. Si te encuentras en la UE (GDPR) o California (CCPA), AdMob puede mostrar una pantalla de consentimiento que te permite cambiar a anuncios no personalizados. Tambien puedes restablecer tu identificador publicitario o limitar el seguimiento desde los ajustes del dispositivo (Android: Ajustes > Google > Anuncios; iOS: Ajustes > Privacidad > Publicidad de Apple).\n\n" +
+                "7. Menores (COPPA)\n" +
+                "La audiencia objetivo es de 13 anos o mas. Los usuarios menores de 13 deben jugar bajo supervision de padres o tutores; en ese caso se aplica la politica de anuncios dirigidos a ninos (TFUA) de AdMob.\n\n" +
+                "8. Derechos del usuario\n" +
+                "Si te cubren regulaciones como GDPR o CCPA, tienes derecho a acceder, corregir o eliminar tus datos. Envia tus solicitudes al contacto a continuacion. Los datos locales pueden eliminarse al instante desinstalando la app o borrando los datos desde los ajustes del dispositivo.\n\n" +
+                "9. Cambios en esta politica\n" +
+                "Esta politica puede actualizarse ocasionalmente. La ultima version mostrada en el juego sera la version vigente; los cambios significativos pueden anunciarse mediante un aviso dentro del juego.\n\n" +
+                "10. Contacto\n" +
+                "Consultas de privacidad, solicitudes de eliminacion de datos y otras: privacy@sezogames.com\n" +
+                "Alternativa: canal de soporte indicado en la pagina de la tienda del juego.\n\n" +
                 "─────────────\n" +
                 "Creditos Musicales\n" +
                 "─────────────\n" +
