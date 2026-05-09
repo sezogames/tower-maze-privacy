@@ -358,10 +358,12 @@ namespace TowerMaze
         private const string TotalRunsKey = "TowerMaze.TotalRuns";
         private const string ReviewRequestedKey = "TowerMaze.ReviewRequested";
         private const int ShopCoinBoostReward = 100;
-        public const int ContinueCoinCost = 900;
+        // Reprice 2026-05: cheaper continue / life refill so the "spend coins"
+        // psychology kicks in before the player gives up; conversion ↑.
+        public const int ContinueCoinCost = 500;
         public const int MaxLifeCount = 3;
         public const int PurchasedLifeStorageCap = 999;
-        public const int LifeRefillCoinCost = 250;
+        public const int LifeRefillCoinCost = 150;
         public const int LifeRefillAmount = 1;
         private static readonly TimeSpan LifeRechargeInterval = TimeSpan.FromHours(4);
 
@@ -377,7 +379,7 @@ namespace TowerMaze
         private string lastBonusChestClaimDateKey;
         private int missionRerollCount;
         private DailyChallengeStatus dailyChallengeStatus;
-        private int remainingLives;
+        private int remainingLives = MaxLifeCount;
         private long lifeRechargeStartTicks;
 
         public int EmberBalance { get; private set; }
@@ -531,7 +533,10 @@ namespace TowerMaze
         public int GetMissionRerollCost()
         {
             RefreshDailyContentIfNeeded();
-            return 420 + (missionRerollCount * 180);
+            // Reprice 2026-05: gentler ladder (150 base + 75/use) so a few
+            // rerolls per day don't feel punishing. Hard-cap at 750 keeps the
+            // worst case from snowballing if a player spams the button.
+            return Mathf.Min(750, 150 + (missionRerollCount * 75));
         }
 
         public int GetShopCoinBoostReward()
@@ -1368,7 +1373,7 @@ namespace TowerMaze
                 skins.Add(new BallSkinDefinition(
                     "molten_core",
                     "Molten Core",
-                    4000,
+                    2000,
                     new Color(0.42f, 0.12f, 0.06f, 1f),
                     new Color(1f, 0.44f, 0.14f, 1f),
                     baseMapResourcePath: "TowerMaze/BallSkins/Lava004/Lava004_2K-JPG_Color",
@@ -1382,7 +1387,7 @@ namespace TowerMaze
                 skins.Add(new BallSkinDefinition(
                     "ash_marble",
                     "Ash Marble",
-                    6500,
+                    3500,
                     new Color(0.35f, 0.35f, 0.38f, 1f),
                     new Color(1f, 0.72f, 0.4f, 1f),
                     baseMapResourcePath: "TowerMaze/BallSkins/Marble004/Marble004_2K-JPG_Color",
@@ -1395,7 +1400,7 @@ namespace TowerMaze
                 skins.Add(new BallSkinDefinition(
                     "hazard_neon",
                     "Hazard Neon",
-                    9000,
+                    8000,
                     new Color(1f, 1f, 1f, 1f),
                     new Color(0.42f, 0.96f, 1f, 1f),
                     baseMapResourcePath: "TowerMaze/BallSkins/Neon/NeonBaseMap",
@@ -1422,7 +1427,7 @@ namespace TowerMaze
                 skins.Add(new BallSkinDefinition(
                     "relic_gold",
                     "Relic Gold",
-                    16000,
+                    18000,
                     new Color(0.6f, 0.46f, 0.2f, 1f),
                     new Color(1f, 0.84f, 0.3f, 1f),
                     baseMapResourcePath: "TowerMaze/BallSkins/Metal044A/Metal044A_2K-JPG_Color",
@@ -1435,7 +1440,7 @@ namespace TowerMaze
                 skins.Add(new BallSkinDefinition(
                     "void_ice",
                     "Void Ice",
-                    22000,
+                    28000,
                     new Color(0.6f, 0.7f, 0.8f, 1f),
                     new Color(0.4f, 0.86f, 1f, 1f),
                     baseMapResourcePath: "TowerMaze/BallSkins/Snow003/Snow003_2K-JPG_Color",
@@ -1508,7 +1513,7 @@ namespace TowerMaze
                 skins.Add(new BallSkinDefinition(
                     "checker_classic",
                     "Checker Classic",
-                    7500,
+                    5000,
                     Color.white,
                     Color.black,
                     baseMapResourcePath: "TowerMaze/BallSkins/Checker/CheckerBaseMap",
@@ -1541,11 +1546,13 @@ namespace TowerMaze
                     new Color(0.54f, 0.37f, 0.16f, 1f),
                     new Color(0.86f, 0.68f, 0.2f, 1f),
                     new Color(1f, 0.86f, 0.34f, 1f),
-                    true));
+                    unlockedByDefault: true,
+                    wallBaseMapResourcePath: "TowerMaze/TowerSkins/VaultCore/VaultCoreBaseMap",
+                    wallTextureScale: new Vector2(1.25f, 1.25f)));
                 towerSkins.Add(new TowerSkinDefinition(
                     "obsidian_gate",
                     "Obsidian Gate",
-                    7000,
+                    3500,
                     new Color(0.16f, 0.16f, 0.18f, 1f),
                     new Color(0.44f, 0.45f, 0.5f, 1f),
                     new Color(0.78f, 0.84f, 0.9f, 1f),
@@ -1561,12 +1568,11 @@ namespace TowerMaze
                 towerSkins.Add(new TowerSkinDefinition(
                     "forge_spire",
                     "Forge Spire",
-                    12000,
+                    10000,
                     new Color(0.56f, 0.34f, 0.18f, 1f),
                     new Color(0.84f, 0.56f, 0.22f, 1f),
                     new Color(1f, 0.78f, 0.32f, 1f),
-                    wallBaseMapResourcePath: "TowerMaze/BallSkins/Metal043A/Metal043A_2K-JPG_Color",
-                    wallNormalMapResourcePath: "TowerMaze/BallSkins/Metal043A/Metal043A_2K-JPG_NormalGL",
+                    wallBaseMapResourcePath: "TowerMaze/TowerSkins/ForgeSpire/ForgeSpireBaseMap",
                     wallTextureScale: new Vector2(2f, 0.85f),
                     pathBaseMapResourcePath: "TowerMaze/BallSkins/Metal044A/Metal044A_2K-JPG_Color",
                     pathNormalMapResourcePath: "TowerMaze/BallSkins/Metal044A/Metal044A_2K-JPG_NormalGL",
@@ -1615,8 +1621,7 @@ namespace TowerMaze
                     new Color(0.05f, 0.04f, 0.08f, 1f),
                     new Color(0.12f, 0.10f, 0.18f, 1f),
                     new Color(0.5f, 0.1f, 0.82f, 1f),
-                    wallBaseMapResourcePath: "TowerMaze/BallSkins/Metal043A/Metal043A_2K-JPG_Color",
-                    wallNormalMapResourcePath: "TowerMaze/BallSkins/Metal043A/Metal043A_2K-JPG_NormalGL",
+                    wallBaseMapResourcePath: "TowerMaze/TowerSkins/ShadowCitadel/ShadowCitadelBaseMap",
                     wallTextureScale: new Vector2(2.0f, 0.9f),
                     pathBaseMapResourcePath: "TowerMaze/BallSkins/Marble013/Marble013_2K-JPG_Color",
                     pathNormalMapResourcePath: "TowerMaze/BallSkins/Marble013/Marble013_2K-JPG_NormalGL",
@@ -1629,7 +1634,7 @@ namespace TowerMaze
                 towerSkins.Add(new TowerSkinDefinition(
                     "grass_meadow",
                     "Grass Meadow",
-                    24000,
+                    25000,
                     new Color(0.6f, 0.9f, 0.4f, 1f),       // Wall tint (Greenish)
                     new Color(0.65f, 0.55f, 0.45f, 1f),    // Path tint (Soil Brown)
                     new Color(0.55f, 0.45f, 0.35f, 1f),    // Main Path tint (Darker Soil)
@@ -1647,7 +1652,7 @@ namespace TowerMaze
                 towerSkins.Add(new TowerSkinDefinition(
                     "magma_forge",
                     "Magma Forge",
-                    24000,
+                    30000,
                     new Color(1.0f, 0.6f, 0.2f, 1f),       // Wall tint (Magma Orange)
                     new Color(0.15f, 0.12f, 0.1f, 1f),     // Path tint (Dark Obsidian)
                     new Color(0.1f, 0.08f, 0.06f, 1f),     // Main Path tint (Deeper Obsidian)
@@ -1694,13 +1699,14 @@ namespace TowerMaze
                 towerSkins.Add(new TowerSkinDefinition(
                     "checker_fortress",
                     "Checker Fortress",
-                    7000,
+                    5000,
                     Color.white,
                     new Color(0.9f, 0.9f, 0.9f, 1f),
                     new Color(0.8f, 0.8f, 0.8f, 1f),
                     unlockedByDefault: false,
                     useUnifiedTextureSet: true,
-                    mainPathBaseMapResourcePath: "TowerMaze/BallSkins/Checker/CheckerBaseMap"));
+                    wallBaseMapResourcePath: "TowerMaze/TowerSkins/CheckerFortress/CheckerFortressBaseMap",
+                    wallTextureScale: new Vector2(1.2f, 1.2f)));
             }
 
             if (avatarFrames.Count == 0)
@@ -1716,28 +1722,28 @@ namespace TowerMaze
                 avatarFrames.Add(new AvatarFrameDefinition(
                     "gold_premium",
                     "Royal Gold",
-                    5000,
+                    3500,
                     new Color(1f, 0.84f, 0f, 1f),
                     new Color(1f, 0.92f, 0.5f, 0.8f)));
 
                 avatarFrames.Add(new AvatarFrameDefinition(
                     "flame_master",
                     "Inferno Flame",
-                    12000,
+                    8000,
                     new Color(1f, 0.3f, 0.1f, 1f),
                     new Color(1f, 0.6f, 0.2f, 0.9f)));
 
                 avatarFrames.Add(new AvatarFrameDefinition(
                     "ice_crown",
                     "Frozen Crown",
-                    12000,
+                    8000,
                     new Color(0.4f, 0.8f, 1f, 1f),
                     new Color(0.8f, 0.95f, 1f, 0.9f)));
 
                 avatarFrames.Add(new AvatarFrameDefinition(
                     "neon_glow",
                     "Neon Cyber",
-                    25000,
+                    20000,
                     new Color(0.1f, 1f, 0.4f, 1f),
                     new Color(0.4f, 1f, 0.8f, 1f)));
             }
@@ -2448,7 +2454,7 @@ namespace TowerMaze
         private MusicMode currentMusicMode = MusicMode.None;
         private const float BaseMusicVolume = 0.20f;
         private const float CrossfadeDuration = 1.5f;
-        private const float TensionPitchMax = 0.08f; // 1.00 -> 1.08 during rush
+        private const float TensionPitchMax = 0.08f; // 1.00 -> 1.08 when lava is close
         private TowerMaze.WeatherSystem.WeatherType pendingGameplayWeather = TowerMaze.WeatherSystem.WeatherType.Sunny;
         private Coroutine activeCrossfade;
         private Coroutine pitchLerpRoutine;
@@ -2685,8 +2691,8 @@ namespace TowerMaze
 
         /// <summary>
         /// Drives the gameplay music's pitch up to TensionPitchMax during high-
-        /// pressure moments (rush events, control flips). 0..1 range; 0 returns
-        /// to neutral. Lerped over 0.6s so the change is felt, not jarring.
+        /// pressure moments. 0..1 range; 0 returns to neutral. Lerped over
+        /// 0.6s so the change is felt, not jarring.
         /// </summary>
         public void SetTensionIntensity(float intensity01)
         {
@@ -3551,6 +3557,7 @@ namespace TowerMaze
         private bool usedContinueThisRun;
         private float currentRushMultiplier = 1f;
         private float sinkModifierMultiplier = 1f;
+        private float lastMusicTensionIntensity = -1f;
         private string cachedFailBestDeltaText = string.Empty;
         private string cachedFailNextTargetText = string.Empty;
         private string cachedFailModeSummaryText = string.Empty;
@@ -3657,7 +3664,7 @@ namespace TowerMaze
         {
             if (state == RunState.StartScreen)
             {
-                if (uiManager != null && uiManager.IsSplashComplete && !uiManager.IsShopOpen && playerController != null && playerController.HasStartIntent)
+                if (uiManager != null && uiManager.CanStartRun() && playerController != null && playerController.HasStartIntent)
                 {
                     StartRun();
                     return;
@@ -3717,6 +3724,7 @@ namespace TowerMaze
             if (lavaController != null)
             {
                 bool failed = lavaController.Tick(playerController, out float heatIntensity);
+                float lavaGap = GetLavaGap();
                 if (heatIntensity >= 0.72f)
                 {
                     nearLavaSeconds += Time.deltaTime;
@@ -3724,6 +3732,7 @@ namespace TowerMaze
                 playerController.SetHeat(heatIntensity);
                 if (audioManager != null) audioManager.SetNearLavaIntensity(heatIntensity);
                 if (uiManager != null) uiManager.SetHeat(heatIntensity);
+                UpdateMusicTensionForLavaGap(lavaGap);
 
                 int currentZone = GetCurrentZoneIndex();
                 if (currentZone > lastZoneIndex && lastZoneIndex >= 0)
@@ -3745,7 +3754,7 @@ namespace TowerMaze
                         hudBest,
                         scoreManager.CurrentRunTime,
                         currentZone,
-                        GetLavaGap(),
+                        lavaGap,
                         GetGapDangerNormalized(),
                         activeRunMode == RunMode.Normal && scoreManager.IsNewBestThisRun,
                         ShouldShowControlsHint(),
@@ -4053,6 +4062,7 @@ namespace TowerMaze
             playerController.SetControlsFlipped(false);
             playerController.SetMovementMultipliers(GetHorizontalSpeedMultiplier(), GetClimbSpeedMultiplier());
             audioManager.SetNearLavaIntensity(0f);
+            ResetMusicTension();
             uiManager.SetHeat(0f);
             uiManager.SetRushState(false, false, 0f, 0f);
             uiManager.SetControlFlipState(false, false, 0f, 0f, 0f);
@@ -4132,6 +4142,7 @@ namespace TowerMaze
 
             StopRushEffects();
             StopControlFlipEffects();
+            ResetMusicTension();
             cachedFailBestDeltaText = BuildBestDeltaText();
             cachedFailNextTargetText = BuildNextTargetText();
             cachedFailModeSummaryText = BuildRunModeSummaryText();
@@ -4198,7 +4209,11 @@ namespace TowerMaze
             bool isFirstClear = !wasUnlockedAhead && prevBest < chapterTarget;
             chapterManager.RecordChapterComplete(idx, height);
 
-            int emberReward = 100 * idx;
+            // Reprice 2026-05: cap per-chapter ember at 5,000 so late-game
+            // chapter farming can't out-earn a $4.99 coin pack. Chapters 1-49
+            // still scale linearly (100, 200 ... 4,900); chapter 50+ all pay
+            // 5,000. Tier milestone bonus (separate path below) keeps scaling.
+            int emberReward = Mathf.Min(5000, 100 * idx);
             economyManager.GrantEmber(emberReward, source: "chapter_complete");
             audioManager.SetMusicMode(AudioManager.MusicMode.Menu);
 
@@ -4698,9 +4713,6 @@ namespace TowerMaze
             currentRushMultiplier = config.rushWarningSpeedMultiplier;
             ApplySinkMultiplier();
             audioManager.StartRushAlarm();
-            // Tension layer: nudge gameplay music pitch up by the configured
-            // max so the player feels the urgency without an extra audio asset.
-            audioManager.SetTensionIntensity(1f);
             uiManager.SetRushState(true, false, 1f, 1f);
         }
 
@@ -4758,7 +4770,36 @@ namespace TowerMaze
             lavaController?.SetRushIntensity(0f);
             uiManager?.SetRushState(false, false, 0f, 0f);
             audioManager?.StopRushAlarm();
-            // Drop the music pitch back to neutral over the same lerp window.
+        }
+
+        private void UpdateMusicTensionForLavaGap(float lavaGap)
+        {
+            if (audioManager == null)
+            {
+                return;
+            }
+
+            const float tensionStartGap = 5f;
+            const float fullTensionGap = 3f;
+            float clampedGap = Mathf.Max(0f, lavaGap);
+            float intensity = clampedGap <= tensionStartGap
+                ? Mathf.InverseLerp(tensionStartGap, fullTensionGap, clampedGap)
+                : 0f;
+
+            if (Mathf.Abs(intensity - lastMusicTensionIntensity) < 0.025f &&
+                !(intensity == 0f && lastMusicTensionIntensity > 0f) &&
+                !(intensity >= 0.999f && lastMusicTensionIntensity < 0.999f))
+            {
+                return;
+            }
+
+            lastMusicTensionIntensity = intensity;
+            audioManager.SetTensionIntensity(intensity);
+        }
+
+        private void ResetMusicTension()
+        {
+            lastMusicTensionIntensity = 0f;
             audioManager?.SetTensionIntensity(0f);
         }
 

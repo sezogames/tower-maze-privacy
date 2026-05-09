@@ -68,26 +68,28 @@ namespace TowerMaze
 
         private void Update()
         {
-            while (true)
+            List<Action> actionsToRun = null;
+            lock (PendingActionsLock)
             {
-                Action nextAction;
-                lock (PendingActionsLock)
+                if (PendingActions.Count > 0)
                 {
-                    if (PendingActions.Count == 0)
+                    actionsToRun = new List<Action>(PendingActions);
+                    PendingActions.Clear();
+                }
+            }
+
+            if (actionsToRun != null)
+            {
+                foreach (var action in actionsToRun)
+                {
+                    try
                     {
-                        return;
+                        action?.Invoke();
                     }
-
-                    nextAction = PendingActions.Dequeue();
-                }
-
-                try
-                {
-                    nextAction.Invoke();
-                }
-                catch (Exception exception)
-                {
-                    Debug.LogException(exception);
+                    catch (Exception exception)
+                    {
+                        Debug.LogException(exception);
+                    }
                 }
             }
         }
@@ -193,6 +195,9 @@ namespace TowerMaze
 #if GOOGLE_MOBILE_ADS
         private RewardedAd rewardedAd;
         private bool rewardEarned;
+        internal static bool sdkInitialized;
+        internal static bool sdkInitializing;
+        internal static readonly List<Action> onSdkInitialized = new();
 #endif
 
         public bool IsSimulatedProvider => usingSimulatedProvider;
@@ -225,11 +230,30 @@ namespace TowerMaze
 #if GOOGLE_MOBILE_ADS
             AdCallbackDispatcher.EnsureInstance();
             adLoading = false;
+            
+            if (sdkInitialized)
+            {
+                if (Debug.isDebugBuild) Debug.Log("[RewardedAdManager] SDK already initialized. Loading first ad...");
+                LoadRewardedAd();
+                return;
+            }
+
+            if (sdkInitializing)
+            {
+                if (Debug.isDebugBuild) Debug.Log("[RewardedAdManager] SDK initialization already in progress...");
+                return;
+            }
+
+            sdkInitializing = true;
             if (Debug.isDebugBuild) Debug.Log("[RewardedAdManager] Initializing Google Mobile Ads SDK...");
             MobileAds.Initialize(status => {
                 AdCallbackDispatcher.Enqueue(() =>
                 {
-                    if (Debug.isDebugBuild) Debug.Log("[RewardedAdManager] SDK Initialized. Loading first ad...");
+                    sdkInitialized = true;
+                    sdkInitializing = false;
+                    if (Debug.isDebugBuild) Debug.Log("[RewardedAdManager] SDK Initialized.");
+                    foreach (var action in onSdkInitialized) action?.Invoke();
+                    onSdkInitialized.Clear();
                     LoadRewardedAd();
                 });
             });
@@ -448,7 +472,24 @@ namespace TowerMaze
 #if GOOGLE_MOBILE_ADS
             AdCallbackDispatcher.EnsureInstance();
             adLoading = false;
-            MobileAds.Initialize(_ => AdCallbackDispatcher.Enqueue(LoadInterstitialAd));
+            if (RewardedAdManager.sdkInitialized)
+            {
+                LoadInterstitialAd();
+            }
+            else
+            {
+                RewardedAdManager.onSdkInitialized.Add(LoadInterstitialAd);
+                if (!RewardedAdManager.sdkInitializing)
+                {
+                    RewardedAdManager.sdkInitializing = true;
+                    MobileAds.Initialize(_ => AdCallbackDispatcher.Enqueue(() => {
+                        RewardedAdManager.sdkInitialized = true;
+                        RewardedAdManager.sdkInitializing = false;
+                        foreach (var action in RewardedAdManager.onSdkInitialized) action?.Invoke();
+                        RewardedAdManager.onSdkInitialized.Clear();
+                    }));
+                }
+            }
 #else
             Debug.LogWarning("[InterstitialAdManager] Interstitial ads disabled: Google Mobile Ads SDK is not installed.");
 #endif
@@ -641,17 +682,30 @@ namespace TowerMaze
 
 #if GOOGLE_MOBILE_ADS
             AdCallbackDispatcher.EnsureInstance();
-            MobileAds.Initialize(_ => {
-                AdCallbackDispatcher.Enqueue(() =>
-                {
+            if (RewardedAdManager.sdkInitialized)
+            {
+                isInitialized = true;
+                LoadBannerAd();
+                if (shouldBeVisible) ShowBanner();
+            }
+            else
+            {
+                RewardedAdManager.onSdkInitialized.Add(() => {
                     isInitialized = true;
                     LoadBannerAd();
-                    if (shouldBeVisible)
-                    {
-                        ShowBanner();
-                    }
+                    if (shouldBeVisible) ShowBanner();
                 });
-            });
+                if (!RewardedAdManager.sdkInitializing)
+                {
+                    RewardedAdManager.sdkInitializing = true;
+                    MobileAds.Initialize(_ => AdCallbackDispatcher.Enqueue(() => {
+                        RewardedAdManager.sdkInitialized = true;
+                        RewardedAdManager.sdkInitializing = false;
+                        foreach (var action in RewardedAdManager.onSdkInitialized) action?.Invoke();
+                        RewardedAdManager.onSdkInitialized.Clear();
+                    }));
+                }
+            }
 #else
             Debug.LogWarning("[BannerAdManager] Banner ads disabled: Google Mobile Ads SDK is not installed.");
 #endif
@@ -1515,12 +1569,14 @@ namespace TowerMaze
                 return;
             }
 
+            // Reprice 2026-05: aligned with casual mobile standard ($0.99-$99 ladder).
+            // Welcome dropped to micro-tier with bumped coin to function as a true hook.
             offers.Add(new CoinPackOffer(
                 "welcome_pack",
                 "towermaze.bundle.welcome",
                 "WELCOME PACK",
-                2000,
-                FormatUsdPrice(4.99m),
+                5000,
+                FormatUsdPrice(2.99m),
                 "LIMITED",
                 "HAZARD NEON  |  OBSIDIAN GATE",
                 false,
@@ -1528,12 +1584,14 @@ namespace TowerMaze
                 ProductType.NonConsumable,
                 "hazard_neon",
                 "obsidian_gate"));
+            // No-Ads slashed from $19.99 to industry-standard $2.99 — conversion
+            // expected to climb from <1% to 3-5% range, lifetime revenue up.
             offers.Add(new CoinPackOffer(
                 "no_ads_pack",
                 "towermaze.bundle.noads",
                 "NO ADS",
                 0,
-                FormatUsdPrice(19.99m),
+                FormatUsdPrice(2.99m),
                 "FOREVER",
                 "REMOVE POPUP ADS FOREVER",
                 false,
@@ -1543,8 +1601,8 @@ namespace TowerMaze
                 "bundle_neon_rush",
                 "towermaze.bundle.neonrush",
                 "NEON RUSH BUNDLE",
-                2500,
-                FormatUsdPrice(9.99m),
+                5000,
+                FormatUsdPrice(4.99m),
                 "BUNDLE",
                 "HAZARD NEON  |  OBSIDIAN GATE",
                 false,
@@ -1556,8 +1614,8 @@ namespace TowerMaze
                 "bundle_frost_reign",
                 "towermaze.bundle.frostreign",
                 "FROST REIGN BUNDLE",
-                5000,
-                FormatUsdPrice(14.99m),
+                12000,
+                FormatUsdPrice(9.99m),
                 "BUNDLE",
                 "VOID ICE  |  FROST KEEP",
                 false,
@@ -1571,7 +1629,7 @@ namespace TowerMaze
                 "towermaze.skin.solar_crown",
                 "SOLAR CROWN",
                 0,
-                FormatUsdPrice(79.99m),
+                FormatUsdPrice(4.99m),
                 "PREMIUM",
                 "EXCLUSIVE BALL SKIN",
                 false,
@@ -1584,7 +1642,7 @@ namespace TowerMaze
                 "towermaze.skin.dark_sovereign",
                 "DARK SOVEREIGN",
                 0,
-                FormatUsdPrice(79.99m),
+                FormatUsdPrice(4.99m),
                 "PREMIUM",
                 "EXCLUSIVE BALL SKIN",
                 false,
@@ -1597,7 +1655,7 @@ namespace TowerMaze
                 "towermaze.skin.silver",
                 "SILVER MIRROR",
                 0,
-                FormatUsdPrice(149.99m),
+                FormatUsdPrice(9.99m),
                 "PREMIUM",
                 "EXCLUSIVE BALL SKIN",
                 false,
@@ -1610,7 +1668,7 @@ namespace TowerMaze
                 "towermaze.skin.gold",
                 "GOLDEN GLORY",
                 0,
-                FormatUsdPrice(149.99m),
+                FormatUsdPrice(9.99m),
                 "PREMIUM",
                 "EXCLUSIVE BALL SKIN",
                 false,
@@ -1623,7 +1681,7 @@ namespace TowerMaze
                 "towermaze.skin.gilded_sanctum",
                 "GILDED SANCTUM",
                 0,
-                FormatUsdPrice(79.99m),
+                FormatUsdPrice(4.99m),
                 "PREMIUM",
                 "EXCLUSIVE TOWER SKIN",
                 false,
@@ -1636,7 +1694,7 @@ namespace TowerMaze
                 "towermaze.skin.shadow_citadel",
                 "SHADOW CITADEL",
                 0,
-                FormatUsdPrice(79.99m),
+                FormatUsdPrice(4.99m),
                 "PREMIUM",
                 "EXCLUSIVE TOWER SKIN",
                 false,
@@ -1649,7 +1707,7 @@ namespace TowerMaze
                 "towermaze.skin.silver_tower",
                 "SILVER SPIRE",
                 0,
-                FormatUsdPrice(149.99m),
+                FormatUsdPrice(9.99m),
                 "PREMIUM",
                 "EXCLUSIVE TOWER SKIN",
                 false,
@@ -1662,7 +1720,7 @@ namespace TowerMaze
                 "towermaze.skin.gold_tower",
                 "GOLDEN BASTION",
                 0,
-                FormatUsdPrice(149.99m),
+                FormatUsdPrice(9.99m),
                 "PREMIUM",
                 "EXCLUSIVE TOWER SKIN",
                 false,
@@ -1671,12 +1729,14 @@ namespace TowerMaze
                 "",
                 "golden_bastion"));
             // --- NEON PRO BUNDLE ---
+            // Neon Pro now at $14.99 with bonus coins so the bundle reads as
+            // "two skins + free coins" rather than the old whale-only $99.99.
             offers.Add(new CoinPackOffer(
                 "bundle_neon_pro",
                 "towermaze.bundle.neon_pro",
                 "NEON PRO BUNDLE",
-                0,
-                FormatUsdPrice(99.99m),
+                8000,
+                FormatUsdPrice(14.99m),
                 "BUNDLE",
                 "NEON BALL  |  NEON TOWER",
                 false,
@@ -1684,23 +1744,27 @@ namespace TowerMaze
                 ProductType.NonConsumable,
                 "neon_ball",
                 "neon_tower"));
+            // Champion pack stays in whale tier (kept Consumable so it stacks)
+            // with the best coin/$ rate (~2,500 coins per $) to anchor the top.
             offers.Add(new CoinPackOffer(
                 "champion_pack",
                 "towermaze.coinpack.champion",
                 "CHAMPION PACK",
-                65000,
-                FormatUsdPrice(89.99m),
+                250000,
+                FormatUsdPrice(99.99m),
                 "BEST VALUE",
                 "+13 SAVE  |  +13 BOOST  |  +13 SKIP",
                 true,
                 StoreOfferKind.CoinPack,
                 ProductType.Consumable));
-            offers.Add(new CoinPackOffer("coin_pack_1000", "towermaze.coinpack.1000", "STARTER PACK", 1000, FormatUsdPrice(2.99m)));
-            offers.Add(new CoinPackOffer("coin_pack_5000", "towermaze.coinpack.5000", "SUPPORT PACK", 5000, FormatUsdPrice(12.99m)));
-            offers.Add(new CoinPackOffer("coin_pack_10000", "towermaze.coinpack.10000", "BOOST PACK", 10000, FormatUsdPrice(24.99m)));
-            offers.Add(new CoinPackOffer("coin_pack_25000", "towermaze.coinpack.25000", "MEGA PACK", 25000, FormatUsdPrice(44.99m)));
-            offers.Add(new CoinPackOffer("coin_pack_50000", "towermaze.coinpack.50000", "ULTRA PACK", 50000, FormatUsdPrice(89.99m)));
-            offers.Add(new CoinPackOffer("coin_pack_100000", "towermaze.coinpack.100000", "LEGEND PACK", 100000, FormatUsdPrice(149.99m)));
+            // Coin ladder: micro-hook ($0.99) up to mega ($49.99). Rate climbs
+            // monotonically with tier so each step up feels like a better deal.
+            offers.Add(new CoinPackOffer("coin_pack_1000", "towermaze.coinpack.1000", "STARTER PACK", 800, FormatUsdPrice(0.99m)));
+            offers.Add(new CoinPackOffer("coin_pack_5000", "towermaze.coinpack.5000", "SUPPORT PACK", 3500, FormatUsdPrice(2.99m)));
+            offers.Add(new CoinPackOffer("coin_pack_10000", "towermaze.coinpack.10000", "BOOST PACK", 6500, FormatUsdPrice(4.99m)));
+            offers.Add(new CoinPackOffer("coin_pack_25000", "towermaze.coinpack.25000", "MEGA PACK", 15000, FormatUsdPrice(9.99m)));
+            offers.Add(new CoinPackOffer("coin_pack_50000", "towermaze.coinpack.50000", "ULTRA PACK", 35000, FormatUsdPrice(19.99m)));
+            offers.Add(new CoinPackOffer("coin_pack_100000", "towermaze.coinpack.100000", "LEGEND PACK", 100000, FormatUsdPrice(49.99m)));
             OffersChanged?.Invoke();
         }
     }
